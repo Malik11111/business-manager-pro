@@ -447,6 +447,43 @@
 
     </div><!-- /view-pharmacie -->
 
+    <!-- ════════════════════════════════════════════════
+         VUE : ADMIN
+    ════════════════════════════════════════════════ -->
+    <div id="view-admin" class="module-view hidden">
+      <div class="module-header">
+        <h2>👑 Administration</h2>
+        <div class="toolbar-right">
+          <button class="btn btn-green" onclick="showCreateUserModal()">+ Creer un utilisateur</button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:12px">Utilisateurs</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Etablissements</th>
+              <th>Cree le</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-body2"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:16px;padding:16px;background:#f5f0ff;border-left:4px solid #7C4DFF;">
+        <h3 style="margin:0 0 8px">Roles</h3>
+        <p style="margin:0;font-size:0.9em"><strong>Super Admin</strong> — Cree/supprime admins et utilisateurs, gere tous les etablissements</p>
+        <p style="margin:4px 0;font-size:0.9em"><strong>Admin</strong> — Cree des utilisateurs, assigne des etablissements</p>
+        <p style="margin:4px 0;font-size:0.9em"><strong>Utilisateur</strong> — Utilise l'application dans ses etablissements</p>
+        <p style="margin:8px 0 0;font-size:0.85em;color:#666"><em>Le premier compte inscrit recoit automatiquement le role Super Admin.</em></p>
+      </div>
+    </div>
+
   </main>
 </div>
 

@@ -39,6 +39,17 @@ def unauthorized():
 
 with app.app_context():
     db.create_all()
+    # Migration : ajouter colonne role si elle n'existe pas
+    try:
+        from sqlalchemy import text
+        db.session.execute(text("SELECT role FROM users LIMIT 1"))
+    except Exception:
+        db.session.rollback()
+        try:
+            db.session.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 # ══════════════════════════════════════════════════════
@@ -75,7 +86,9 @@ def auth_register():
     if User.query.filter_by(email=email).first():
         return jsonify({'error': 'Cet email est deja utilise.'}), 409
 
-    user = User(name=name, email=email)
+    # Premier utilisateur = superadmin
+    is_first = User.query.count() == 0
+    user = User(name=name, email=email, role='superadmin' if is_first else 'user')
     user.set_password(password)
     db.session.add(user)
     db.session.flush()
@@ -85,7 +98,7 @@ def auth_register():
     db.session.add(etab)
     db.session.commit()
 
-    return jsonify({'ok': True}), 201
+    return jsonify({'ok': True, 'role': user.role}), 201
 
 
 @app.route('/auth/login', methods=['POST'])
@@ -99,7 +112,7 @@ def auth_login():
         return jsonify({'error': 'Email ou mot de passe incorrect.'}), 401
 
     login_user(user, remember=True)
-    return jsonify({'ok': True, 'name': user.name})
+    return jsonify({'ok': True, 'name': user.name, 'role': user.role})
 
 
 @app.route('/auth/logout', methods=['POST'])
@@ -112,7 +125,7 @@ def auth_logout():
 @app.route('/auth/me')
 @login_required
 def auth_me():
-    return jsonify({'id': current_user.id, 'name': current_user.name, 'email': current_user.email})
+    return jsonify({'id': current_user.id, 'name': current_user.name, 'email': current_user.email, 'role': current_user.role})
 
 
 # ══════════════════════════════════════════════════════
@@ -692,6 +705,152 @@ def api_pharma_retirer_perimes():
         db.session.delete(p)
     db.session.commit()
     return jsonify({'ok': True, 'count': count})
+
+
+# ══════════════════════════════════════════════════════
+#  API ADMIN
+# ══════════════════════════════════════════════════════
+
+def require_admin(f):
+    """Decorateur : necessite le role admin ou superadmin."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_admin():
+            return jsonify({'error': 'Acces refuse. Droits administrateur requis.'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+def require_superadmin(f):
+    """Decorateur : necessite le role superadmin."""
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_superadmin():
+            return jsonify({'error': 'Acces refuse. Droits super-administrateur requis.'}), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+@require_admin
+def api_admin_list_users():
+    """Liste tous les utilisateurs (admin+ seulement)."""
+    users = User.query.order_by(User.created_at).all()
+    result = []
+    for u in users:
+        etabs = Etablissement.query.filter_by(user_id=u.id).all()
+        result.append({
+            **u.to_dict(),
+            'etablissements': [{'id': e.id, 'name': e.name} for e in etabs]
+        })
+    return jsonify(result)
+
+
+@app.route('/api/admin/users', methods=['POST'])
+@login_required
+@require_admin
+def api_admin_create_user():
+    """Creer un utilisateur (admin+ seulement)."""
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+    role = data.get('role', 'user')
+
+    if not name or not email or len(password) < 6:
+        return jsonify({'error': 'Nom, email et mot de passe (min 6 car.) requis.'}), 400
+
+    # Seul superadmin peut creer des admin/superadmin
+    if role in ('admin', 'superadmin') and not current_user.is_superadmin():
+        return jsonify({'error': 'Seul un super-admin peut creer des administrateurs.'}), 403
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Cet email est deja utilise.'}), 409
+
+    user = User(name=name, email=email, role=role)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.flush()
+
+    # Creer un etablissement par defaut
+    etab = Etablissement(name='Etablissement principal', user_id=user.id, is_current=True)
+    db.session.add(etab)
+    db.session.commit()
+
+    return jsonify(user.to_dict()), 201
+
+
+@app.route('/api/admin/users/<int:uid>', methods=['PUT'])
+@login_required
+@require_admin
+def api_admin_update_user(uid):
+    """Modifier un utilisateur (role, nom, etc.)."""
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify({'error': 'Utilisateur introuvable.'}), 404
+
+    data = request.get_json()
+
+    # Changer le role : superadmin only
+    new_role = data.get('role')
+    if new_role and new_role != user.role:
+        if not current_user.is_superadmin():
+            return jsonify({'error': 'Seul un super-admin peut changer les roles.'}), 403
+        if new_role not in ('user', 'admin', 'superadmin'):
+            return jsonify({'error': 'Role invalide.'}), 400
+        user.role = new_role
+
+    if 'name' in data:
+        user.name = data['name'].strip()
+    if 'email' in data:
+        existing = User.query.filter_by(email=data['email'].strip().lower()).first()
+        if existing and existing.id != uid:
+            return jsonify({'error': 'Email deja utilise.'}), 409
+        user.email = data['email'].strip().lower()
+    if data.get('password') and len(data['password']) >= 6:
+        user.set_password(data['password'])
+
+    db.session.commit()
+    return jsonify(user.to_dict())
+
+
+@app.route('/api/admin/users/<int:uid>', methods=['DELETE'])
+@login_required
+@require_superadmin
+def api_admin_delete_user(uid):
+    """Supprimer un utilisateur (superadmin only)."""
+    if uid == current_user.id:
+        return jsonify({'error': 'Impossible de se supprimer soi-meme.'}), 400
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify({'error': 'Utilisateur introuvable.'}), 404
+    # Supprimer ses etablissements (cascade supprime tout le reste)
+    for etab in user.etablissements:
+        db.session.delete(etab)
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/admin/users/<int:uid>/etabs', methods=['POST'])
+@login_required
+@require_admin
+def api_admin_assign_etab(uid):
+    """Creer un etablissement pour un utilisateur."""
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify({'error': 'Utilisateur introuvable.'}), 404
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Nom requis.'}), 400
+    etab = Etablissement(name=name, user_id=uid, is_current=False)
+    db.session.add(etab)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': etab.id, 'name': etab.name}), 201
 
 
 # ══════════════════════════════════════════════════════

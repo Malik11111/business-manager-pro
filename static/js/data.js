@@ -163,6 +163,25 @@ async function retirerPerimesAPI() {
   return await api('/api/pharmacie/retirer-perimes', 'POST');
 }
 
+/* ── Admin ────────────────────────────────────────── */
+let _currentUserRole = 'user';
+
+async function fetchCurrentUser() {
+  const me = await api('/auth/me');
+  _currentUserRole = me.role || 'user';
+  return me;
+}
+
+function getCurrentUserRole() { return _currentUserRole; }
+function isAdmin() { return _currentUserRole === 'admin' || _currentUserRole === 'superadmin'; }
+function isSuperAdmin() { return _currentUserRole === 'superadmin'; }
+
+async function getAdminUsersAPI() { return await api('/api/admin/users'); }
+async function createAdminUserAPI(data) { return await api('/api/admin/users', 'POST', data); }
+async function updateAdminUserAPI(uid, data) { return await api(`/api/admin/users/${uid}`, 'PUT', data); }
+async function deleteAdminUserAPI(uid) { return await api(`/api/admin/users/${uid}`, 'DELETE'); }
+async function assignEtabToUserAPI(uid, name) { return await api(`/api/admin/users/${uid}/etabs`, 'POST', { name }); }
+
 /* ── UUID simple (pour compatibilite frontend) ────── */
 function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {

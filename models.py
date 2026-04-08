@@ -14,6 +14,7 @@ class User(UserMixin, db.Model):
     name = db.Column(db.String(120), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    role = db.Column(db.String(20), default='user')  # superadmin, admin, user
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     etablissements = db.relationship('Etablissement', backref='owner', lazy=True)
@@ -23,6 +24,18 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    def is_superadmin(self):
+        return self.role == 'superadmin'
+
+    def is_admin(self):
+        return self.role in ('admin', 'superadmin')
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'name': self.name, 'email': self.email,
+            'role': self.role, 'created_at': self.created_at.isoformat() if self.created_at else ''
+        }
 
 
 class Etablissement(db.Model):

@@ -20,11 +20,25 @@ let _activeModule = 'prestataires';
 
 /* ── Demarrage ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
+  await fetchCurrentUser();
   buildSidebar();
   await buildEtabSelector();
   bindEvents();
+  updateHeaderForRole();
   navigateTo('prestataires');
 });
+
+/* ── Affichage conditionnel selon le role ───────────────── */
+function updateHeaderForRole() {
+  const adminBtn = document.getElementById('btn-admin-panel');
+  if (adminBtn) adminBtn.classList.toggle('hidden', !isAdmin());
+  const roleTag = document.getElementById('user-role-tag');
+  if (roleTag) {
+    const role = getCurrentUserRole();
+    roleTag.textContent = role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Admin' : '';
+    roleTag.classList.toggle('hidden', role === 'user');
+  }
+}
 
 /* ── Sidebar ────────────────────────────────────────────── */
 function buildSidebar() {
@@ -39,6 +53,15 @@ function buildSidebar() {
       ${!m.ready ? '<span class="soon">bientot</span>' : ''}
     </div>
   `).join('');
+  // Ajouter Admin si le role est admin+
+  if (isAdmin()) {
+    nav.innerHTML += `
+      <div class="sidebar-section" style="margin-top:16px">Administration</div>
+      <div class="sidebar-item" id="nav-admin" onclick="navigateTo('admin')" title="Administration">
+        <span class="icon">👑</span>
+        <span>Admin</span>
+      </div>`;
+  }
 }
 
 function navigateTo(moduleId) {
@@ -67,6 +90,8 @@ function navigateTo(moduleId) {
       }
     } else if (moduleId === 'pharmacie') {
       initPharmacie();
+    } else if (moduleId === 'admin') {
+      initAdminPanel();
     }
   }
 }
@@ -188,6 +213,125 @@ function saveAll() {
 /* ── Deconnexion ────────────────────────────────────────── */
 function doLogout() {
   logout();
+}
+
+/* ══════════════════════════════════════════════════════════
+   ADMIN PANEL
+══════════════════════════════════════════════════════════ */
+
+let _adminUsers = [];
+
+async function initAdminPanel() {
+  if (!isAdmin()) return;
+  try {
+    _adminUsers = await getAdminUsersAPI();
+    renderAdminUsers();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function renderAdminUsers() {
+  const tbody = document.getElementById('admin-users-body2');
+  if (!tbody) return;
+  if (_adminUsers.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999">Aucun utilisateur.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = _adminUsers.map(u => {
+    const roleBadge = u.role === 'superadmin' ? '<span class="badge badge-superadmin">Super Admin</span>'
+                    : u.role === 'admin' ? '<span class="badge badge-admin">Admin</span>'
+                    : '<span class="badge badge-user">Utilisateur</span>';
+    const etabList = u.etablissements.map(e => e.name).join(', ') || '<em>Aucun</em>';
+    const canDelete = isSuperAdmin() && u.role !== 'superadmin';
+    return `<tr>
+      <td><strong>${esc(u.name)}</strong></td>
+      <td>${esc(u.email)}</td>
+      <td>${roleBadge}</td>
+      <td style="font-size:0.85em">${etabList}</td>
+      <td style="font-size:0.85em">${u.created_at ? u.created_at.slice(0,10) : ''}</td>
+      <td>
+        ${isSuperAdmin() ? `<button class="btn-table blue" onclick="editAdminUser(${u.id})">✏️</button>` : ''}
+        ${isSuperAdmin() ? `<button class="btn-table" onclick="addEtabForUser(${u.id})" title="Ajouter un etablissement">🏢+</button>` : ''}
+        ${canDelete ? `<button class="btn-table red" onclick="deleteAdminUser(${u.id},'${esc(u.name)}')">🗑️</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function showCreateUserModal() {
+  const name = prompt('Nom complet :');
+  if (!name?.trim()) return;
+  const email = prompt('Email :');
+  if (!email?.trim()) return;
+  const password = prompt('Mot de passe (min 6 car.) :');
+  if (!password || password.length < 6) { showToast('Mot de passe trop court (min 6).', 'error'); return; }
+
+  let role = 'user';
+  if (isSuperAdmin()) {
+    const r = prompt('Role (user / admin / superadmin) :', 'user');
+    if (r && ['user', 'admin', 'superadmin'].includes(r)) role = r;
+  }
+
+  try {
+    await createAdminUserAPI({ name: name.trim(), email: email.trim(), password, role });
+    showToast(`Utilisateur "${name.trim()}" cree (${role}).`, 'success');
+    await initAdminPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function editAdminUser(uid) {
+  const user = _adminUsers.find(u => u.id === uid);
+  if (!user) return;
+
+  const name = prompt('Nom :', user.name);
+  if (name === null) return;
+  const email = prompt('Email :', user.email);
+  if (email === null) return;
+  const password = prompt('Nouveau mot de passe (laisser vide pour ne pas changer) :', '');
+
+  let role = user.role;
+  if (isSuperAdmin()) {
+    const r = prompt('Role (user / admin / superadmin) :', user.role);
+    if (r && ['user', 'admin', 'superadmin'].includes(r)) role = r;
+  }
+
+  const updates = { name: name.trim(), email: email.trim(), role };
+  if (password && password.length >= 6) updates.password = password;
+
+  try {
+    await updateAdminUserAPI(uid, updates);
+    showToast('Utilisateur modifie.', 'success');
+    await initAdminPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteAdminUser(uid, name) {
+  if (!confirmAction(`Supprimer l'utilisateur "${name}" et TOUTES ses donnees ?`)) return;
+  try {
+    await deleteAdminUserAPI(uid);
+    showToast('Utilisateur supprime.', 'warning');
+    await initAdminPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function addEtabForUser(uid) {
+  const user = _adminUsers.find(u => u.id === uid);
+  const name = prompt(`Nom du nouvel etablissement pour ${user?.name || 'cet utilisateur'} :`);
+  if (!name?.trim()) return;
+  try {
+    await assignEtabToUserAPI(uid, name.trim());
+    showToast(`Etablissement "${name.trim()}" cree.`, 'success');
+    await initAdminPanel();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 /* ── Demo data ──────────────────────────────────────────── */
