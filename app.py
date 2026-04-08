@@ -1,0 +1,858 @@
+"""
+Business Manager Pro — Flask Backend
+Sert l'application web + API REST + authentification
+"""
+
+from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from config import Config
+from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePresta
+from models import Personnel, Unite, Materiel
+from models import PharmaStock, PharmaMouvement, PharmaArchive
+import json
+
+# ── App factory ───────────────────────────────────────
+
+app = Flask(__name__)
+app.config.from_object(Config)
+
+db.init_app(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login_page'
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Non autorise'}), 401
+    return redirect(url_for('login_page'))
+
+
+# ── Creer les tables au demarrage ─────────────────────
+
+with app.app_context():
+    db.create_all()
+
+
+# ══════════════════════════════════════════════════════
+#  PAGES
+# ══════════════════════════════════════════════════════
+
+@app.route('/')
+@login_required
+def index():
+    return render_template('app.html')
+
+
+@app.route('/login')
+def login_page():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    return render_template('login.html')
+
+
+# ══════════════════════════════════════════════════════
+#  AUTH API
+# ══════════════════════════════════════════════════════
+
+@app.route('/auth/register', methods=['POST'])
+def auth_register():
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+
+    if not name or not email or len(password) < 6:
+        return jsonify({'error': 'Tous les champs sont requis (mot de passe min. 6 caracteres).'}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({'error': 'Cet email est deja utilise.'}), 409
+
+    user = User(name=name, email=email)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.flush()
+
+    # Creer un etablissement par defaut
+    etab = Etablissement(name='Etablissement principal', user_id=user.id, is_current=True)
+    db.session.add(etab)
+    db.session.commit()
+
+    return jsonify({'ok': True}), 201
+
+
+@app.route('/auth/login', methods=['POST'])
+def auth_login():
+    data = request.get_json()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.check_password(password):
+        return jsonify({'error': 'Email ou mot de passe incorrect.'}), 401
+
+    login_user(user, remember=True)
+    return jsonify({'ok': True, 'name': user.name})
+
+
+@app.route('/auth/logout', methods=['POST'])
+@login_required
+def auth_logout():
+    logout_user()
+    return jsonify({'ok': True})
+
+
+@app.route('/auth/me')
+@login_required
+def auth_me():
+    return jsonify({'id': current_user.id, 'name': current_user.name, 'email': current_user.email})
+
+
+# ══════════════════════════════════════════════════════
+#  HELPERS
+# ══════════════════════════════════════════════════════
+
+def get_current_etab():
+    """Retourne l'etablissement actif de l'utilisateur courant."""
+    etab = Etablissement.query.filter_by(user_id=current_user.id, is_current=True).first()
+    if not etab:
+        etab = Etablissement.query.filter_by(user_id=current_user.id).first()
+        if etab:
+            etab.is_current = True
+            db.session.commit()
+    return etab
+
+
+def user_etabs():
+    """Tous les etablissements de l'utilisateur."""
+    return Etablissement.query.filter_by(user_id=current_user.id).order_by(Etablissement.id).all()
+
+
+# ══════════════════════════════════════════════════════
+#  API ETABLISSEMENTS
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/etablissements', methods=['GET'])
+@login_required
+def api_get_etablissements():
+    etabs = user_etabs()
+    current = get_current_etab()
+    return jsonify({
+        'list': [{'id': e.id, 'name': e.name} for e in etabs],
+        'current': {'id': current.id, 'name': current.name} if current else None
+    })
+
+
+@app.route('/api/etablissements', methods=['POST'])
+@login_required
+def api_add_etablissement():
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Nom requis.'}), 400
+
+    existing = Etablissement.query.filter_by(user_id=current_user.id, name=name).first()
+    if existing:
+        return jsonify({'error': 'Cet etablissement existe deja.'}), 409
+
+    # Desactiver l'ancien courant
+    Etablissement.query.filter_by(user_id=current_user.id, is_current=True).update({'is_current': False})
+    etab = Etablissement(name=name, user_id=current_user.id, is_current=True)
+    db.session.add(etab)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': etab.id, 'name': etab.name}), 201
+
+
+@app.route('/api/etablissements/<int:eid>/select', methods=['POST'])
+@login_required
+def api_select_etablissement(eid):
+    etab = Etablissement.query.filter_by(id=eid, user_id=current_user.id).first()
+    if not etab:
+        return jsonify({'error': 'Introuvable.'}), 404
+    Etablissement.query.filter_by(user_id=current_user.id, is_current=True).update({'is_current': False})
+    etab.is_current = True
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/etablissements/<int:eid>', methods=['PUT'])
+@login_required
+def api_rename_etablissement(eid):
+    etab = Etablissement.query.filter_by(id=eid, user_id=current_user.id).first()
+    if not etab:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Nom requis.'}), 400
+    etab.name = name
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/etablissements/<int:eid>', methods=['DELETE'])
+@login_required
+def api_delete_etablissement(eid):
+    etabs = user_etabs()
+    if len(etabs) <= 1:
+        return jsonify({'error': 'Impossible de supprimer le seul etablissement.'}), 400
+    etab = Etablissement.query.filter_by(id=eid, user_id=current_user.id).first()
+    if not etab:
+        return jsonify({'error': 'Introuvable.'}), 404
+    was_current = etab.is_current
+    db.session.delete(etab)
+    if was_current:
+        other = Etablissement.query.filter_by(user_id=current_user.id).first()
+        if other:
+            other.is_current = True
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ══════════════════════════════════════════════════════
+#  API PRESTATAIRES
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/prestataires', methods=['GET'])
+@login_required
+def api_get_prestataires():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    prestas = Prestataire.query.filter_by(etab_id=etab.id).order_by(Prestataire.nom).all()
+    return jsonify([p.to_dict() for p in prestas])
+
+
+@app.route('/api/prestataires', methods=['POST'])
+@login_required
+def api_add_prestataire():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Aucun etablissement.'}), 400
+    data = request.get_json()
+    p = Prestataire(
+        etab_id=etab.id,
+        nom=data.get('nom', ''),
+        service=data.get('service', ''),
+        contact=data.get('contact', ''),
+        email=data.get('email', ''),
+        telephone=data.get('telephone', ''),
+        date_debut=data.get('date_debut', ''),
+        date_fin=data.get('date_fin', ''),
+        montant=data.get('montant', 0),
+        frequence=data.get('frequence', ''),
+        prestations=data.get('prestations', ''),
+        notes=data.get('notes', '')
+    )
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(p.to_dict()), 201
+
+
+@app.route('/api/prestataires/<int:pid>', methods=['PUT'])
+@login_required
+def api_update_prestataire(pid):
+    etab = get_current_etab()
+    p = Prestataire.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not p:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    for field in ['nom', 'service', 'contact', 'email', 'telephone', 'date_debut', 'date_fin', 'montant', 'frequence', 'prestations', 'notes']:
+        if field in data:
+            setattr(p, field, data[field])
+    db.session.commit()
+    return jsonify(p.to_dict())
+
+
+@app.route('/api/prestataires/<int:pid>', methods=['DELETE'])
+@login_required
+def api_delete_prestataire(pid):
+    etab = get_current_etab()
+    p = Prestataire.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not p:
+        return jsonify({'error': 'Introuvable.'}), 404
+    # Deplacer en corbeille
+    corb = CorbeillePresta(
+        etab_id=etab.id, nom=p.nom, service=p.service,
+        montant=p.montant, data_json=json.dumps(p.to_dict())
+    )
+    db.session.add(corb)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# Evaluations
+@app.route('/api/prestataires/<int:pid>/evaluations', methods=['POST'])
+@login_required
+def api_add_evaluation(pid):
+    etab = get_current_etab()
+    p = Prestataire.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not p:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    ev = Evaluation(presta_id=pid, date=data.get('date', ''), note=data.get('note', 4), commentaire=data.get('commentaire', ''))
+    db.session.add(ev)
+    db.session.commit()
+    return jsonify(ev.to_dict()), 201
+
+
+@app.route('/api/evaluations/<int:eid>', methods=['DELETE'])
+@login_required
+def api_delete_evaluation(eid):
+    ev = Evaluation.query.get(eid)
+    if not ev:
+        return jsonify({'error': 'Introuvable.'}), 404
+    db.session.delete(ev)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# Corbeille prestas
+@app.route('/api/corbeille/prestataires', methods=['GET'])
+@login_required
+def api_get_corbeille_prestas():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = CorbeillePresta.query.filter_by(etab_id=etab.id).order_by(CorbeillePresta.deleted_at.desc()).all()
+    return jsonify([c.to_dict() for c in items])
+
+
+@app.route('/api/corbeille/prestataires/<int:cid>/restore', methods=['POST'])
+@login_required
+def api_restore_prestataire(cid):
+    etab = get_current_etab()
+    c = CorbeillePresta.query.filter_by(id=cid, etab_id=etab.id).first()
+    if not c:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = json.loads(c.data_json)
+    p = Prestataire(
+        etab_id=etab.id, nom=data.get('nom', ''), service=data.get('service', ''),
+        contact=data.get('contact', ''), email=data.get('email', ''),
+        telephone=data.get('telephone', ''), date_debut=data.get('date_debut', ''),
+        date_fin=data.get('date_fin', ''), montant=data.get('montant', 0),
+        frequence=data.get('frequence', ''), prestations=data.get('prestations', ''),
+        notes=data.get('notes', '')
+    )
+    db.session.add(p)
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify(p.to_dict()), 201
+
+
+# ══════════════════════════════════════════════════════
+#  API ACTIFS — Personnel
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/personnel', methods=['GET'])
+@login_required
+def api_get_personnel():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = Personnel.query.filter_by(etab_id=etab.id).order_by(Personnel.nom).all()
+    return jsonify([p.to_dict() for p in items])
+
+
+@app.route('/api/personnel', methods=['POST'])
+@login_required
+def api_add_personnel():
+    etab = get_current_etab()
+    data = request.get_json()
+    p = Personnel(etab_id=etab.id, nom=data.get('nom', ''), prenom=data.get('prenom', ''),
+                  type_contrat=data.get('type_contrat', ''), poste=data.get('poste', ''),
+                  lieu=data.get('lieu', ''), date_arrivee=data.get('date_arrivee', ''),
+                  date_depart=data.get('date_depart', ''))
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(p.to_dict()), 201
+
+
+@app.route('/api/personnel/<int:pid>', methods=['PUT'])
+@login_required
+def api_update_personnel(pid):
+    etab = get_current_etab()
+    p = Personnel.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not p:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    for f in ['nom', 'prenom', 'type_contrat', 'poste', 'lieu', 'date_arrivee', 'date_depart']:
+        if f in data:
+            setattr(p, f, data[f])
+    db.session.commit()
+    return jsonify(p.to_dict())
+
+
+@app.route('/api/personnel/<int:pid>', methods=['DELETE'])
+@login_required
+def api_delete_personnel(pid):
+    etab = get_current_etab()
+    p = Personnel.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not p:
+        return jsonify({'error': 'Introuvable.'}), 404
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ══════════════════════════════════════════════════════
+#  API ACTIFS — Unites
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/unites', methods=['GET'])
+@login_required
+def api_get_unites():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = Unite.query.filter_by(etab_id=etab.id).order_by(Unite.nom).all()
+    return jsonify([u.to_dict() for u in items])
+
+
+@app.route('/api/unites', methods=['POST'])
+@login_required
+def api_add_unite():
+    etab = get_current_etab()
+    data = request.get_json()
+    u = Unite(etab_id=etab.id, nom=data.get('nom', ''), description=data.get('description', ''),
+              emplacement=data.get('emplacement', ''))
+    db.session.add(u)
+    db.session.commit()
+    return jsonify(u.to_dict()), 201
+
+
+@app.route('/api/unites/<int:uid>', methods=['PUT'])
+@login_required
+def api_update_unite(uid):
+    etab = get_current_etab()
+    u = Unite.query.filter_by(id=uid, etab_id=etab.id).first()
+    if not u:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    for f in ['nom', 'description', 'emplacement']:
+        if f in data:
+            setattr(u, f, data[f])
+    db.session.commit()
+    return jsonify(u.to_dict())
+
+
+@app.route('/api/unites/<int:uid>', methods=['DELETE'])
+@login_required
+def api_delete_unite(uid):
+    etab = get_current_etab()
+    u = Unite.query.filter_by(id=uid, etab_id=etab.id).first()
+    if not u:
+        return jsonify({'error': 'Introuvable.'}), 404
+    db.session.delete(u)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ══════════════════════════════════════════════════════
+#  API ACTIFS — Materiels
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/materiels', methods=['GET'])
+@login_required
+def api_get_materiels():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = Materiel.query.filter_by(etab_id=etab.id).order_by(Materiel.nom).all()
+    return jsonify([m.to_dict() for m in items])
+
+
+@app.route('/api/materiels', methods=['POST'])
+@login_required
+def api_add_materiel():
+    etab = get_current_etab()
+    data = request.get_json()
+    m = Materiel(etab_id=etab.id, nom=data.get('nom', ''), reference=data.get('reference', ''),
+                 type_materiel=data.get('type_materiel', ''), date_achat=data.get('date_achat', ''),
+                 cout=data.get('cout', 0), duree_amortissement=data.get('duree_amortissement', 5),
+                 statut=data.get('statut', 'En service'), attribue_a=data.get('attribue_a', ''),
+                 notes=data.get('notes', ''))
+    db.session.add(m)
+    db.session.commit()
+    return jsonify(m.to_dict()), 201
+
+
+@app.route('/api/materiels/<int:mid>', methods=['PUT'])
+@login_required
+def api_update_materiel(mid):
+    etab = get_current_etab()
+    m = Materiel.query.filter_by(id=mid, etab_id=etab.id).first()
+    if not m:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    for f in ['nom', 'reference', 'type_materiel', 'date_achat', 'cout', 'duree_amortissement', 'statut', 'attribue_a', 'notes']:
+        if f in data:
+            setattr(m, f, data[f])
+    db.session.commit()
+    return jsonify(m.to_dict())
+
+
+@app.route('/api/materiels/<int:mid>', methods=['DELETE'])
+@login_required
+def api_delete_materiel(mid):
+    etab = get_current_etab()
+    m = Materiel.query.filter_by(id=mid, etab_id=etab.id).first()
+    if not m:
+        return jsonify({'error': 'Introuvable.'}), 404
+    db.session.delete(m)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ══════════════════════════════════════════════════════
+#  API PHARMACIE — Stock
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/pharmacie/stock', methods=['GET'])
+@login_required
+def api_get_pharma_stock():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = PharmaStock.query.filter_by(etab_id=etab.id).order_by(PharmaStock.nom_medicament).all()
+    return jsonify([s.to_dict() for s in items])
+
+
+@app.route('/api/pharmacie/stock', methods=['POST'])
+@login_required
+def api_add_pharma_stock():
+    etab = get_current_etab()
+    data = request.get_json()
+    nom = data.get('nom_medicament', '')
+    lot = data.get('lot', '')
+    per = data.get('date_peremption', '')
+
+    # Verifier duplicat
+    existing = PharmaStock.query.filter_by(etab_id=etab.id, nom_medicament=nom, lot=lot, date_peremption=per).first()
+    if existing:
+        existing.quantite += data.get('quantite', 1)
+        db.session.commit()
+        s = existing
+    else:
+        s = PharmaStock(
+            etab_id=etab.id, nom_medicament=nom, lot=lot, date_peremption=per,
+            quantite=data.get('quantite', 1), stock_minimum=data.get('stock_minimum', 0),
+            emplacement=data.get('emplacement', ''), personne_entree=data.get('personne_entree', ''),
+            date_ajout=data.get('date_ajout', ''), derniere_sortie=''
+        )
+        db.session.add(s)
+        db.session.commit()
+
+    # Mouvement reception
+    mv = PharmaMouvement(
+        etab_id=etab.id, type='reception', nom_medicament=nom,
+        quantite=data.get('quantite', 1), personne=data.get('personne_entree', ''),
+        role=data.get('personne_entree', ''), date_mouvement=data.get('date_ajout', ''),
+        heure=data.get('heure', '')
+    )
+    db.session.add(mv)
+    db.session.commit()
+    return jsonify(s.to_dict()), 201
+
+
+@app.route('/api/pharmacie/stock/<int:sid>', methods=['PUT'])
+@login_required
+def api_update_pharma_stock(sid):
+    etab = get_current_etab()
+    s = PharmaStock.query.filter_by(id=sid, etab_id=etab.id).first()
+    if not s:
+        return jsonify({'error': 'Introuvable.'}), 404
+    data = request.get_json()
+    for f in ['nom_medicament', 'lot', 'date_peremption', 'quantite', 'stock_minimum', 'emplacement', 'personne_entree', 'date_ajout']:
+        if f in data:
+            setattr(s, f, data[f])
+    db.session.commit()
+    return jsonify(s.to_dict())
+
+
+@app.route('/api/pharmacie/stock/<int:sid>', methods=['DELETE'])
+@login_required
+def api_delete_pharma_stock(sid):
+    etab = get_current_etab()
+    s = PharmaStock.query.filter_by(id=sid, etab_id=etab.id).first()
+    if not s:
+        return jsonify({'error': 'Introuvable.'}), 404
+    # Archive
+    a = PharmaArchive(etab_id=etab.id, nom_medicament=s.nom_medicament, lot=s.lot,
+                      date_peremption=s.date_peremption, quantite=s.quantite,
+                      emplacement=s.emplacement, date_suppression=data_today())
+    db.session.add(a)
+    db.session.delete(s)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# Sortie
+@app.route('/api/pharmacie/sortie', methods=['POST'])
+@login_required
+def api_pharma_sortie():
+    etab = get_current_etab()
+    data = request.get_json()
+    nom = data.get('nom_medicament', '')
+    qte = data.get('quantite', 0)
+    personne = data.get('personne', '')
+
+    # FIFO
+    candidates = PharmaStock.query.filter_by(etab_id=etab.id, nom_medicament=nom)\
+        .filter(PharmaStock.quantite > 0).order_by(PharmaStock.date_peremption).all()
+
+    total_dispo = sum(c.quantite for c in candidates)
+    if qte > total_dispo:
+        return jsonify({'error': f'Stock insuffisant (disponible : {total_dispo}).'}), 400
+
+    restant = qte
+    for c in candidates:
+        if restant <= 0:
+            break
+        retire = min(restant, c.quantite)
+        c.quantite -= retire
+        c.derniere_sortie = data_today()
+        restant -= retire
+
+    # Supprimer stock a 0
+    PharmaStock.query.filter_by(etab_id=etab.id, nom_medicament=nom).filter(PharmaStock.quantite <= 0).delete()
+
+    # Mouvement
+    mv = PharmaMouvement(
+        etab_id=etab.id, type='sortie', nom_medicament=nom,
+        quantite=qte, personne=personne, role=personne,
+        date_mouvement=data_today(), heure=data.get('heure', '')
+    )
+    db.session.add(mv)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# Mouvements
+@app.route('/api/pharmacie/mouvements', methods=['GET'])
+@login_required
+def api_get_pharma_mouvements():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = PharmaMouvement.query.filter_by(etab_id=etab.id)\
+        .order_by(PharmaMouvement.date_mouvement.desc(), PharmaMouvement.id.desc()).all()
+    return jsonify([m.to_dict() for m in items])
+
+
+# Archive
+@app.route('/api/pharmacie/archive', methods=['GET'])
+@login_required
+def api_get_pharma_archive():
+    etab = get_current_etab()
+    if not etab:
+        return jsonify([])
+    items = PharmaArchive.query.filter_by(etab_id=etab.id).all()
+    return jsonify([a.to_dict() for a in items])
+
+
+@app.route('/api/pharmacie/archive/<int:aid>/restore', methods=['POST'])
+@login_required
+def api_restore_pharma(aid):
+    etab = get_current_etab()
+    a = PharmaArchive.query.filter_by(id=aid, etab_id=etab.id).first()
+    if not a:
+        return jsonify({'error': 'Introuvable.'}), 404
+    s = PharmaStock(etab_id=etab.id, nom_medicament=a.nom_medicament, lot=a.lot,
+                    date_peremption=a.date_peremption, quantite=a.quantite,
+                    emplacement=a.emplacement, date_ajout=data_today())
+    db.session.add(s)
+    db.session.delete(a)
+    db.session.commit()
+    return jsonify(s.to_dict()), 201
+
+
+# Retirer perimes
+@app.route('/api/pharmacie/retirer-perimes', methods=['POST'])
+@login_required
+def api_pharma_retirer_perimes():
+    from datetime import date
+    etab = get_current_etab()
+    today_str = date.today().isoformat()
+    perimes = PharmaStock.query.filter_by(etab_id=etab.id).filter(PharmaStock.date_peremption < today_str).all()
+    count = len(perimes)
+    for p in perimes:
+        a = PharmaArchive(etab_id=etab.id, nom_medicament=p.nom_medicament, lot=p.lot,
+                          date_peremption=p.date_peremption, quantite=p.quantite,
+                          emplacement=p.emplacement, date_suppression=today_str)
+        db.session.add(a)
+        db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True, 'count': count})
+
+
+# ══════════════════════════════════════════════════════
+#  API SEED DEMO
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/seed-demo', methods=['POST'])
+@login_required
+def api_seed_demo():
+    """Peuple l'etablissement actif avec des donnees de demonstration."""
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Aucun etablissement.'}), 400
+
+    today = data_today()
+
+    # -- Prestataires demo --
+    prestas_demo = [
+        {'nom': 'CleanPro Services', 'service': 'Nettoyage', 'contact': 'Marie Dupont',
+         'email': 'contact@cleanpro.fr', 'telephone': '01 23 45 67 89',
+         'date_debut': '2024-01-01', 'date_fin': '2026-12-31',
+         'montant': 2500, 'frequence': 'Mensuel',
+         'prestations': 'Nettoyage quotidien des locaux, bureaux et sanitaires',
+         'notes': 'Intervention le matin entre 7h et 9h'},
+        {'nom': 'TechMaint SARL', 'service': 'Maintenance', 'contact': 'Jean Martin',
+         'email': 'jean.martin@techmaint.fr', 'telephone': '06 12 34 56 78',
+         'date_debut': '2023-06-01', 'date_fin': '2025-05-31',
+         'montant': 4800, 'frequence': 'Trimestriel',
+         'prestations': 'Maintenance préventive équipements électriques et climatisation',
+         'notes': 'Astreinte 24h/24 incluse'},
+        {'nom': 'RestauCollect', 'service': 'Restauration', 'contact': 'Sophie Bernard',
+         'email': 'sophie@restaucollect.com', 'telephone': '01 98 76 54 32',
+         'date_debut': '2024-09-01', 'date_fin': '2025-08-31',
+         'montant': 12000, 'frequence': 'Mensuel',
+         'prestations': 'Fourniture et distribution des repas midi et soir',
+         'notes': 'Menu adapté régime sans porc disponible'},
+        {'nom': 'VerdiSpace', 'service': 'Espaces verts', 'contact': 'Paul Leblanc',
+         'email': 'contact@verdispace.fr', 'telephone': '06 87 65 43 21',
+         'date_debut': '2024-03-01', 'date_fin': '2025-02-28',
+         'montant': 800, 'frequence': 'Mensuel',
+         'prestations': 'Entretien jardins, tonte pelouses, taille haies',
+         'notes': 'Passage tous les 15 jours au printemps'},
+        {'nom': 'SecurGuard', 'service': 'Sécurité', 'contact': 'Ahmed Ould',
+         'email': 'a.ould@securguard.fr', 'telephone': '01 45 67 89 01',
+         'date_debut': '2023-01-01', 'date_fin': '2025-12-31',
+         'montant': 6500, 'frequence': 'Mensuel',
+         'prestations': 'Gardiennage nuit et week-end, rondes de sécurité',
+         'notes': 'Agent armé selon protocole établissement'},
+    ]
+    for d in prestas_demo:
+        if not Prestataire.query.filter_by(etab_id=etab.id, nom=d['nom']).first():
+            db.session.add(Prestataire(etab_id=etab.id, **d))
+
+    # -- Personnel demo --
+    pers_demo = [
+        {'nom': 'Durand', 'prenom': 'Claire', 'type_contrat': 'CDI', 'poste': 'Directrice',
+         'lieu': 'Bâtiment A', 'date_arrivee': '2018-09-01', 'date_depart': ''},
+        {'nom': 'Lambert', 'prenom': 'Pierre', 'type_contrat': 'CDI', 'poste': 'Infirmier',
+         'lieu': 'Infirmerie', 'date_arrivee': '2020-02-15', 'date_depart': ''},
+        {'nom': 'Moreau', 'prenom': 'Julie', 'type_contrat': 'CDD', 'poste': 'Educatrice',
+         'lieu': 'Bâtiment B', 'date_arrivee': '2024-01-10', 'date_depart': '2025-06-30'},
+        {'nom': 'Garcia', 'prenom': 'Carlos', 'type_contrat': 'CDI', 'poste': 'Agent d\'entretien',
+         'lieu': 'Bâtiment C', 'date_arrivee': '2019-05-01', 'date_depart': ''},
+    ]
+    for d in pers_demo:
+        if not Personnel.query.filter_by(etab_id=etab.id, nom=d['nom'], prenom=d['prenom']).first():
+            db.session.add(Personnel(etab_id=etab.id, **d))
+
+    # -- Unites demo --
+    unites_demo = [
+        {'nom': 'Groupe Tournesol', 'description': 'Groupe des 3-5 ans', 'emplacement': 'Bâtiment A - RDC'},
+        {'nom': 'Groupe Papillons', 'description': 'Groupe des 6-10 ans', 'emplacement': 'Bâtiment A - 1er'},
+        {'nom': 'Groupe Dauphins', 'description': 'Groupe des 11-15 ans', 'emplacement': 'Bâtiment B'},
+        {'nom': 'Unité Autonomie', 'description': 'Résidence adultes autonomes', 'emplacement': 'Bâtiment C'},
+    ]
+    for d in unites_demo:
+        if not Unite.query.filter_by(etab_id=etab.id, nom=d['nom']).first():
+            db.session.add(Unite(etab_id=etab.id, **d))
+
+    db.session.flush()
+
+    # -- Materiels demo --
+    mats_demo = [
+        {'nom': 'Ordinateur portable HP', 'reference': 'HP-2024-001', 'type_materiel': 'Informatique',
+         'date_achat': '2024-01-15', 'cout': 899, 'duree_amortissement': 5,
+         'statut': 'En service', 'attribue_a': 'Claire Durand', 'notes': 'Directrice'},
+        {'nom': 'Climatiseur Daikin Salle A', 'reference': 'DAIKIN-001', 'type_materiel': 'Équipement',
+         'date_achat': '2022-06-01', 'cout': 1800, 'duree_amortissement': 10,
+         'statut': 'En service', 'attribue_a': '', 'notes': 'Révision annuelle prévue juin'},
+        {'nom': 'Véhicule Renault Kangoo', 'reference': 'AA-123-BB', 'type_materiel': 'Véhicule',
+         'date_achat': '2021-03-10', 'cout': 18500, 'duree_amortissement': 7,
+         'statut': 'En service', 'attribue_a': 'Carlos Garcia', 'notes': 'Contrôle technique mars 2025'},
+        {'nom': 'Table de réunion 10 places', 'reference': 'MOB-007', 'type_materiel': 'Mobilier',
+         'date_achat': '2020-09-01', 'cout': 650, 'duree_amortissement': 10,
+         'statut': 'En service', 'attribue_a': '', 'notes': 'Salle de réunion RDC'},
+        {'nom': 'Lave-linge professionnel', 'reference': 'MIELE-PRO-01', 'type_materiel': 'Équipement',
+         'date_achat': '2019-11-20', 'cout': 3200, 'duree_amortissement': 8,
+         'statut': 'En maintenance', 'attribue_a': '', 'notes': 'Panne courroie — réparation en cours'},
+    ]
+    for d in mats_demo:
+        if not Materiel.query.filter_by(etab_id=etab.id, nom=d['nom']).first():
+            db.session.add(Materiel(etab_id=etab.id, **d))
+
+    # -- Pharmacie stock demo --
+    from datetime import date
+    pharma_demo = [
+        {'nom_medicament': 'Doliprane 1000mg', 'lot': 'LOT-2024-001', 'date_peremption': '2026-06-30',
+         'quantite': 48, 'stock_minimum': 10, 'emplacement': 'Armoire A - Rayon 1',
+         'personne_entree': 'Pierre Lambert', 'date_ajout': '2024-10-01'},
+        {'nom_medicament': 'Doliprane 1000mg', 'lot': 'LOT-2025-012', 'date_peremption': '2027-03-31',
+         'quantite': 24, 'stock_minimum': 10, 'emplacement': 'Armoire A - Rayon 1',
+         'personne_entree': 'Pierre Lambert', 'date_ajout': '2025-01-15'},
+        {'nom_medicament': 'Ibuprofene 400mg', 'lot': 'IBU-2024-789', 'date_peremption': '2026-09-30',
+         'quantite': 30, 'stock_minimum': 5, 'emplacement': 'Armoire A - Rayon 2',
+         'personne_entree': 'Pierre Lambert', 'date_ajout': '2024-11-01'},
+        {'nom_medicament': 'Amoxicilline 500mg', 'lot': 'AMX-2025-003', 'date_peremption': '2026-12-31',
+         'quantite': 6, 'stock_minimum': 5, 'emplacement': 'Armoire B - Rayon 1',
+         'personne_entree': 'Pierre Lambert', 'date_ajout': '2025-02-10'},
+        {'nom_medicament': 'Ventoline 100mcg', 'lot': 'VENT-2024-441', 'date_peremption': '2025-08-31',
+         'quantite': 3, 'stock_minimum': 2, 'emplacement': 'Armoire Urgences',
+         'personne_entree': 'Pierre Lambert', 'date_ajout': '2024-09-01'},
+        {'nom_medicament': 'Dafalgan 500mg', 'lot': 'DAF-2025-110', 'date_peremption': '2027-01-31',
+         'quantite': 2, 'stock_minimum': 5, 'emplacement': 'Armoire A - Rayon 1',
+         'personne_entree': 'Pierre Lambert', 'date_ajout': '2025-03-01'},
+    ]
+    for d in pharma_demo:
+        existing = PharmaStock.query.filter_by(etab_id=etab.id, nom_medicament=d['nom_medicament'], lot=d['lot']).first()
+        if not existing:
+            db.session.add(PharmaStock(etab_id=etab.id, **d))
+            mv = PharmaMouvement(etab_id=etab.id, type='reception', nom_medicament=d['nom_medicament'],
+                                 quantite=d['quantite'], personne=d['personne_entree'],
+                                 role='Infirmier', date_mouvement=d['date_ajout'], heure='09:00')
+            db.session.add(mv)
+
+    # Evaluations demo pour CleanPro
+    db.session.flush()
+    cleanpro = Prestataire.query.filter_by(etab_id=etab.id, nom='CleanPro Services').first()
+    if cleanpro and not Evaluation.query.filter_by(presta_id=cleanpro.id).first():
+        for ev in [
+            {'date': '2024-03-15', 'note': 4, 'commentaire': 'Bon travail, quelques oublis sur les sanitaires du 2ème'},
+            {'date': '2024-06-20', 'note': 5, 'commentaire': 'Excellent ce trimestre, aucun retour négatif'},
+            {'date': '2024-09-10', 'note': 3, 'commentaire': 'Remplacement agent peu efficace en août'},
+        ]:
+            db.session.add(Evaluation(presta_id=cleanpro.id, **ev))
+
+    db.session.commit()
+    return jsonify({'ok': True, 'message': 'Donnees de demonstration chargees avec succes.'})
+
+
+# ══════════════════════════════════════════════════════
+#  UTILITAIRES
+# ══════════════════════════════════════════════════════
+
+def data_today():
+    from datetime import date
+    return date.today().isoformat()
+
+
+# ══════════════════════════════════════════════════════
+#  DEMARRAGE
+# ══════════════════════════════════════════════════════
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)

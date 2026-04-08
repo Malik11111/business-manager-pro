@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Manager Pro — Web</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════ -->
+<header id="app-header">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <rect width="26" height="26" rx="6" fill="#4A148C"/>
+      <path d="M7 18 L13 7 L19 18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9.5 14 H16.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    Business Manager Pro
+  </div>
+
+  <div class="etab-selector">
+    <label>Établissement :</label>
+    <select id="etab-select" onchange="onEtabChange(this.value)"></select>
+    <button class="btn-icon green" onclick="addEtab()" title="Ajouter un établissement">+</button>
+    <button class="btn-icon blue"  onclick="renameEtab()" title="Renommer l'établissement">✏️</button>
+    <button class="btn-icon red"   onclick="removeEtab()" title="Supprimer l'établissement">✕</button>
+  </div>
+
+  <div class="header-spacer"></div>
+
+  <button class="btn-header" onclick="loadDemoData()" style="color:#1565C0" title="Charger des données de démonstration">🎲 Demo</button>
+  <button class="btn-header" onclick="doLogout()" style="color:#C62828">🚪 Déconnexion</button>
+</header>
+
+<!-- ══════════════════════════════════════════════════════
+     BODY : SIDEBAR + CONTENU
+══════════════════════════════════════════════════════ -->
+<div id="app-body">
+
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="sidebar-section">Modules</div>
+    <div id="sidebar-nav"></div>
+  </nav>
+
+  <!-- CONTENU PRINCIPAL -->
+  <main id="main-content">
+
+    <!-- ════════════════════════════════════════════════
+         VUE : PRESTATAIRES
+    ════════════════════════════════════════════════ -->
+    <div id="view-prestataires" class="module-view hidden">
+
+      <!-- Toolbar -->
+      <div class="module-toolbar">
+        <div class="filters">
+          <input  id="presta-search"         class="search-input"  type="text"  placeholder="🔍 Rechercher un prestataire...">
+          <select id="presta-service-filter"  class="filter-select"></select>
+        </div>
+        <button class="btn btn-gemini"   onclick="showToast('Scan IA Gemini — disponible avec clé API.','info')">📄 Scanner contrat IA</button>
+        <button class="btn btn-green"    onclick="openAddDialog()">➕ Ajouter</button>
+        <button class="btn btn-blue"     onclick="exportPrestataires()">📤 Exporter CSV</button>
+        <button class="btn btn-red"      onclick="showCorbeille()">🗑️ Corbeille</button>
+      </div>
+
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="presta" data-tab-id="liste"       onclick="switchTab('presta','liste')">       📋 Prestataires</button>
+        <button class="tab-btn"        data-tab-group="presta" data-tab-id="statistiques" onclick="switchTab('presta','statistiques')"> 📈 Statistiques</button>
+        <button class="tab-btn"        data-tab-group="presta" data-tab-id="analyse"      onclick="switchTab('presta','analyse')">      📊 Analyse</button>
+        <button class="tab-btn"        data-tab-group="presta" data-tab-id="contrats"     onclick="switchTab('presta','contrats')">     📄 Contrats</button>
+      </div>
+
+      <!-- ── Onglet Liste ─────────────────────────── -->
+      <div class="tab-content active" data-tab-group="presta" data-tab-id="liste">
+        <div class="table-wrapper">
+          <table id="presta-table">
+            <thead>
+              <tr>
+                <th onclick="setSortCol(0)" title="Trier par nom">Nom du prestataire</th>
+                <th onclick="setSortCol(1)" title="Trier par service">Service</th>
+                <th onclick="setSortCol(2)" title="Trier par montant">Montant €</th>
+                <th onclick="setSortCol(3)" title="Trier par date fin">Date fin</th>
+                <th onclick="setSortCol(4)" title="Jours restants">J.</th>
+                <th onclick="setSortCol(5)" title="Avancement du contrat" style="min-width:180px">Avancement</th>
+                <th>Statut</th>
+                <th>Fréquence</th>
+                <th>Note</th>
+                <th style="min-width:140px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="presta-tbody">
+              <tr class="empty-row"><td colspan="10">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Onglet Statistiques ──────────────────── -->
+      <div class="tab-content" data-tab-group="presta" data-tab-id="statistiques" style="overflow:auto">
+        <div style="padding:14px">
+          <!-- KPIs -->
+          <div class="kpi-row">
+            <div class="kpi-card"        id="kpi-total">    <div class="kpi-label">Prestataires</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card blue"   id="kpi-budget">   <div class="kpi-label">Budget annuel</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card green"  id="kpi-actifs">   <div class="kpi-label">Actifs</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card"        id="kpi-expiring"> <div class="kpi-label">Expiration &lt;30j</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card"        id="kpi-expired">  <div class="kpi-label">Expirés</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+          </div>
+
+          <!-- Tableau détaillé -->
+          <div style="background:white;border-radius:8px;border:1px solid #E0E0E0;overflow:hidden">
+            <div style="padding:12px 16px;background:#EDE7F6;font-weight:700;color:#4A148C;font-size:14px">
+              📊 Analyse détaillée et statistiques
+            </div>
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Analyse</th>
+                  <th>Résultat</th>
+                  <th>Détail / Commentaire</th>
+                </tr>
+              </thead>
+              <tbody id="stats-detail-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Onglet Analyse (graphiques) ─────────── -->
+      <div class="tab-content" data-tab-group="presta" data-tab-id="analyse">
+        <div class="charts-row">
+          <div class="chart-box">
+            <h4>💼 Budget par type de service</h4>
+            <div style="flex:1;min-height:0;position:relative">
+              <canvas id="chart-pie"></canvas>
+            </div>
+          </div>
+          <div class="chart-box">
+            <h4>🏆 Top 8 entreprises — montant annuel</h4>
+            <div style="flex:1;min-height:0;position:relative">
+              <canvas id="chart-bar"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Onglet Contrats ──────────────────────── -->
+      <div class="tab-content" data-tab-group="presta" data-tab-id="contrats" style="flex-direction:column">
+        <div class="contrats-toolbar">
+          <input class="search-input" style="width:320px" type="text" placeholder="🔍 Filtrer par prestataire, service, nom de fichier...">
+          <button class="btn btn-green" onclick="showToast('Glisser-déposer un PDF à venir.','info')">➕ Ajouter un contrat PDF</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Prestataire</th>
+                <th>Service</th>
+                <th>Nom du fichier</th>
+                <th>Date d'ajout</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="empty-row">
+                <td colspan="5">Aucun contrat PDF enregistré.<br><small>Cette fonctionnalité sera disponible prochainement.</small></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /view-prestataires -->
+
+
+    <!-- ════════════════════════════════════════════════
+         VUES PLACEHOLDER (autres modules)
+    ════════════════════════════════════════════════ -->
+    <!-- ════════════════════════════════════════════════
+         VUE : ACTIFS & INVESTISSEMENTS
+    ════════════════════════════════════════════════ -->
+    <div id="view-actifs" class="module-view hidden">
+
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="actifs" data-tab-id="personnel"     onclick="switchTab('actifs','personnel')">     👥 Personnel</button>
+        <button class="tab-btn"        data-tab-group="actifs" data-tab-id="unites"         onclick="switchTab('actifs','unites')">         🏢 Unités</button>
+        <button class="tab-btn"        data-tab-group="actifs" data-tab-id="investissement" onclick="switchTab('actifs','investissement')"> 💰 Investissement</button>
+        <button class="tab-btn"        data-tab-group="actifs" data-tab-id="sortir"         onclick="switchTab('actifs','sortir')">         🗑️ Matériel à Sortir</button>
+        <button class="tab-btn"        data-tab-group="actifs" data-tab-id="ppi"            onclick="switchTab('actifs','ppi');setTimeout(updatePPI,80)"> 📊 PPI</button>
+      </div>
+
+      <!-- ── Onglet Personnel ─────────────────────── -->
+      <div class="tab-content active" data-tab-group="actifs" data-tab-id="personnel">
+        <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <input id="personnel-search" class="search-input" style="width:260px" type="text" placeholder="🔍 Nom, prénom, poste..." oninput="filterPersonnel()">
+          <span id="personnel-count" style="font-size:12px;color:#16A085;font-weight:700">0 personne</span>
+          <div style="flex:1"></div>
+          <button class="btn btn-green" onclick="openPersonnelDialog()">➕ Ajouter</button>
+          <button class="btn btn-blue" onclick="exportCSV(_actifs.personnel.map(p=>[p.nom,p.prenom,p.type_contrat,p.poste,p.lieu]),['nom','prenom','type_contrat','poste','lieu'],'personnel_'+today()+'.csv');showToast('Export CSV téléchargé.','success')">📤 Exporter</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th style="width:40px">#</th><th>Nom</th><th>Prénom</th><th>Type contrat</th><th>Poste / Fonction</th><th>Lieu</th><th style="width:100px">Actions</th>
+            </tr></thead>
+            <tbody id="personnel-tbody"><tr class="empty-row"><td colspan="7">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Onglet Unités ────────────────────────── -->
+      <div class="tab-content" data-tab-group="actifs" data-tab-id="unites">
+        <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <input id="unites-search" class="search-input" style="width:260px" type="text" placeholder="🔍 Rechercher une unité..." oninput="filterUnites()">
+          <div style="flex:1"></div>
+          <button class="btn btn-green" onclick="openUniteDialog()">➕ Ajouter</button>
+        </div>
+        <div style="padding:6px 12px;background:#E3F2FD;border-bottom:1px solid #BBDEFB">
+          <span style="font-size:12px;color:#1976D2">💡 Les unités représentent les services, départements ou lieux de votre établissement.</span>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr><th>Nom</th><th>Description</th><th>Emplacement</th><th style="width:100px">Actions</th></tr></thead>
+            <tbody id="unites-tbody"><tr class="empty-row"><td colspan="4">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Onglet Investissement ────────────────── -->
+      <div class="tab-content" data-tab-group="actifs" data-tab-id="investissement">
+        <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <input id="materiel-search" class="search-input" style="width:220px" type="text" placeholder="🔍 Nom ou référence..." oninput="filterMateriel()">
+          <select id="materiel-type-filter" class="filter-select" onchange="filterMateriel()">
+            <option value="">Tous les types</option>
+          </select>
+          <select id="materiel-statut-filter" class="filter-select" onchange="filterMateriel()">
+            <option value="">Tous statuts</option>
+          </select>
+          <div style="flex:1"></div>
+          <button class="btn btn-gemini" onclick="showToast('Scan Facture IA — disponible avec clé API.','info')">📄 Scan Facture IA</button>
+          <button class="btn btn-green" onclick="openMaterielDialog()">➕ Ajouter</button>
+          <button class="btn btn-blue" onclick="exportActifsMateriel()">📤 Exporter</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Nom</th><th>Référence</th><th>Type</th><th>Date achat</th><th>Coût TTC</th>
+              <th>Attribué à</th><th style="min-width:150px">Amortissement</th><th>Val. nette</th><th>Statut</th><th style="width:100px">Actions</th>
+            </tr></thead>
+            <tbody id="materiel-tbody"><tr class="empty-row"><td colspan="10">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Onglet Matériel à Sortir ─────────────── -->
+      <div class="tab-content" data-tab-group="actifs" data-tab-id="sortir">
+        <div style="padding:12px 16px;background:#FFFEF7;border-bottom:1px solid #F7DC6F">
+          <div style="font-weight:700;color:#2C3E50;font-size:14px;margin-bottom:4px">🗑️ Matériel à Sortir du Bilan</div>
+          <div style="font-size:12px;color:#E74C3C">Matériel complètement amorti (valeur nette = 0 €) ou hors service.</div>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead><tr>
+              <th>Nom</th><th>Référence</th><th>Type</th><th>Prix achat</th><th>Valeur nette</th><th>Responsable</th><th>Motif</th>
+            </tr></thead>
+            <tbody id="sortir-tbody"><tr class="empty-row"><td colspan="7">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Onglet PPI ───────────────────────────── -->
+      <div class="tab-content" data-tab-group="actifs" data-tab-id="ppi" style="overflow:auto">
+        <div style="padding:14px">
+          <!-- KPIs PPI -->
+          <div class="kpi-row">
+            <div class="kpi-card blue"   id="ppi-kpi-total"><div class="kpi-label">Total renouvellement</div><div class="kpi-value">—</div><div class="kpi-sub">sur la période</div></div>
+            <div class="kpi-card green"  id="ppi-kpi-count"><div class="kpi-label">Équipements</div><div class="kpi-value">—</div><div class="kpi-sub">à renouveler</div></div>
+            <div class="kpi-card orange" id="ppi-kpi-avg">  <div class="kpi-label">Moyenne / an</div><div class="kpi-value">—</div><div class="kpi-sub">budget annuel estimé</div></div>
+            <div class="kpi-card red"    id="ppi-kpi-max">  <div class="kpi-label">Année pic</div><div class="kpi-value">—</div><div class="kpi-sub"></div></div>
+          </div>
+
+          <!-- Contrôles -->
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+            <label style="font-weight:700;font-size:13px">Année début :</label>
+            <input id="ppi-year" type="number" min="2015" max="2080" value="2026" style="width:80px;padding:6px;border:1px solid #E0E0E0;border-radius:6px;font-size:13px" onchange="updatePPI()">
+            <label style="font-weight:700;font-size:13px;margin-left:12px">Période :</label>
+            <label style="font-size:13px"><input type="radio" name="ppi-period" value="5" onchange="updatePPI()"> 5 ans</label>
+            <label style="font-size:13px"><input type="radio" name="ppi-period" value="10" checked onchange="updatePPI()"> 10 ans</label>
+          </div>
+
+          <!-- Histogramme PPI -->
+          <div class="chart-box" style="height:350px;margin-bottom:14px">
+            <h4>📊 Plan Pluriannuel d'Investissement — Renouvellements prévus</h4>
+            <div style="flex:1;min-height:0;position:relative">
+              <canvas id="chart-ppi"></canvas>
+            </div>
+          </div>
+
+          <!-- Tableau détail PPI -->
+          <div style="background:white;border-radius:8px;border:1px solid #E0E0E0;overflow:hidden">
+            <div style="padding:10px 16px;background:#E3F2FD;font-weight:700;color:#1565C0;font-size:13px">
+              📋 Détail des équipements à renouveler
+            </div>
+            <div class="table-wrapper" style="max-height:300px">
+              <table>
+                <thead><tr><th>Nom</th><th>Type</th><th>Date achat</th><th>Coût</th><th>Durée amort.</th><th>Fin amort.</th></tr></thead>
+                <tbody id="ppi-detail-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /view-actifs -->
+
+    <div id="view-cles"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🔑</div><h2>Clés</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <div id="view-stock"     class="module-view hidden"><div class="coming-soon"><div class="cs-icon">📦</div><h2>Stock</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <div id="view-auto"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🚗</div><h2>Parc Auto</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <div id="view-analyse"   class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🤖</div><h2>Analyse PDF</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <div id="view-caisse"    class="module-view hidden"><div class="coming-soon"><div class="cs-icon">💰</div><h2>Caisse</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <div id="view-ppms"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🛡️</div><h2>PPMS</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <!-- ════════════════════════════════════════════════
+         VUE : PHARMACIE
+    ════════════════════════════════════════════════ -->
+    <div id="view-pharmacie" class="module-view hidden">
+
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="pharma" data-tab-id="stock"  onclick="switchTab('pharma','stock')">  💊 Stock & Péremptions</button>
+        <button class="tab-btn"        data-tab-group="pharma" data-tab-id="stats"  onclick="switchTab('pharma','stats');setTimeout(initPharmaStats,80)"> 📊 Statistiques</button>
+      </div>
+
+      <!-- ── Onglet Stock ──────────────────────────── -->
+      <div class="tab-content active" data-tab-group="pharma" data-tab-id="stock">
+
+        <!-- Header badges -->
+        <div style="padding:10px 14px;display:flex;align-items:center;gap:12px;background:#F3E5F5;border-bottom:1px solid #E1BEE7;flex-wrap:wrap">
+          <span style="font-weight:700;color:#4A148C;font-size:14px">💊 Pharmacie Sécurisée — Gestion des Péremptions</span>
+          <div style="flex:1"></div>
+          <span id="pharma-badge-total"   class="badge badge-blue"  style="font-size:12px">0 produit</span>
+          <span id="pharma-badge-alertes" class="badge badge-red"   style="font-size:12px">0 alerte</span>
+          <span id="pharma-badge-ok"      class="badge badge-green" style="font-size:12px">0 OK</span>
+          <button class="btn btn-gray" onclick="showPharmaHistorique()" style="font-size:12px">📋 Historique</button>
+        </div>
+
+        <!-- Toolbar -->
+        <div style="padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <button class="btn btn-green"  onclick="openPharmaAddDialog()">➕ Ajouter</button>
+          <button class="btn btn-orange" onclick="openPharmaSortie()">📤 Sortie</button>
+
+          <div style="display:flex;gap:4px;margin-left:8px">
+            <button class="btn btn-gray pharma-filter-btn active" data-filter="tous"    onclick="setPharmaFilter('tous')"    style="font-size:11px;padding:6px 12px">● Tous</button>
+            <button class="btn btn-gray pharma-filter-btn"        data-filter="alertes" onclick="setPharmaFilter('alertes')" style="font-size:11px;padding:6px 12px;color:#EF6C00">● &lt; 3 mois</button>
+            <button class="btn btn-gray pharma-filter-btn"        data-filter="perimes" onclick="setPharmaFilter('perimes')" style="font-size:11px;padding:6px 12px;color:#C62828">● Périmés</button>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <button class="btn btn-red" onclick="removePharmaPerimes()" style="font-size:12px">🗑️ Périmés</button>
+          <button class="btn btn-gray" onclick="showPharmaCorbeille()" style="font-size:12px;color:#6D4C41">🗑️ Corbeille</button>
+          <button class="btn btn-blue" onclick="exportPharmaCSV()" style="font-size:12px">📊 Export CSV</button>
+          <button id="pharma-view-toggle" class="btn btn-gray" onclick="togglePharmaView()" style="font-size:12px">☰ Vue complète</button>
+        </div>
+
+        <!-- Recherche -->
+        <div style="padding:8px 14px;border-bottom:1px solid #E0E0E0">
+          <input id="pharma-search" class="search-input" style="width:100%;max-width:500px" type="text" placeholder="🔍 Rechercher un médicament, lot, emplacement...">
+        </div>
+
+        <!-- Tableau stock -->
+        <div class="table-wrapper">
+          <table id="pharma-stock-table">
+            <thead>
+              <tr>
+                <th onclick="setPharmaSortCol(0)">Médicament</th>
+                <th onclick="setPharmaSortCol(1)" class="pharma-col-extra" style="display:none">Lot</th>
+                <th onclick="setPharmaSortCol(2)">Péremption</th>
+                <th onclick="setPharmaSortCol(3)">Jours</th>
+                <th onclick="setPharmaSortCol(4)">Qté</th>
+                <th onclick="setPharmaSortCol(5)" class="pharma-col-extra" style="display:none">Min</th>
+                <th onclick="setPharmaSortCol(6)" class="pharma-col-extra" style="display:none">Emplacement</th>
+                <th class="pharma-col-extra" style="display:none">Date Entrée</th>
+                <th class="pharma-col-extra" style="display:none">Dern. Sortie</th>
+                <th class="pharma-col-extra" style="display:none">Par</th>
+                <th>Statut</th>
+                <th style="min-width:110px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pharma-tbody">
+              <tr class="empty-row"><td colspan="12">Chargement…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Onglet Statistiques ───────────────────── -->
+      <div class="tab-content" data-tab-group="pharma" data-tab-id="stats" style="overflow:auto">
+        <div style="padding:14px">
+          <!-- Header stats -->
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+            <span style="font-weight:700;font-size:16px;color:#4A148C">📊 Statistiques Pharmacie</span>
+            <div style="flex:1"></div>
+            <label style="font-size:12px;font-weight:600;color:#546E7A">Période :</label>
+            <select id="pharma-stats-periode" class="filter-select" onchange="_renderPharmaStats()" style="font-size:12px">
+              <option value="7">7 jours</option>
+              <option value="30" selected>30 jours</option>
+              <option value="90">90 jours</option>
+              <option value="365">365 jours</option>
+              <option value="0">Tout</option>
+            </select>
+          </div>
+
+          <!-- KPIs -->
+          <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+            <div class="kpi-card orange" id="pharma-kpi-sorties">  <div class="kpi-label">📤 Sorties</div>     <div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card green"  id="pharma-kpi-receptions"><div class="kpi-label">📥 Réceptions</div> <div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card red"    id="pharma-kpi-stockbas">  <div class="kpi-label">⚠️ Stock bas</div>  <div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card red"    id="pharma-kpi-perimes">   <div class="kpi-label">🚨 Périmés/&lt;30j</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+            <div class="kpi-card green"  id="pharma-kpi-ok">        <div class="kpi-label">✅ OK (&gt;3 mois)</div><div class="kpi-value">—</div><div class="kpi-sub">—</div></div>
+          </div>
+
+          <!-- Charts -->
+          <div class="charts-row" style="height:350px;margin-bottom:14px">
+            <div class="chart-box">
+              <h4>🏆 Top 10 médicaments sortis</h4>
+              <div style="flex:1;min-height:0;position:relative">
+                <canvas id="pharma-chart-top10"></canvas>
+              </div>
+            </div>
+            <div class="chart-box">
+              <h4>📊 Distribution par statut</h4>
+              <div style="flex:1;min-height:0;position:relative">
+                <canvas id="pharma-chart-distrib"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /view-pharmacie -->
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TOASTS
+══════════════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Ajouter / Modifier un prestataire
+══════════════════════════════════════════════════════ -->
+<div id="modal-presta" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-presta-title">Ajouter un prestataire</h3>
+      <button class="modal-close" onclick="closeModal('modal-presta')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="presta-form-id">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Nom du prestataire *</label>
+          <input type="text" id="presta-nom" placeholder="Ex : CleanPro Services">
+        </div>
+        <div class="form-group">
+          <label>Type de service</label>
+          <select id="presta-service"></select>
+        </div>
+        <div class="form-group">
+          <label>Fréquence des interventions</label>
+          <select id="presta-frequence"></select>
+        </div>
+        <div class="form-group full-width">
+          <label>Prestations / tâches</label>
+          <textarea id="presta-prestations" rows="3" placeholder="Décrivez les prestations à effectuer..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Nom du contact</label>
+          <input type="text" id="presta-contact" placeholder="Prénom Nom">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="presta-email" placeholder="contact@exemple.fr">
+        </div>
+        <div class="form-group">
+          <label>Téléphone</label>
+          <input type="tel" id="presta-telephone" placeholder="01 23 45 67 89">
+        </div>
+        <div class="form-group">
+          <label>Montant annuel TTC (€)</label>
+          <div class="ht-ttc-row">
+            <input type="number" id="presta-montant" value="0" min="0" step="100">
+            <button class="btn-ht-ttc" onclick="htToTTCBtn()" title="Convertir HT → TTC (×1.20)">HT → TTC</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Date de début du contrat</label>
+          <input type="date" id="presta-date-debut">
+        </div>
+        <div class="form-group">
+          <label>Date de fin du contrat</label>
+          <input type="date" id="presta-date-fin">
+        </div>
+        <div class="form-group full-width">
+          <label>Notes</label>
+          <textarea id="presta-notes" rows="2" placeholder="Informations complémentaires..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray"  onclick="closeModal('modal-presta')">Annuler</button>
+      <button class="btn btn-green" onclick="savePrestataire()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Renouvellement de contrat
+══════════════════════════════════════════════════════ -->
+<div id="modal-renouv" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🔄 Renouvellement de contrat — <span id="renouv-nom"></span></h3>
+      <button class="modal-close" onclick="closeModal('modal-renouv')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="renouv-presta-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nouvelle date de début</label>
+          <input type="date" id="renouv-date-debut">
+        </div>
+        <div class="form-group">
+          <label>Nouvelle date de fin</label>
+          <input type="date" id="renouv-date-fin">
+        </div>
+        <div class="form-group">
+          <label>Nouveau montant annuel TTC (€)</label>
+          <input type="number" id="renouv-montant" min="0" step="100">
+        </div>
+        <div class="form-group full-width">
+          <label>Notes</label>
+          <textarea id="renouv-notes" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray"  onclick="closeModal('modal-renouv')">Annuler</button>
+      <button class="btn btn-green" onclick="saveRenouvellement()">🔄 Renouveler</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Évaluations
+══════════════════════════════════════════════════════ -->
+<div id="modal-evals" class="modal-overlay hidden">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h3>⭐ Évaluations — <span id="eval-presta-nom"></span></h3>
+      <button class="modal-close" onclick="closeModal('modal-evals')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Liste des évaluations existantes -->
+      <div id="eval-list" style="max-height:260px;overflow-y:auto;margin-bottom:16px"></div>
+
+      <!-- Nouvelle évaluation -->
+      <div style="background:#F3E5F5;border-radius:8px;padding:14px">
+        <div style="font-weight:700;color:#7B1FA2;margin-bottom:10px">➕ Nouvelle évaluation</div>
+        <div class="form-grid" style="gap:10px">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="new-eval-date">
+          </div>
+          <div class="form-group">
+            <label>Note</label>
+            <select id="new-eval-note">
+              <option value="1">1 — Très insatisfaisant</option>
+              <option value="2">2 — Insatisfaisant</option>
+              <option value="3">3 — Moyen</option>
+              <option value="4" selected>4 — Satisfaisant</option>
+              <option value="5">5 — Très satisfaisant</option>
+            </select>
+          </div>
+          <div class="form-group full-width">
+            <label>Commentaire</label>
+            <textarea id="new-eval-comment" rows="2" placeholder="Commentaire sur la prestation..."></textarea>
+          </div>
+        </div>
+        <div style="margin-top:10px;text-align:right">
+          <button class="btn btn-purple" onclick="addEvaluation()">➕ Ajouter l'évaluation</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-evals')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Corbeille
+══════════════════════════════════════════════════════ -->
+<div id="modal-corbeille" class="modal-overlay hidden">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <h3>🗑️ Corbeille</h3>
+      <button class="modal-close" onclick="closeModal('modal-corbeille')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="table-wrapper" style="max-height:420px">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Service</th>
+              <th>Montant</th>
+              <th>Supprimé le</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="corbeille-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-corbeille')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Personnel (Actifs)
+══════════════════════════════════════════════════════ -->
+<div id="modal-personnel" class="modal-overlay hidden">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="modal-personnel-title">Ajouter du personnel</h3>
+      <button class="modal-close" onclick="closeModal('modal-personnel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pers-form-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Nom *</label><input type="text" id="pers-nom" placeholder="Dupont"></div>
+        <div class="form-group"><label>Prénom *</label><input type="text" id="pers-prenom" placeholder="Marie"></div>
+        <div class="form-group"><label>Type de contrat</label><select id="pers-type-contrat"></select></div>
+        <div class="form-group"><label>Poste / Fonction</label><input type="text" id="pers-poste" placeholder="Infirmière"></div>
+        <div class="form-group"><label>Lieu</label><input type="text" id="pers-lieu" placeholder="Service A"></div>
+        <div class="form-group"><label>Date d'arrivée</label><input type="date" id="pers-date-arrivee"></div>
+        <div class="form-group"><label>Date de départ</label><input type="date" id="pers-date-depart"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-personnel')">Annuler</button>
+      <button class="btn btn-green" onclick="savePersonnel()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Unité (Actifs)
+══════════════════════════════════════════════════════ -->
+<div id="modal-unite" class="modal-overlay hidden">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3 id="modal-unite-title">Ajouter une unité</h3>
+      <button class="modal-close" onclick="closeModal('modal-unite')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="unite-form-id">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="form-group"><label>Nom de l'unité *</label><input type="text" id="unite-nom" placeholder="Service A — Hébergement"></div>
+        <div class="form-group"><label>Description</label><input type="text" id="unite-description" placeholder="Unité d'hébergement"></div>
+        <div class="form-group"><label>Emplacement</label><input type="text" id="unite-emplacement" placeholder="Bâtiment A - RDC"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-unite')">Annuler</button>
+      <button class="btn btn-green" onclick="saveUnite()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Investissement / Matériel (Actifs)
+══════════════════════════════════════════════════════ -->
+<div id="modal-materiel" class="modal-overlay hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-materiel-title">Ajouter un investissement</h3>
+      <button class="modal-close" onclick="closeModal('modal-materiel')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mat-form-id">
+      <div class="form-grid">
+        <div class="form-group full-width"><label>Nom / Désignation *</label><input type="text" id="mat-nom" placeholder="Ordinateur portable Dell Latitude"></div>
+        <div class="form-group"><label>Référence</label><input type="text" id="mat-reference" placeholder="INV-2025-001"></div>
+        <div class="form-group"><label>Type</label><select id="mat-type"></select></div>
+        <div class="form-group"><label>Date d'achat</label><input type="date" id="mat-date-achat"></div>
+        <div class="form-group">
+          <label>Coût TTC (€)</label>
+          <div class="ht-ttc-row">
+            <input type="number" id="mat-cout" value="0" min="0" step="10">
+            <button class="btn-ht-ttc" onclick="htToTTCMat()" title="Convertir HT → TTC (×1.20)">HT→TTC</button>
+          </div>
+        </div>
+        <div class="form-group"><label>Durée d'amortissement (ans)</label><input type="number" id="mat-duree-amort" value="5" min="1" max="30"></div>
+        <div class="form-group"><label>Statut</label><select id="mat-statut"></select></div>
+        <div class="form-group"><label>Attribué à</label><select id="mat-personnel"></select></div>
+        <div class="form-group full-width"><label>Notes</label><textarea id="mat-notes" rows="2" placeholder="Informations complémentaires..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-materiel')">Annuler</button>
+      <button class="btn btn-green" onclick="saveMateriel()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Pharmacie Ajouter / Modifier
+══════════════════════════════════════════════════════ -->
+<div id="modal-pharma" class="modal-overlay hidden">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <h3 id="modal-pharma-title">Ajouter un médicament</h3>
+      <button class="modal-close" onclick="closeModal('modal-pharma')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pharma-form-id">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>💊 Médicament *</label>
+          <input type="text" id="pharma-med-nom" placeholder="Ex : Doliprane 1000mg">
+        </div>
+        <div class="form-group">
+          <label>🏷️ N° de lot</label>
+          <input type="text" id="pharma-med-lot" placeholder="LOT-2025-A1">
+        </div>
+        <div class="form-group">
+          <label>📅 Date péremption *</label>
+          <input type="date" id="pharma-med-peremption">
+        </div>
+        <div class="form-group">
+          <label>📦 Quantité</label>
+          <input type="number" id="pharma-med-quantite" value="1" min="1" max="9999">
+        </div>
+        <div class="form-group">
+          <label>⚠️ Stock minimum</label>
+          <input type="number" id="pharma-med-minimum" value="0" min="0" max="9999">
+        </div>
+        <div class="form-group">
+          <label>📍 Emplacement</label>
+          <select id="pharma-med-emplacement">
+            <option value="">— Choisir —</option>
+            <option value="Armoire principale">Armoire principale</option>
+            <option value="Réfrigérateur">Réfrigérateur</option>
+            <option value="Chariot urgence">Chariot urgence</option>
+            <option value="Bureau infirmier">Bureau infirmier</option>
+            <option value="Réserve">Réserve</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>👤 Réceptionné par</label>
+          <select id="pharma-med-personne">
+            <option value="">— Choisir —</option>
+            <option value="Infirmier du matin">Infirmier du matin</option>
+            <option value="Infirmier de l'après-midi">Infirmier de l'après-midi</option>
+            <option value="Infirmier de nuit">Infirmier de nuit</option>
+            <option value="Médecin">Médecin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>🗓️ Date d'entrée</label>
+          <input type="date" id="pharma-med-date-entree">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-pharma')">Annuler</button>
+      <button class="btn btn-green" onclick="savePharmaItem()">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Pharmacie Détails
+══════════════════════════════════════════════════════ -->
+<div id="modal-pharma-detail" class="modal-overlay hidden">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>📋 Détails du médicament</h3>
+      <button class="modal-close" onclick="closeModal('modal-pharma-detail')">✕</button>
+    </div>
+    <div class="modal-body" id="pharma-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-pharma-detail')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Pharmacie Sortie
+══════════════════════════════════════════════════════ -->
+<div id="modal-pharma-sortie" class="modal-overlay hidden">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header">
+      <h3>📤 Sortie de stock</h3>
+      <button class="modal-close" onclick="closeModal('modal-pharma-sortie')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div class="form-group">
+          <label>💊 Médicament</label>
+          <select id="pharma-sortie-med"></select>
+        </div>
+        <div class="form-group">
+          <label>📦 Quantité à sortir</label>
+          <input type="number" id="pharma-sortie-qte" value="1" min="1" max="9999">
+        </div>
+        <div class="form-group">
+          <label>👤 Donné par</label>
+          <select id="pharma-sortie-personne">
+            <option value="">— Choisir —</option>
+            <option value="Infirmier du matin">Infirmier du matin</option>
+            <option value="Infirmier de l'après-midi">Infirmier de l'après-midi</option>
+            <option value="Infirmier de nuit">Infirmier de nuit</option>
+            <option value="Médecin">Médecin</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-pharma-sortie')">Annuler</button>
+      <button class="btn btn-orange" onclick="savePharmaSortie()">📤 Valider la sortie</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Pharmacie Historique mouvements
+══════════════════════════════════════════════════════ -->
+<div id="modal-pharma-historique" class="modal-overlay hidden">
+  <div class="modal" style="max-width:850px">
+    <div class="modal-header">
+      <h3>📋 Historique des mouvements</h3>
+      <button class="modal-close" onclick="closeModal('modal-pharma-historique')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:10px 16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="font-size:12px;font-weight:600">Période :</label>
+        <select id="pharma-hist-periode" class="filter-select" onchange="_renderPharmaHistorique()" style="font-size:12px">
+          <option value="1">24 heures</option>
+          <option value="7">7 jours</option>
+          <option value="30" selected>30 jours</option>
+          <option value="90">3 mois</option>
+          <option value="180">6 mois</option>
+          <option value="365">1 an</option>
+          <option value="0">Tout</option>
+        </select>
+        <div style="flex:1"></div>
+        <span id="pharma-hist-sorties"    class="badge badge-orange" style="font-size:12px">0 sortie</span>
+        <span id="pharma-hist-receptions" class="badge badge-green"  style="font-size:12px">0 réception</span>
+      </div>
+      <div class="table-wrapper" style="max-height:400px">
+        <table>
+          <thead><tr>
+            <th>Date</th><th>Heure</th><th>Type</th><th>Médicament</th><th>Qté</th><th>Personne</th><th>Rôle</th>
+          </tr></thead>
+          <tbody id="pharma-hist-tbody">
+            <tr class="empty-row"><td colspan="7">Aucun mouvement.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-gray" onclick="closeModal('modal-pharma-historique')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL — Pharmacie Corbeille
+══════════════════════════════════════════════════════ -->
+<div id="modal-pharma-corbeille" class="modal-overlay hidden">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <h3>🗑️ Corbeille Pharmacie</h3>
+      <button class="modal-close" onclick="closeModal('modal-pharma-corbeille')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="table-wrapper" style="max-height:400px">
+        <table>
+          <thead><tr>
+            <th>Médicament</th><th>Lot</th><th>Péremption</th><th>Qté</th><th>Emplacement</th><th>Supprimé le</th><th>Action</th>
+          </tr></thead>
+          <tbody id="pharma-corbeille-tbody">
+            <tr class="empty-row"><td colspan="7">Corbeille vide.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-red" onclick="viderPharmaCorbeille()">🗑️ Vider la corbeille</button>
+      <button class="btn btn-gray" onclick="closeModal('modal-pharma-corbeille')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════════════════ -->
+<script src="/static/js/data.js"></script>
+<script src="/static/js/utils.js"></script>
+<script src="/static/js/prestataires.js"></script>
+<script src="/static/js/actifs.js"></script>
+<script src="/static/js/pharmacie.js"></script>
+<script src="/static/js/app.js"></script>
+
+<!-- Initialisation du champ date des évaluations -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const evalDate = document.getElementById('new-eval-date');
+    if (evalDate) evalDate.value = new Date().toISOString().slice(0, 10);
+  });
+</script>
+
+</body>
+</html>
