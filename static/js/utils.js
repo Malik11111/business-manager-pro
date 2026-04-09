@@ -100,6 +100,43 @@ function confirmAction(msg) {
   return window.confirm(msg);
 }
 
+/* ── Modal générique ────────────────────────────────────── */
+function openModal(title, bodyHtml, onConfirm) {
+  let overlay = document.getElementById('generic-modal-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'generic-modal-overlay';
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:640px">
+        <div class="modal-header">
+          <h3 id="generic-modal-title"></h3>
+          <button class="modal-close" onclick="closeGenericModal()">✕</button>
+        </div>
+        <div class="modal-body" id="generic-modal-body"></div>
+        <div class="modal-footer">
+          <button class="btn btn-gray" onclick="closeGenericModal()">Annuler</button>
+          <button class="btn btn-green" id="generic-modal-confirm">Enregistrer</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeGenericModal(); });
+  }
+  document.getElementById('generic-modal-title').textContent = title;
+  document.getElementById('generic-modal-body').innerHTML = bodyHtml;
+  overlay.classList.remove('hidden');
+  const btn = document.getElementById('generic-modal-confirm');
+  btn.onclick = async () => {
+    const result = await onConfirm();
+    if (result !== false) closeGenericModal();
+  };
+}
+
+function closeGenericModal() {
+  const overlay = document.getElementById('generic-modal-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
 /* ── Export CSV ─────────────────────────────────────────── */
 function exportCSV(rows, headers, filename) {
   const lines = [headers.join(';')];

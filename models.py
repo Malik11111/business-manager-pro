@@ -55,6 +55,7 @@ class Etablissement(db.Model):
     pharma_stock = db.relationship('PharmaStock', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     pharma_mouvements = db.relationship('PharmaMouvement', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     pharma_archive = db.relationship('PharmaArchive', backref='etablissement', lazy=True, cascade='all, delete-orphan')
+    vehicules = db.relationship('Vehicule', backref='etablissement', lazy=True, cascade='all, delete-orphan')
 
 
 # ── Prestataires ──────────────────────────────────────
@@ -238,4 +239,75 @@ class PharmaArchive(db.Model):
             'id': self.id, 'nom_medicament': self.nom_medicament, 'lot': self.lot,
             'date_peremption': self.date_peremption, 'quantite': self.quantite,
             'emplacement': self.emplacement, 'date_suppression': self.date_suppression
+        }
+
+
+# ── Parc Auto ─────────────────────────────────────────
+
+class Vehicule(db.Model):
+    __tablename__ = 'vehicules'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    immatriculation = db.Column(db.String(20), nullable=False)
+    marque = db.Column(db.String(100), default='')
+    modele = db.Column(db.String(100), default='')
+    annee = db.Column(db.Integer, default=0)
+    kilometrage = db.Column(db.Integer, default=0)
+    couleur = db.Column(db.String(20), default='#808080')
+    conducteur = db.Column(db.String(200), default='')
+    date_ct = db.Column(db.String(10), default='')
+    date_assurance = db.Column(db.String(10), default='')
+    remarques_ct = db.Column(db.Text, default='')
+    notes = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    entretiens = db.relationship('Entretien', backref='vehicule', lazy=True, cascade='all, delete-orphan')
+    carburants = db.relationship('Carburant', backref='vehicule', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'immatriculation': self.immatriculation,
+            'marque': self.marque, 'modele': self.modele,
+            'annee': self.annee, 'kilometrage': self.kilometrage,
+            'couleur': self.couleur, 'conducteur': self.conducteur,
+            'date_ct': self.date_ct, 'date_assurance': self.date_assurance,
+            'remarques_ct': self.remarques_ct, 'notes': self.notes
+        }
+
+
+class Entretien(db.Model):
+    __tablename__ = 'entretiens'
+    id = db.Column(db.Integer, primary_key=True)
+    vehicule_id = db.Column(db.Integer, db.ForeignKey('vehicules.id'), nullable=False)
+    date = db.Column(db.String(10), default='')
+    type_entretien = db.Column(db.String(100), default='')
+    kilometrage = db.Column(db.Integer, default=0)
+    description = db.Column(db.Text, default='')
+    cout = db.Column(db.Float, default=0)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'vehicule_id': self.vehicule_id,
+            'date': self.date, 'type_entretien': self.type_entretien,
+            'kilometrage': self.kilometrage, 'description': self.description,
+            'cout': self.cout,
+            'immatriculation': self.vehicule.immatriculation if self.vehicule else ''
+        }
+
+
+class Carburant(db.Model):
+    __tablename__ = 'carburants'
+    id = db.Column(db.Integer, primary_key=True)
+    vehicule_id = db.Column(db.Integer, db.ForeignKey('vehicules.id'), nullable=False)
+    date = db.Column(db.String(10), default='')
+    litres = db.Column(db.Float, default=0)
+    cout = db.Column(db.Float, default=0)
+    kilometrage = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'vehicule_id': self.vehicule_id,
+            'date': self.date, 'litres': self.litres,
+            'cout': self.cout, 'kilometrage': self.kilometrage,
+            'immatriculation': self.vehicule.immatriculation if self.vehicule else ''
         }

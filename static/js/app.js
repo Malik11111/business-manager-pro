@@ -9,10 +9,7 @@ const MODULES = [
   { id: 'actifs',       icon: '🏢', label: 'Actifs',       ready: true },
   { id: 'cles',         icon: '🔑', label: 'Cles',         ready: false },
   { id: 'stock',        icon: '📦', label: 'Stock',        ready: false },
-  { id: 'auto',         icon: '🚗', label: 'Parc Auto',    ready: false },
-  { id: 'analyse',      icon: '🤖', label: 'Analyse PDF',  ready: false },
-  { id: 'caisse',       icon: '💰', label: 'Caisse',       ready: false },
-  { id: 'ppms',         icon: '🛡️', label: 'PPMS',         ready: false },
+  { id: 'auto',         icon: '🚗', label: 'Parc Auto',    ready: true },
   { id: 'pharmacie',    icon: '💊', label: 'Pharmacie',    ready: true },
 ];
 
@@ -88,6 +85,8 @@ function navigateTo(moduleId) {
       if (statutFilter && statutFilter.options.length <= 1) {
         STATUTS_MATERIEL.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; statutFilter.appendChild(o); });
       }
+    } else if (moduleId === 'auto') {
+      initParcAuto();
     } else if (moduleId === 'pharmacie') {
       initPharmacie();
     } else if (moduleId === 'admin') {

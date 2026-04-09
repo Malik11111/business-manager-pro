@@ -16,7 +16,7 @@
 <header id="app-header">
   <div class="brand">
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-      <rect width="26" height="26" rx="6" fill="#4A148C"/>
+      <rect width="26" height="26" rx="6" fill="#2D2870"/>
       <path d="M7 18 L13 7 L19 18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M9.5 14 H16.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
     </svg>
@@ -322,7 +322,100 @@
 
     <div id="view-cles"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🔑</div><h2>Clés</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-stock"     class="module-view hidden"><div class="coming-soon"><div class="cs-icon">📦</div><h2>Stock</h2><p>Ce module sera disponible prochainement.</p></div></div>
-    <div id="view-auto"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🚗</div><h2>Parc Auto</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <!-- ════════════════════════════════════════════════
+         VUE : PARC AUTO
+    ════════════════════════════════════════════════ -->
+    <div id="view-auto" class="module-view hidden">
+
+      <!-- Toolbar -->
+      <div class="module-toolbar">
+        <div class="filters">
+          <input id="auto-search" class="search-input" type="text" placeholder="🔍 Rechercher un véhicule..." oninput="filterVehicules()">
+        </div>
+        <button class="btn btn-green"  onclick="openAddVehiculeDialog()">➕ Ajouter</button>
+        <button class="btn btn-blue"   onclick="exportVehicules()">📤 Exporter CSV</button>
+        <button class="btn btn-orange" onclick="majRapideKm()">📏 MAJ km</button>
+      </div>
+
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="auto" data-tab-id="vehicules"  onclick="switchTab('auto','vehicules')"> 🚗 Véhicules</button>
+        <button class="tab-btn"        data-tab-group="auto" data-tab-id="entretien"  onclick="switchTab('auto','entretien')"> 🔧 Entretien</button>
+        <button class="tab-btn"        data-tab-group="auto" data-tab-id="carburant"  onclick="switchTab('auto','carburant')"> ⛽ Carburant</button>
+        <button class="tab-btn"        data-tab-group="auto" data-tab-id="alertes"    onclick="switchTab('auto','alertes')">   🔔 Alertes <span id="auto-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
+      </div>
+
+      <!-- Onglet Véhicules -->
+      <div class="tab-content active" data-tab-group="auto" data-tab-id="vehicules">
+        <div class="table-wrapper">
+          <table id="auto-table">
+            <thead><tr>
+              <th>COULEUR</th>
+              <th onclick="sortVehiculesBy('immatriculation')">IMMAT.</th>
+              <th onclick="sortVehiculesBy('marque')">MARQUE / MODÈLE</th>
+              <th onclick="sortVehiculesBy('annee')">ANNÉE</th>
+              <th onclick="sortVehiculesBy('kilometrage')">KM</th>
+              <th onclick="sortVehiculesBy('conducteur')">CONDUCTEUR</th>
+              <th>CT</th>
+              <th>ASSURANCE</th>
+              <th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="auto-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Entretien -->
+      <div class="tab-content" data-tab-group="auto" data-tab-id="entretien">
+        <div style="padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #EDEDF5;background:#fff;">
+          <select id="entretien-vehicule-filter" class="filter-select" onchange="loadEntretiens()">
+            <option value="">Tous les véhicules</option>
+          </select>
+          <button class="btn btn-green" onclick="openAddEntretienDialog()">➕ Ajouter entretien</button>
+          <span id="entretien-total" style="margin-left:auto;font-size:13px;color:#6B6B8A;"></span>
+        </div>
+        <div class="table-wrapper">
+          <table id="entretien-table">
+            <thead><tr>
+              <th>DATE</th><th>VÉHICULE</th><th>TYPE</th><th>KM</th><th>DESCRIPTION</th><th>COÛT €</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="entretien-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Carburant -->
+      <div class="tab-content" data-tab-group="auto" data-tab-id="carburant">
+        <div style="padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #EDEDF5;background:#fff;">
+          <select id="carburant-vehicule-filter" class="filter-select" onchange="loadCarburant()">
+            <option value="">Tous les véhicules</option>
+          </select>
+          <button class="btn btn-green" onclick="openAddCarburantDialog()">➕ Ajouter plein</button>
+          <span id="carburant-total" style="margin-left:auto;font-size:13px;color:#6B6B8A;"></span>
+        </div>
+        <div class="table-wrapper">
+          <table id="carburant-table">
+            <thead><tr>
+              <th>DATE</th><th>VÉHICULE</th><th>LITRES</th><th>COÛT €</th><th>KM</th><th>€/L</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="carburant-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Alertes -->
+      <div class="tab-content" data-tab-group="auto" data-tab-id="alertes">
+        <div class="table-wrapper">
+          <table id="alertes-table">
+            <thead><tr>
+              <th>VÉHICULE</th><th>MARQUE / MODÈLE</th><th>DATE CT</th><th>ÉTAT CT</th><th>DATE ASSURANCE</th><th>ÉTAT ASSURANCE</th>
+            </tr></thead>
+            <tbody id="alertes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /view-auto -->
     <div id="view-analyse"   class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🤖</div><h2>Analyse PDF</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-caisse"    class="module-view hidden"><div class="coming-soon"><div class="cs-icon">💰</div><h2>Caisse</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-ppms"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🛡️</div><h2>PPMS</h2><p>Ce module sera disponible prochainement.</p></div></div>
@@ -965,6 +1058,7 @@
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/prestataires.js"></script>
 <script src="/static/js/actifs.js"></script>
+<script src="/static/js/parc_auto.js"></script>
 <script src="/static/js/pharmacie.js"></script>
 <script src="/static/js/app.js"></script>
 

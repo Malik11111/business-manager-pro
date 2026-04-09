@@ -9,6 +9,7 @@ from config import Config
 from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePresta
 from models import Personnel, Unite, Materiel
 from models import PharmaStock, PharmaMouvement, PharmaArchive
+from models import Vehicule, Entretien, Carburant
 import json
 
 # ── App factory ───────────────────────────────────────
@@ -998,6 +999,240 @@ def api_seed_demo():
 
     db.session.commit()
     return jsonify({'ok': True, 'message': 'Donnees de demonstration chargees avec succes.'})
+
+
+# ══════════════════════════════════════════════════════
+#  PARC AUTO
+# ══════════════════════════════════════════════════════
+
+def _get_etab():
+    etab = Etablissement.query.filter_by(user_id=current_user.id, is_current=True).first()
+    if not etab:
+        etab = Etablissement.query.filter_by(user_id=current_user.id).first()
+    return etab
+
+def _mois_restants(date_str):
+    """Retourne le nombre de mois entre aujourd'hui et date_str (format JJ-MM-AAAA ou AAAA-MM-JJ)."""
+    if not date_str:
+        return None
+    from datetime import date as _date
+    try:
+        if '-' in date_str:
+            parts = date_str.split('-')
+            if len(parts[0]) == 4:
+                d = _date(int(parts[0]), int(parts[1]), int(parts[2]))
+            else:
+                d = _date(int(parts[2]), int(parts[1]), int(parts[0]))
+        else:
+            return None
+        today = _date.today()
+        delta_days = (d - today).days
+        return round(delta_days / 30.44)
+    except Exception:
+        return None
+
+
+@app.route('/api/vehicules', methods=['GET'])
+@login_required
+def get_vehicules():
+    etab = _get_etab()
+    if not etab:
+        return jsonify([])
+    vehicules = Vehicule.query.filter_by(etab_id=etab.id).order_by(Vehicule.marque).all()
+    result = []
+    for v in vehicules:
+        d = v.to_dict()
+        d['mois_ct'] = _mois_restants(v.date_ct)
+        d['mois_assurance'] = _mois_restants(v.date_assurance)
+        result.append(d)
+    return jsonify(result)
+
+
+@app.route('/api/vehicules', methods=['POST'])
+@login_required
+def add_vehicule():
+    etab = _get_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+    data = request.get_json()
+    immat = (data.get('immatriculation') or '').strip().upper()
+    if not immat:
+        return jsonify({'error': 'Immatriculation requise'}), 400
+    if Vehicule.query.filter_by(etab_id=etab.id, immatriculation=immat).first():
+        return jsonify({'error': 'Immatriculation deja existante'}), 409
+    v = Vehicule(
+        etab_id=etab.id,
+        immatriculation=immat,
+        marque=data.get('marque', ''),
+        modele=data.get('modele', ''),
+        annee=int(data.get('annee') or 0),
+        kilometrage=int(data.get('kilometrage') or 0),
+        couleur=data.get('couleur', '#808080'),
+        conducteur=data.get('conducteur', ''),
+        date_ct=data.get('date_ct', ''),
+        date_assurance=data.get('date_assurance', ''),
+        remarques_ct=data.get('remarques_ct', ''),
+        notes=data.get('notes', '')
+    )
+    db.session.add(v)
+    db.session.commit()
+    d = v.to_dict()
+    d['mois_ct'] = _mois_restants(v.date_ct)
+    d['mois_assurance'] = _mois_restants(v.date_assurance)
+    return jsonify(d), 201
+
+
+@app.route('/api/vehicules/<int:vid>', methods=['PUT'])
+@login_required
+def update_vehicule(vid):
+    etab = _get_etab()
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    data = request.get_json()
+    for field in ['immatriculation', 'marque', 'modele', 'conducteur', 'couleur',
+                  'date_ct', 'date_assurance', 'remarques_ct', 'notes']:
+        if field in data:
+            setattr(v, field, data[field])
+    if 'annee' in data:
+        v.annee = int(data['annee'] or 0)
+    if 'kilometrage' in data:
+        v.kilometrage = int(data['kilometrage'] or 0)
+    db.session.commit()
+    d = v.to_dict()
+    d['mois_ct'] = _mois_restants(v.date_ct)
+    d['mois_assurance'] = _mois_restants(v.date_assurance)
+    return jsonify(d)
+
+
+@app.route('/api/vehicules/<int:vid>', methods=['DELETE'])
+@login_required
+def delete_vehicule(vid):
+    etab = _get_etab()
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    db.session.delete(v)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/vehicules/<int:vid>/km', methods=['POST'])
+@login_required
+def update_km(vid):
+    etab = _get_etab()
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    data = request.get_json()
+    v.kilometrage = int(data.get('kilometrage') or v.kilometrage)
+    db.session.commit()
+    return jsonify({'ok': True, 'kilometrage': v.kilometrage})
+
+
+@app.route('/api/vehicules/alertes', methods=['GET'])
+@login_required
+def get_alertes_vehicules():
+    etab = _get_etab()
+    if not etab:
+        return jsonify([])
+    vehicules = Vehicule.query.filter_by(etab_id=etab.id).all()
+    alertes = []
+    for v in vehicules:
+        mois_ct  = _mois_restants(v.date_ct)
+        mois_ass = _mois_restants(v.date_assurance)
+        alerte_ct  = mois_ct  is not None and mois_ct  <= 3
+        alerte_ass = mois_ass is not None and mois_ass <= 3
+        if alerte_ct or alerte_ass:
+            alertes.append({
+                'id': v.id, 'immatriculation': v.immatriculation,
+                'marque': v.marque, 'modele': v.modele,
+                'date_ct': v.date_ct, 'mois_ct': mois_ct, 'alerte_ct': alerte_ct,
+                'date_assurance': v.date_assurance, 'mois_assurance': mois_ass, 'alerte_ass': alerte_ass
+            })
+    return jsonify(alertes)
+
+
+# Entretiens
+
+@app.route('/api/entretiens', methods=['GET'])
+@login_required
+def get_entretiens():
+    etab = _get_etab()
+    vid = request.args.get('vehicule_id', type=int)
+    q = Entretien.query.join(Vehicule).filter(Vehicule.etab_id == etab.id)
+    if vid:
+        q = q.filter(Entretien.vehicule_id == vid)
+    return jsonify([e.to_dict() for e in q.order_by(Entretien.date.desc()).all()])
+
+
+@app.route('/api/entretiens', methods=['POST'])
+@login_required
+def add_entretien():
+    etab = _get_etab()
+    data = request.get_json()
+    vid = int(data.get('vehicule_id') or 0)
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    e = Entretien(
+        vehicule_id=v.id,
+        date=data.get('date', ''),
+        type_entretien=data.get('type_entretien', ''),
+        kilometrage=int(data.get('kilometrage') or 0),
+        description=data.get('description', ''),
+        cout=float(data.get('cout') or 0)
+    )
+    db.session.add(e)
+    db.session.commit()
+    return jsonify(e.to_dict()), 201
+
+
+@app.route('/api/entretiens/<int:eid>', methods=['DELETE'])
+@login_required
+def delete_entretien(eid):
+    etab = _get_etab()
+    e = Entretien.query.join(Vehicule).filter(Vehicule.etab_id == etab.id, Entretien.id == eid).first_or_404()
+    db.session.delete(e)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# Carburant
+
+@app.route('/api/carburant', methods=['GET'])
+@login_required
+def get_carburant():
+    etab = _get_etab()
+    vid = request.args.get('vehicule_id', type=int)
+    q = Carburant.query.join(Vehicule).filter(Vehicule.etab_id == etab.id)
+    if vid:
+        q = q.filter(Carburant.vehicule_id == vid)
+    return jsonify([c.to_dict() for c in q.order_by(Carburant.date.desc()).all()])
+
+
+@app.route('/api/carburant', methods=['POST'])
+@login_required
+def add_carburant():
+    etab = _get_etab()
+    data = request.get_json()
+    vid = int(data.get('vehicule_id') or 0)
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    c = Carburant(
+        vehicule_id=v.id,
+        date=data.get('date', ''),
+        litres=float(data.get('litres') or 0),
+        cout=float(data.get('cout') or 0),
+        kilometrage=int(data.get('kilometrage') or 0)
+    )
+    db.session.add(c)
+    # Mettre à jour km si plus élevé
+    if c.kilometrage > v.kilometrage:
+        v.kilometrage = c.kilometrage
+    db.session.commit()
+    return jsonify(c.to_dict()), 201
+
+
+@app.route('/api/carburant/<int:cid>', methods=['DELETE'])
+@login_required
+def delete_carburant(cid):
+    etab = _get_etab()
+    c = Carburant.query.join(Vehicule).filter(Vehicule.etab_id == etab.id, Carburant.id == cid).first_or_404()
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ══════════════════════════════════════════════════════
