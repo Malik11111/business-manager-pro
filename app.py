@@ -10,6 +10,7 @@ from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePr
 from models import Personnel, Unite, Materiel
 from models import PharmaStock, PharmaMouvement, PharmaArchive
 from models import Vehicule, Entretien, Carburant
+from models import AnalysePDF
 import json
 
 # ── App factory ───────────────────────────────────────
@@ -999,6 +1000,174 @@ def api_seed_demo():
 
     db.session.commit()
     return jsonify({'ok': True, 'message': 'Donnees de demonstration chargees avec succes.'})
+
+
+# ══════════════════════════════════════════════════════
+#  ANALYSE PDF
+# ══════════════════════════════════════════════════════
+
+PROMPT_INSPECTION = """
+Tu es un expert en sécurité bâtiment et réglementation ERP. Analyse ce rapport d'inspection.
+
+CLASSIFICATIONS : Alerte sécurité, Non-conformité, Anomalie, À corriger, Défaut constaté, Réserve, À surveiller, Observation, Point d'amélioration, Remarque
+NIVEAUX : CRITIQUE=Alerte sécurité | ÉLEVÉ=Non-conformité/Anomalie/À corriger | MOYEN=Réserve/Surveiller/Défaut | FAIBLE=Observation/Amélioration | MINIMAL=Remarque
+STATUTS : CRITIQUE→"À faire" | ÉLEVÉ→"À planifier" | MOYEN→"À planifier" | FAIBLE→"À valider" | MINIMAL→"À valider"
+
+Réponds UNIQUEMENT en JSON valide sans texte avant/après :
+{
+  "metadata": {"date_intervention":"","societe":"","client":"","site":"","materiel":"","etat":""},
+  "problemes": [{"num":1,"classification":"","description":"","action_corrective":"","niveau_risque":"","statut":"","reference_reglementaire":""}],
+  "statistiques": {"total":0,"critique":0,"eleve":0,"moyen":0,"faible":0,"minimal":0},
+  "resume_executif": ""
+}
+
+Texte du rapport :
+{texte}
+"""
+
+
+def _extraire_texte_pdf(chemin):
+    """Extrait le texte d'un PDF via pdfplumber."""
+    try:
+        import pdfplumber
+        texte = ""
+        with pdfplumber.open(chemin) as pdf:
+            for page in pdf.pages:
+                t = page.extract_text()
+                if t:
+                    texte += t + "\n"
+        return texte.strip()
+    except Exception as e:
+        return ""
+
+
+def _analyser_gemini(texte, api_key):
+    """Envoie le texte à Gemini et retourne le JSON parsé."""
+    import urllib.request, json as _json, re as _re
+    prompt = PROMPT_INSPECTION.replace("{texte}", texte[:40000])
+    body = _json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 8192}
+    }).encode("utf-8")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        result = _json.loads(r.read().decode("utf-8"))
+    texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+    texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+    texte_rep = _re.sub(r"```\s*", "", texte_rep)
+    return _json.loads(texte_rep)
+
+
+@app.route('/api/analyse-pdf/config', methods=['GET'])
+@login_required
+def get_analyse_config():
+    has_key = bool(app.config.get('GEMINI_API_KEY'))
+    return jsonify({'has_server_key': has_key})
+
+
+@app.route('/api/analyse-pdf/upload', methods=['POST'])
+@login_required
+def upload_analyse_pdf():
+    import os as _os, tempfile as _tmp, json as _json
+    from datetime import date as _date
+
+    etab = _get_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+
+    f = request.files['file']
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'Seuls les PDF sont acceptés'}), 400
+
+    # Priorité : clé serveur (Railway env var) > clé fournie par l'utilisateur
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API Gemini requise — configurez GEMINI_API_KEY sur Railway ou saisissez-la dans l\'interface'}), 400
+
+    # Sauvegarder temporairement
+    with _tmp.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        texte = _extraire_texte_pdf(tmp_path)
+        if not texte:
+            return jsonify({'error': 'Impossible d\'extraire le texte du PDF'}), 422
+
+        data = _analyser_gemini(texte, api_key)
+
+        meta  = data.get("metadata", {})
+        stats = data.get("statistiques", {})
+
+        analyse = AnalysePDF(
+            etab_id=etab.id,
+            date_analyse=_date.today().isoformat(),
+            nom_fichier=f.filename,
+            societe=meta.get("societe", ""),
+            client=meta.get("client", ""),
+            site=meta.get("site", ""),
+            materiel=meta.get("materiel", ""),
+            etat=meta.get("etat", ""),
+            total_problemes=stats.get("total", 0),
+            nb_critique=stats.get("critique", 0),
+            nb_eleve=stats.get("eleve", 0),
+            nb_moyen=stats.get("moyen", 0),
+            nb_faible=stats.get("faible", 0),
+            resume_executif=data.get("resume_executif", ""),
+            data_json=_json.dumps(data, ensure_ascii=False)
+        )
+        db.session.add(analyse)
+        db.session.commit()
+
+        d = analyse.to_dict()
+        d['data'] = data
+        return jsonify(d), 201
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur analyse : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
+@app.route('/api/analyse-pdf/historique', methods=['GET'])
+@login_required
+def get_historique_analyses():
+    etab = _get_etab()
+    if not etab:
+        return jsonify([])
+    analyses = AnalysePDF.query.filter_by(etab_id=etab.id).order_by(AnalysePDF.created_at.desc()).all()
+    return jsonify([a.to_dict() for a in analyses])
+
+
+@app.route('/api/analyse-pdf/<int:aid>', methods=['GET'])
+@login_required
+def get_analyse_detail(aid):
+    etab = _get_etab()
+    a = AnalysePDF.query.filter_by(id=aid, etab_id=etab.id).first_or_404()
+    d = a.to_dict()
+    import json as _json
+    try:
+        d['data'] = _json.loads(a.data_json)
+    except Exception:
+        d['data'] = {}
+    return jsonify(d)
+
+
+@app.route('/api/analyse-pdf/<int:aid>', methods=['DELETE'])
+@login_required
+def delete_analyse(aid):
+    etab = _get_etab()
+    a = AnalysePDF.query.filter_by(id=aid, etab_id=etab.id).first_or_404()
+    db.session.delete(a)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ══════════════════════════════════════════════════════

@@ -10,6 +10,7 @@ const MODULES = [
   { id: 'cles',         icon: '🔑', label: 'Cles',         ready: false },
   { id: 'stock',        icon: '📦', label: 'Stock',        ready: false },
   { id: 'auto',         icon: '🚗', label: 'Parc Auto',    ready: true },
+  { id: 'analyse',      icon: '🤖', label: 'Analyse PDF',  ready: true },
   { id: 'pharmacie',    icon: '💊', label: 'Pharmacie',    ready: true },
 ];
 
@@ -87,6 +88,8 @@ function navigateTo(moduleId) {
       }
     } else if (moduleId === 'auto') {
       initParcAuto();
+    } else if (moduleId === 'analyse') {
+      initAnalysePDF();
     } else if (moduleId === 'pharmacie') {
       initPharmacie();
     } else if (moduleId === 'admin') {

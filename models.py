@@ -56,6 +56,7 @@ class Etablissement(db.Model):
     pharma_mouvements = db.relationship('PharmaMouvement', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     pharma_archive = db.relationship('PharmaArchive', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     vehicules = db.relationship('Vehicule', backref='etablissement', lazy=True, cascade='all, delete-orphan')
+    analyses_pdf = db.relationship('AnalysePDF', backref='etablissement', lazy=True, cascade='all, delete-orphan')
 
 
 # ── Prestataires ──────────────────────────────────────
@@ -239,6 +240,41 @@ class PharmaArchive(db.Model):
             'id': self.id, 'nom_medicament': self.nom_medicament, 'lot': self.lot,
             'date_peremption': self.date_peremption, 'quantite': self.quantite,
             'emplacement': self.emplacement, 'date_suppression': self.date_suppression
+        }
+
+
+# ── Analyse PDF ───────────────────────────────────────
+
+class AnalysePDF(db.Model):
+    __tablename__ = 'analyses_pdf'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    date_analyse = db.Column(db.String(10), default='')
+    nom_fichier = db.Column(db.String(300), default='')
+    societe = db.Column(db.String(200), default='')
+    client = db.Column(db.String(200), default='')
+    site = db.Column(db.String(200), default='')
+    materiel = db.Column(db.String(200), default='')
+    etat = db.Column(db.String(100), default='')
+    total_problemes = db.Column(db.Integer, default=0)
+    nb_critique = db.Column(db.Integer, default=0)
+    nb_eleve = db.Column(db.Integer, default=0)
+    nb_moyen = db.Column(db.Integer, default=0)
+    nb_faible = db.Column(db.Integer, default=0)
+    resume_executif = db.Column(db.Text, default='')
+    data_json = db.Column(db.Text, default='{}')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'date_analyse': self.date_analyse,
+            'nom_fichier': self.nom_fichier, 'societe': self.societe,
+            'client': self.client, 'site': self.site,
+            'materiel': self.materiel, 'etat': self.etat,
+            'total_problemes': self.total_problemes, 'nb_critique': self.nb_critique,
+            'nb_eleve': self.nb_eleve, 'nb_moyen': self.nb_moyen,
+            'nb_faible': self.nb_faible, 'resume_executif': self.resume_executif,
+            'data_json': self.data_json
         }
 
 
