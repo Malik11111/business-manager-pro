@@ -54,6 +54,15 @@ with app.app_context():
 
 
 # ══════════════════════════════════════════════════════
+#  HEALTH CHECK
+# ══════════════════════════════════════════════════════
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'ok'}), 200
+
+
+# ══════════════════════════════════════════════════════
 #  PAGES
 # ══════════════════════════════════════════════════════
 
@@ -1242,6 +1251,24 @@ def delete_carburant(cid):
 def data_today():
     from datetime import date
     return date.today().isoformat()
+
+
+# ══════════════════════════════════════════════════════
+#  GESTIONNAIRES D'ERREURS
+# ══════════════════════════════════════════════════════
+
+@app.errorhandler(404)
+def not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Ressource introuvable.'}), 404
+    return render_template('login.html'), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Erreur interne du serveur.'}), 500
+    return render_template('login.html'), 500
 
 
 # ══════════════════════════════════════════════════════
