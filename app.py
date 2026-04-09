@@ -1279,10 +1279,44 @@ def upload_analyse_pdf():
 
     try:
         texte = _extraire_texte_pdf(tmp_path)
-        if not texte:
-            return jsonify({'error': 'Impossible d\'extraire le texte du PDF'}), 422
 
-        data = _analyser_gemini(texte, api_key)
+        if texte:
+            # PDF textuel : envoi du texte à Gemini
+            data = _analyser_gemini(texte, api_key)
+        else:
+            # PDF scanné (images) : envoi direct en base64 à Gemini vision
+            import base64 as _b64, urllib.request as _req, json as _json2, re as _re2
+            with open(tmp_path, 'rb') as _pf:
+                pdf_b64 = _b64.b64encode(_pf.read()).decode('utf-8')
+            prompt_vision = PROMPT_INSPECTION.replace("{texte}", "[PDF envoyé en image — lis le contenu du document]")
+            # Remplacer la partie texte par une instruction pour lire le PDF visuel
+            prompt_vision = (
+                "Tu es un expert en sécurité bâtiment et réglementation ERP. "
+                "Analyse ce rapport d'inspection (PDF scanné fourni en image).\n\n"
+                "CLASSIFICATIONS : Alerte sécurité, Non-conformité, Anomalie, À corriger, Défaut constaté, Réserve, À surveiller, Observation, Point d'amélioration, Remarque\n"
+                "NIVEAUX : CRITIQUE=Alerte sécurité | ÉLEVÉ=Non-conformité/Anomalie/À corriger | MOYEN=Réserve/Surveiller/Défaut | FAIBLE=Observation/Amélioration | MINIMAL=Remarque\n"
+                "STATUTS : CRITIQUE→\"À faire\" | ÉLEVÉ→\"À planifier\" | MOYEN→\"À planifier\" | FAIBLE→\"À valider\" | MINIMAL→\"À valider\"\n\n"
+                "Réponds UNIQUEMENT en JSON valide sans texte avant/après :\n"
+                '{"metadata": {"date_intervention":"","societe":"","client":"","site":"","materiel":"","etat":""},'
+                '"problemes": [{"num":1,"classification":"","description":"","action_corrective":"","niveau_risque":"","statut":"","reference_reglementaire":""}],'
+                '"statistiques": {"total":0,"critique":0,"eleve":0,"moyen":0,"faible":0,"minimal":0},'
+                '"resume_executif": ""}'
+            )
+            body_v = _json2.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt_vision},
+                    {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 8192}
+            }).encode("utf-8")
+            url_v = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            req_v = _req.Request(url_v, data=body_v, headers={"Content-Type": "application/json"})
+            with _req.urlopen(req_v, timeout=120) as r_v:
+                result_v = _json2.loads(r_v.read().decode("utf-8"))
+            texte_rep = result_v["candidates"][0]["content"]["parts"][0]["text"].strip()
+            texte_rep = _re2.sub(r"```json\s*", "", texte_rep)
+            texte_rep = _re2.sub(r"```\s*", "", texte_rep)
+            data = _json2.loads(texte_rep)
 
         meta  = data.get("metadata", {})
         stats = data.get("statistiques", {})
