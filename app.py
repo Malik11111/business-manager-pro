@@ -713,8 +713,8 @@ def api_pharma_retirer_perimes():
 #  API PHARMACIE — BDPM (base officielle medicaments)
 # ══════════════════════════════════════════════════════
 
-BDPM_URL_CIS = "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_bdpm.txt"
-BDPM_URL_CIP = "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_CIP_bdpm.txt"
+BDPM_URL_CIS = "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_bdpm.txt"
+BDPM_URL_CIP = "https://base-donnees-publique.medicaments.gouv.fr/download/file/CIS_CIP_bdpm.txt"
 
 # Table BDPM en memoire (partagee entre requetes)
 _bdpm_cache = {}  # cip13 -> nom_medicament
@@ -748,18 +748,23 @@ def _bdpm_load():
         return False, f"Erreur telechargement CIS: {e}"
 
     # 2. CIS_CIP_bdpm.txt : correspondance CIP13 -> CIS
+    # Format : 0:cis  1:cip7  2:nom_presentation  3:statut_adm
+    #          4:etat_commerc  5:date_decl  6:cip13  7:agrement
     count = 0
     try:
         req = urllib.request.Request(BDPM_URL_CIP, headers={'User-Agent': 'BusinessManager/1.0'})
-        with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
+        with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
             text = resp.read().decode('utf-8', errors='replace')
         for line in text.strip().split('\n'):
             parts = line.split('\t')
             if len(parts) >= 7:
                 cis = parts[0].strip()
-                cip13 = parts[6].strip() if len(parts) > 6 else ''
-                if cip13 and cis in cis_noms:
-                    _bdpm_cache[cip13] = cis_noms[cis]
+                cip13 = parts[6].strip()
+                nom_pres = parts[2].strip() if len(parts) > 2 else ''
+                nom_cis = cis_noms.get(cis, '')
+                nom = nom_cis or nom_pres
+                if cip13 and nom:
+                    _bdpm_cache[cip13] = nom
                     count += 1
     except Exception as e:
         return False, f"Erreur telechargement CIP: {e}"
