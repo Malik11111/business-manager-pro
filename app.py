@@ -1240,6 +1240,85 @@ def upload_analyse_pdf():
             pass
 
 
+PROMPT_CONTRAT = """
+Tu es un expert en gestion de contrats de prestataires. Analyse ce contrat et extrais les informations clés.
+
+Réponds UNIQUEMENT en JSON valide sans texte avant/après :
+{
+  "nom": "nom du prestataire / société",
+  "service": "type de service parmi : Nettoyage, Maintenance, Sécurité, Restauration, Espaces verts, Fournitures, Informatique, Téléphonie, Transport / Logistique, Comptabilité / Finance, Juridique, Formation, Communication / Marketing, Déchets / Recyclage, Énergie, Assurance, Désinsectisation, Autre",
+  "contact": "nom du contact principal",
+  "email": "email de contact",
+  "telephone": "numéro de téléphone",
+  "date_debut": "date de début du contrat au format YYYY-MM-DD",
+  "date_fin": "date de fin du contrat au format YYYY-MM-DD",
+  "montant": 0,
+  "frequence": "fréquence de paiement : Mensuel, Trimestriel, Annuel, Ponctuel",
+  "prestations": "description courte des prestations",
+  "notes": "informations importantes supplémentaires"
+}
+
+Si une information est absente, laisse la valeur vide ("") ou 0 pour le montant.
+
+Texte du contrat :
+{texte}
+"""
+
+
+@app.route('/api/prestataires/scan-contrat', methods=['POST'])
+@login_required
+def scan_contrat_ia():
+    import os as _os, tempfile as _tmp, json as _json, re as _re, urllib.request
+    from datetime import date as _date
+
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+
+    f = request.files['file']
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'Seuls les PDF sont acceptés'}), 400
+
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API Gemini requise'}), 400
+
+    with _tmp.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        texte = _extraire_texte_pdf(tmp_path)
+        if not texte:
+            return jsonify({'error': 'Impossible d\'extraire le texte du PDF'}), 422
+
+        prompt = PROMPT_CONTRAT.replace("{texte}", texte[:40000])
+        body = _json.dumps({
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+        }).encode("utf-8")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            result = _json.loads(r.read().decode("utf-8"))
+        texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+        texte_rep = _re.sub(r"```\s*", "", texte_rep)
+        data = _json.loads(texte_rep)
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
 @app.route('/api/analyse-pdf/historique', methods=['GET'])
 @login_required
 def get_historique_analyses():

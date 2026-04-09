@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Business Manager Pro — Web</title>
-  <link rel="stylesheet" href="/static/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -16,7 +16,7 @@
 <header id="app-header">
   <div class="brand">
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
-      <rect width="26" height="26" rx="6" fill="#2D2870"/>
+      <rect width="26" height="26" rx="6" fill="#4A148C"/>
       <path d="M7 18 L13 7 L19 18" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       <path d="M9.5 14 H16.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
     </svg>
@@ -33,8 +33,9 @@
 
   <div class="header-spacer"></div>
 
-  <button class="btn-header" onclick="loadDemoData()" style="color:#1565C0" title="Charger des données de démonstration">🎲 Demo</button>
-  <button class="btn-header" onclick="doLogout()" style="color:#C62828">🚪 Déconnexion</button>
+  <button class="btn-header" onclick="saveAll()">💾 Sauvegarder</button>
+  <button class="btn-header primary">⚙️ Config</button>
+  <button class="btn-header">ℹ️ Système</button>
 </header>
 
 <!-- ══════════════════════════════════════════════════════
@@ -322,180 +323,8 @@
 
     <div id="view-cles"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🔑</div><h2>Clés</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-stock"     class="module-view hidden"><div class="coming-soon"><div class="cs-icon">📦</div><h2>Stock</h2><p>Ce module sera disponible prochainement.</p></div></div>
-    <!-- ════════════════════════════════════════════════
-         VUE : PARC AUTO
-    ════════════════════════════════════════════════ -->
-    <div id="view-auto" class="module-view hidden">
-
-      <!-- Toolbar -->
-      <div class="module-toolbar">
-        <div class="filters">
-          <input id="auto-search" class="search-input" type="text" placeholder="🔍 Rechercher un véhicule..." oninput="filterVehicules()">
-        </div>
-        <button class="btn btn-green"  onclick="openAddVehiculeDialog()">➕ Ajouter</button>
-        <button class="btn btn-blue"   onclick="exportVehicules()">📤 Exporter CSV</button>
-        <button class="btn btn-orange" onclick="majRapideKm()">📏 MAJ km</button>
-      </div>
-
-      <!-- Onglets -->
-      <div class="tabs-header">
-        <button class="tab-btn active" data-tab-group="auto" data-tab-id="vehicules"  onclick="switchTab('auto','vehicules')"> 🚗 Véhicules</button>
-        <button class="tab-btn"        data-tab-group="auto" data-tab-id="entretien"  onclick="switchTab('auto','entretien')"> 🔧 Entretien</button>
-        <button class="tab-btn"        data-tab-group="auto" data-tab-id="carburant"  onclick="switchTab('auto','carburant')"> ⛽ Carburant</button>
-        <button class="tab-btn"        data-tab-group="auto" data-tab-id="alertes"    onclick="switchTab('auto','alertes')">   🔔 Alertes <span id="auto-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
-      </div>
-
-      <!-- Onglet Véhicules -->
-      <div class="tab-content active" data-tab-group="auto" data-tab-id="vehicules">
-        <div class="table-wrapper">
-          <table id="auto-table">
-            <thead><tr>
-              <th>COULEUR</th>
-              <th onclick="sortVehiculesBy('immatriculation')">IMMAT.</th>
-              <th onclick="sortVehiculesBy('marque')">MARQUE / MODÈLE</th>
-              <th onclick="sortVehiculesBy('annee')">ANNÉE</th>
-              <th onclick="sortVehiculesBy('kilometrage')">KM</th>
-              <th onclick="sortVehiculesBy('conducteur')">CONDUCTEUR</th>
-              <th>CT</th>
-              <th>ASSURANCE</th>
-              <th>ACTIONS</th>
-            </tr></thead>
-            <tbody id="auto-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Onglet Entretien -->
-      <div class="tab-content" data-tab-group="auto" data-tab-id="entretien">
-        <div style="padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #EDEDF5;background:#fff;">
-          <select id="entretien-vehicule-filter" class="filter-select" onchange="loadEntretiens()">
-            <option value="">Tous les véhicules</option>
-          </select>
-          <button class="btn btn-green" onclick="openAddEntretienDialog()">➕ Ajouter entretien</button>
-          <span id="entretien-total" style="margin-left:auto;font-size:13px;color:#6B6B8A;"></span>
-        </div>
-        <div class="table-wrapper">
-          <table id="entretien-table">
-            <thead><tr>
-              <th>DATE</th><th>VÉHICULE</th><th>TYPE</th><th>KM</th><th>DESCRIPTION</th><th>COÛT €</th><th>ACTIONS</th>
-            </tr></thead>
-            <tbody id="entretien-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Onglet Carburant -->
-      <div class="tab-content" data-tab-group="auto" data-tab-id="carburant">
-        <div style="padding:12px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #EDEDF5;background:#fff;">
-          <select id="carburant-vehicule-filter" class="filter-select" onchange="loadCarburant()">
-            <option value="">Tous les véhicules</option>
-          </select>
-          <button class="btn btn-green" onclick="openAddCarburantDialog()">➕ Ajouter plein</button>
-          <span id="carburant-total" style="margin-left:auto;font-size:13px;color:#6B6B8A;"></span>
-        </div>
-        <div class="table-wrapper">
-          <table id="carburant-table">
-            <thead><tr>
-              <th>DATE</th><th>VÉHICULE</th><th>LITRES</th><th>COÛT €</th><th>KM</th><th>€/L</th><th>ACTIONS</th>
-            </tr></thead>
-            <tbody id="carburant-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Onglet Alertes -->
-      <div class="tab-content" data-tab-group="auto" data-tab-id="alertes">
-        <div class="table-wrapper">
-          <table id="alertes-table">
-            <thead><tr>
-              <th>VÉHICULE</th><th>MARQUE / MODÈLE</th><th>DATE CT</th><th>ÉTAT CT</th><th>DATE ASSURANCE</th><th>ÉTAT ASSURANCE</th>
-            </tr></thead>
-            <tbody id="alertes-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </div><!-- /view-auto -->
-    <!-- ════════════════════════════════════════════════
-         VUE : ANALYSE PDF
-    ════════════════════════════════════════════════ -->
-    <div id="view-analyse" class="module-view hidden">
-
-      <div class="module-toolbar">
-        <div class="filters" style="flex:1;gap:10px;">
-          <span id="pdf-api-key-wrap"><input id="pdf-api-key" class="search-input" type="password" placeholder="🔑 Clé API Gemini..." style="width:300px;"></span>
-          <label class="btn btn-gemini" style="cursor:pointer;position:relative;">
-            📄 Choisir un PDF à analyser
-            <input id="pdf-file-input" type="file" accept=".pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="onPdfSelected(this)">
-          </label>
-          <span id="pdf-filename" style="font-size:13px;color:#6B6B8A;align-self:center;"></span>
-        </div>
-        <button id="pdf-analyse-btn" class="btn btn-gemini" onclick="lancerAnalysePDF()" disabled>🔍 Analyser</button>
-      </div>
-
-      <!-- Barre de progression -->
-      <div id="pdf-progress-wrap" style="display:none;padding:10px 0 6px;">
-        <div style="background:#EDE9FF;border-radius:8px;overflow:hidden;height:8px;">
-          <div id="pdf-progress-bar" style="height:100%;background:linear-gradient(90deg,#5C52CC,#9D95E8);width:0%;transition:width .4s;border-radius:8px;"></div>
-        </div>
-        <div id="pdf-progress-label" style="font-size:12px;color:#5C52CC;margin-top:4px;"></div>
-      </div>
-
-      <!-- Onglets -->
-      <div class="tabs-header">
-        <button class="tab-btn active" data-tab-group="analyse" data-tab-id="resultats"   onclick="switchTab('analyse','resultats')">  📋 Résultats</button>
-        <button class="tab-btn"        data-tab-group="analyse" data-tab-id="historique"  onclick="switchTab('analyse','historique')"> 🕐 Historique</button>
-      </div>
-
-      <!-- Onglet Résultats -->
-      <div class="tab-content active" data-tab-group="analyse" data-tab-id="resultats">
-        <div id="pdf-empty-state" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#9CA3AF;padding:60px;background:#fff;">
-          <div style="font-size:56px;">🤖</div>
-          <h2 style="color:#6B6B8A;font-size:20px;">Analyse PDF Sécurité</h2>
-          <p style="text-align:center;max-width:400px;line-height:1.6;">Importez un rapport d'inspection sécurité (PDF) et entrez votre clé API Gemini pour détecter automatiquement les non-conformités et problèmes.</p>
-        </div>
-
-        <!-- Résultat après analyse -->
-        <div id="pdf-result" style="display:none;flex-direction:column;overflow:hidden;background:#fff;">
-          <!-- KPIs -->
-          <div class="kpi-row" style="padding:12px 16px 0;" id="pdf-kpis"></div>
-          <!-- Résumé exécutif -->
-          <div id="pdf-resume" style="margin:0 16px 10px;padding:14px 16px;background:#F5F4FF;border-left:4px solid #5C52CC;border-radius:0 8px 8px 0;font-size:13px;line-height:1.7;color:#1A1A2E;display:none;"></div>
-          <!-- Métadonnées -->
-          <div id="pdf-meta" style="margin:0 16px 10px;display:flex;flex-wrap:wrap;gap:8px;"></div>
-          <!-- Tableau problèmes -->
-          <div class="table-wrapper" style="margin:0 16px 16px;">
-            <table id="pdf-problems-table">
-              <thead><tr>
-                <th>#</th>
-                <th>NIVEAU</th>
-                <th>CLASSIFICATION</th>
-                <th>DESCRIPTION</th>
-                <th>ACTION CORRECTIVE</th>
-                <th>RÉFÉRENCE</th>
-                <th>STATUT</th>
-              </tr></thead>
-              <tbody id="pdf-problems-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Onglet Historique -->
-      <div class="tab-content" data-tab-group="analyse" data-tab-id="historique">
-        <div class="table-wrapper">
-          <table id="historique-table">
-            <thead><tr>
-              <th>DATE</th><th>FICHIER</th><th>SOCIÉTÉ</th><th>SITE</th>
-              <th>TOTAL</th><th>CRITIQUE</th><th>ÉLEVÉ</th><th>MOYEN</th>
-              <th>RÉSUMÉ</th><th>ACTIONS</th>
-            </tr></thead>
-            <tbody id="historique-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </div><!-- /view-analyse -->
+    <div id="view-auto"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🚗</div><h2>Parc Auto</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <div id="view-analyse"   class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🤖</div><h2>Analyse PDF</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-caisse"    class="module-view hidden"><div class="coming-soon"><div class="cs-icon">💰</div><h2>Caisse</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-ppms"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🛡️</div><h2>PPMS</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <!-- ════════════════════════════════════════════════
@@ -524,8 +353,6 @@
 
         <!-- Toolbar -->
         <div style="padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
-          <button id="pharma-scanner-btn" class="btn" onclick="toggleScanner()" style="background:#27AE60;color:white;font-weight:700;font-size:13px">🔫 Scanner (USB)</button>
-          <button class="btn btn-blue" onclick="openManualScanDialog()" style="font-size:12px" title="Saisir manuellement un code-barres">⌨️ Code</button>
           <button class="btn btn-green"  onclick="openPharmaAddDialog()">➕ Ajouter</button>
           <button class="btn btn-orange" onclick="openPharmaSortie()">📤 Sortie</button>
 
@@ -537,10 +364,6 @@
 
           <div style="flex:1"></div>
 
-          <span id="pharma-scan-status" style="display:none;font-size:11px;color:#EF6C00;font-weight:600"></span>
-          <span id="pharma-bdpm-status" style="font-size:11px;color:#999"></span>
-          <button id="pharma-bdpm-btn" class="btn" onclick="downloadBdpm()" style="background:#0277bd;color:white;font-size:12px;font-weight:700" title="Telecharger la base officielle des medicaments">🏛️ BDPM</button>
-          <button class="btn" onclick="searchBdpm()" style="background:#7B1FA2;color:white;font-size:12px;font-weight:700" title="Rechercher un medicament dans la BDPM">🔍 Chercher</button>
           <button class="btn btn-red" onclick="removePharmaPerimes()" style="font-size:12px">🗑️ Périmés</button>
           <button class="btn btn-gray" onclick="showPharmaCorbeille()" style="font-size:12px;color:#6D4C41">🗑️ Corbeille</button>
           <button class="btn btn-blue" onclick="exportPharmaCSV()" style="font-size:12px">📊 Export CSV</button>
@@ -624,43 +447,6 @@
       </div>
 
     </div><!-- /view-pharmacie -->
-
-    <!-- ════════════════════════════════════════════════
-         VUE : ADMIN
-    ════════════════════════════════════════════════ -->
-    <div id="view-admin" class="module-view hidden">
-      <div class="module-header">
-        <h2>👑 Administration</h2>
-        <div class="toolbar-right">
-          <button class="btn btn-green" onclick="showCreateUserModal()">+ Creer un utilisateur</button>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:16px;">
-        <h3 style="margin-bottom:12px">Utilisateurs</h3>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Etablissements</th>
-              <th>Cree le</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="admin-users-body2"></tbody>
-        </table>
-      </div>
-
-      <div class="card" style="margin-top:16px;padding:16px;background:#f5f0ff;border-left:4px solid #7C4DFF;">
-        <h3 style="margin:0 0 8px">Roles</h3>
-        <p style="margin:0;font-size:0.9em"><strong>Super Admin</strong> — Cree/supprime admins et utilisateurs, gere tous les etablissements</p>
-        <p style="margin:4px 0;font-size:0.9em"><strong>Admin</strong> — Cree des utilisateurs, assigne des etablissements</p>
-        <p style="margin:4px 0;font-size:0.9em"><strong>Utilisateur</strong> — Utilise l'application dans ses etablissements</p>
-        <p style="margin:8px 0 0;font-size:0.85em;color:#666"><em>Le premier compte inscrit recoit automatiquement le role Super Admin.</em></p>
-      </div>
-    </div>
 
   </main>
 </div>
@@ -1139,14 +925,12 @@
 <!-- ══════════════════════════════════════════════════════
      SCRIPTS
 ══════════════════════════════════════════════════════ -->
-<script src="/static/js/data.js"></script>
-<script src="/static/js/utils.js"></script>
-<script src="/static/js/prestataires.js"></script>
-<script src="/static/js/actifs.js"></script>
-<script src="/static/js/parc_auto.js"></script>
-<script src="/static/js/analyse_pdf.js"></script>
-<script src="/static/js/pharmacie.js"></script>
-<script src="/static/js/app.js"></script>
+<script src="js/data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/prestataires.js"></script>
+<script src="js/actifs.js"></script>
+<script src="js/pharmacie.js"></script>
+<script src="js/app.js"></script>
 
 <!-- Initialisation du champ date des évaluations -->
 <script>
@@ -1159,19 +943,15 @@
 <!-- ══ DIALOG SCAN CONTRAT IA ══════════════════════════════════ -->
 <div id="scan-contrat-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
-
-    <!-- Étape 1 : upload -->
     <div id="scan-step-upload">
       <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un contrat avec Gemini IA</h2>
       <p style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">Déposez un contrat PDF — Gemini extrait automatiquement les informations du prestataire.</p>
-
-      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;transition:background .2s;" id="scan-drop-zone">
+      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="scan-drop-zone">
         <div style="font-size:36px;">📂</div>
         <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez un PDF ici</div>
         <div id="scan-filename" style="font-size:12px;color:#9CA3AF;">Aucun fichier sélectionné</div>
         <input type="file" id="scan-pdf-input" accept=".pdf" style="display:none;" onchange="onScanPdfSelected(this)">
       </label>
-
       <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
         <button onclick="closeScanContratDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
         <button id="scan-analyse-btn" onclick="lancerScanContrat()" disabled style="padding:9px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#5C52CC,#7C6AE8);color:#fff;font-weight:600;cursor:pointer;opacity:.5;">🤖 Analyser avec Gemini</button>
@@ -1183,81 +963,33 @@
         <div id="scan-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
       </div>
     </div>
-
-    <!-- Étape 2 : prévisualisation -->
     <div id="scan-step-preview" style="display:none;">
       <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">✅ Informations extraites</h2>
       <p style="color:#6B6B8A;font-size:13px;margin:0 0 18px;">Vérifiez et corrigez si nécessaire, puis cliquez sur Enregistrer.</p>
-
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOM DU PRESTATAIRE *</label>
-          <input id="sc-nom" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">SERVICE</label>
-          <select id="sc-service" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-            <option>Nettoyage</option><option>Maintenance</option><option>Sécurité</option>
-            <option>Restauration</option><option>Espaces verts</option><option>Fournitures</option>
-            <option>Informatique</option><option>Téléphonie</option><option>Transport / Logistique</option>
-            <option>Comptabilité / Finance</option><option>Juridique</option><option>Formation</option>
-            <option>Communication / Marketing</option><option>Déchets / Recyclage</option>
-            <option>Énergie</option><option>Assurance</option><option>Désinsectisation</option><option>Autre</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">CONTACT</label>
-          <input id="sc-contact" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">EMAIL</label>
-          <input id="sc-email" type="email" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TÉLÉPHONE</label>
-          <input id="sc-telephone" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">MONTANT (€)</label>
-          <input id="sc-montant" type="number" min="0" step="0.01" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE DÉBUT</label>
-          <input id="sc-date-debut" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE FIN</label>
-          <input id="sc-date-fin" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">FRÉQUENCE</label>
-          <select id="sc-frequence" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
-            <option value="">—</option><option>Mensuel</option><option>Trimestriel</option><option>Annuel</option><option>Ponctuel</option>
-          </select>
-        </div>
-        <div style="grid-column:span 2;">
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">PRESTATIONS</label>
-          <textarea id="sc-prestations" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>
-        </div>
-        <div style="grid-column:span 2;">
-          <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOTES</label>
-          <textarea id="sc-notes" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea>
-        </div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOM DU PRESTATAIRE *</label><input id="sc-nom" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">SERVICE</label><select id="sc-service" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"><option>Nettoyage</option><option>Maintenance</option><option>Sécurité</option><option>Restauration</option><option>Espaces verts</option><option>Fournitures</option><option>Informatique</option><option>Téléphonie</option><option>Transport / Logistique</option><option>Comptabilité / Finance</option><option>Juridique</option><option>Formation</option><option>Communication / Marketing</option><option>Déchets / Recyclage</option><option>Énergie</option><option>Assurance</option><option>Désinsectisation</option><option>Autre</option></select></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">CONTACT</label><input id="sc-contact" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">EMAIL</label><input id="sc-email" type="email" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TÉLÉPHONE</label><input id="sc-telephone" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">MONTANT (€)</label><input id="sc-montant" type="number" min="0" step="0.01" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE DÉBUT</label><input id="sc-date-debut" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE FIN</label><input id="sc-date-fin" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">FRÉQUENCE</label><select id="sc-frequence" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"><option value="">—</option><option>Mensuel</option><option>Trimestriel</option><option>Annuel</option><option>Ponctuel</option></select></div>
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">PRESTATIONS</label><textarea id="sc-prestations" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea></div>
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOTES</label><textarea id="sc-notes" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea></div>
       </div>
-
       <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
         <button onclick="scanRetourUpload()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">← Retour</button>
         <button onclick="closeScanContratDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
         <button onclick="enregistrerContratScanne()" style="padding:9px 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#2E7D32,#43A047);color:#fff;font-weight:600;cursor:pointer;">💾 Enregistrer</button>
       </div>
     </div>
-
   </div>
 </div>
 
 <script>
 let _scanPdfFile = null;
-
 function openScanContratDialog() {
   _scanPdfFile = null;
   document.getElementById('scan-filename').textContent = 'Aucun fichier sélectionné';
@@ -1267,39 +999,23 @@ function openScanContratDialog() {
   document.getElementById('scan-step-preview').style.display = 'none';
   document.getElementById('scan-progress-wrap').style.display = 'none';
   document.getElementById('scan-progress-bar').style.width = '0%';
-  const overlay = document.getElementById('scan-contrat-overlay');
-  overlay.style.display = 'flex';
+  document.getElementById('scan-contrat-overlay').style.display = 'flex';
 }
-
 function closeScanContratDialog() {
   document.getElementById('scan-contrat-overlay').style.display = 'none';
 }
-
-document.getElementById('scan-drop-zone').addEventListener('click', () => {
-  document.getElementById('scan-pdf-input').click();
-});
-
-document.getElementById('scan-drop-zone').addEventListener('dragover', e => {
-  e.preventDefault();
-  e.currentTarget.style.background = '#EDE9FF';
-});
-document.getElementById('scan-drop-zone').addEventListener('dragleave', e => {
-  e.currentTarget.style.background = '#F8F7FF';
-});
+document.getElementById('scan-drop-zone').addEventListener('click', () => document.getElementById('scan-pdf-input').click());
+document.getElementById('scan-drop-zone').addEventListener('dragover', e => { e.preventDefault(); });
 document.getElementById('scan-drop-zone').addEventListener('drop', e => {
   e.preventDefault();
-  e.currentTarget.style.background = '#F8F7FF';
   const file = e.dataTransfer.files[0];
   if (file && file.name.toLowerCase().endsWith('.pdf')) {
     _scanPdfFile = file;
     document.getElementById('scan-filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' Ko)';
     document.getElementById('scan-analyse-btn').disabled = false;
     document.getElementById('scan-analyse-btn').style.opacity = '1';
-  } else {
-    showToast('Seuls les fichiers PDF sont acceptés', 'error');
-  }
+  } else { showToast('Seuls les fichiers PDF sont acceptés', 'error'); }
 });
-
 function onScanPdfSelected(input) {
   const file = input.files[0];
   if (!file) return;
@@ -1308,105 +1024,74 @@ function onScanPdfSelected(input) {
   document.getElementById('scan-analyse-btn').disabled = false;
   document.getElementById('scan-analyse-btn').style.opacity = '1';
 }
-
 async function lancerScanContrat() {
   if (!_scanPdfFile) return;
   const btn = document.getElementById('scan-analyse-btn');
-  btn.disabled = true;
-  btn.style.opacity = '.6';
-
+  btn.disabled = true; btn.style.opacity = '.6';
   const wrap = document.getElementById('scan-progress-wrap');
   const bar = document.getElementById('scan-progress-bar');
   const lbl = document.getElementById('scan-progress-label');
   wrap.style.display = 'block';
-  bar.style.width = '20%';
-  lbl.textContent = 'Envoi du PDF...';
-
+  bar.style.width = '20%'; lbl.textContent = 'Envoi du PDF...';
   try {
     const formData = new FormData();
     formData.append('file', _scanPdfFile);
-    bar.style.width = '50%';
-    lbl.textContent = 'Analyse par Gemini IA...';
-
+    bar.style.width = '50%'; lbl.textContent = 'Analyse par Gemini IA...';
     const res = await fetch('/api/prestataires/scan-contrat', { method: 'POST', body: formData });
-    bar.style.width = '90%';
-    lbl.textContent = 'Traitement des résultats...';
-
+    bar.style.width = '90%'; lbl.textContent = 'Traitement des résultats...';
     const data = await res.json();
-    if (!res.ok) {
-      showToast(data.error || 'Erreur scan', 'error');
-      wrap.style.display = 'none';
-      btn.disabled = false;
-      btn.style.opacity = '1';
-      return;
-    }
-
-    bar.style.width = '100%';
-    lbl.textContent = 'Extraction terminée !';
+    if (!res.ok) { showToast(data.error || 'Erreur scan', 'error'); wrap.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1'; return; }
+    bar.style.width = '100%'; lbl.textContent = 'Extraction terminée !';
     setTimeout(() => { wrap.style.display = 'none'; }, 800);
-
-    // Remplir le formulaire de prévisualisation
-    document.getElementById('sc-nom').value        = data.nom || '';
+    document.getElementById('sc-nom').value = data.nom || '';
     const sel = document.getElementById('sc-service');
     for (let o of sel.options) if (o.value === data.service) { sel.value = data.service; break; }
-    document.getElementById('sc-contact').value    = data.contact || '';
-    document.getElementById('sc-email').value      = data.email || '';
-    document.getElementById('sc-telephone').value  = data.telephone || '';
-    document.getElementById('sc-montant').value    = data.montant || 0;
+    document.getElementById('sc-contact').value = data.contact || '';
+    document.getElementById('sc-email').value = data.email || '';
+    document.getElementById('sc-telephone').value = data.telephone || '';
+    document.getElementById('sc-montant').value = data.montant || 0;
     document.getElementById('sc-date-debut').value = data.date_debut || '';
-    document.getElementById('sc-date-fin').value   = data.date_fin || '';
+    document.getElementById('sc-date-fin').value = data.date_fin || '';
     const selF = document.getElementById('sc-frequence');
     for (let o of selF.options) if (o.value === data.frequence) { selF.value = data.frequence; break; }
     document.getElementById('sc-prestations').value = data.prestations || '';
-    document.getElementById('sc-notes').value       = data.notes || '';
-
+    document.getElementById('sc-notes').value = data.notes || '';
     document.getElementById('scan-step-upload').style.display = 'none';
     document.getElementById('scan-step-preview').style.display = 'block';
-
   } catch (e) {
     showToast('Erreur : ' + e.message, 'error');
-    wrap.style.display = 'none';
-    btn.disabled = false;
-    btn.style.opacity = '1';
+    wrap.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1';
   }
 }
-
 function scanRetourUpload() {
   document.getElementById('scan-step-upload').style.display = 'block';
   document.getElementById('scan-step-preview').style.display = 'none';
   document.getElementById('scan-analyse-btn').disabled = false;
   document.getElementById('scan-analyse-btn').style.opacity = '1';
 }
-
 async function enregistrerContratScanne() {
   const nom = document.getElementById('sc-nom').value.trim();
   if (!nom) { showToast('Le nom du prestataire est requis', 'error'); return; }
-
   const payload = {
-    nom,
-    service:    document.getElementById('sc-service').value,
-    contact:    document.getElementById('sc-contact').value,
-    email:      document.getElementById('sc-email').value,
-    telephone:  document.getElementById('sc-telephone').value,
-    montant:    parseFloat(document.getElementById('sc-montant').value) || 0,
+    nom, service: document.getElementById('sc-service').value,
+    contact: document.getElementById('sc-contact').value,
+    email: document.getElementById('sc-email').value,
+    telephone: document.getElementById('sc-telephone').value,
+    montant: parseFloat(document.getElementById('sc-montant').value) || 0,
     date_debut: document.getElementById('sc-date-debut').value,
-    date_fin:   document.getElementById('sc-date-fin').value,
-    frequence:  document.getElementById('sc-frequence').value,
-    prestations:document.getElementById('sc-prestations').value,
-    notes:      document.getElementById('sc-notes').value,
+    date_fin: document.getElementById('sc-date-fin').value,
+    frequence: document.getElementById('sc-frequence').value,
+    prestations: document.getElementById('sc-prestations').value,
+    notes: document.getElementById('sc-notes').value,
   };
-
   try {
     const res = await fetch('/api/prestataires', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const data = await res.json();
     if (!res.ok) { showToast(data.error || 'Erreur', 'error'); return; }
-
     closeScanContratDialog();
-    showToast(`✅ Prestataire "${nom}" ajouté depuis le contrat`, 'success');
+    showToast('✅ Prestataire "' + nom + '" ajouté depuis le contrat', 'success');
     await initPrestataires();
-  } catch (e) {
-    showToast('Erreur : ' + e.message, 'error');
-  }
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 </script>
 
