@@ -737,7 +737,7 @@ def _bdpm_load():
     try:
         req = urllib.request.Request(BDPM_URL_CIS, headers={'User-Agent': 'BusinessManager/1.0'})
         with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
-            text = resp.read().decode('utf-8', errors='replace')
+            text = resp.read().decode('latin-1')
         for line in text.strip().split('\n'):
             parts = line.split('\t')
             if len(parts) >= 2:
@@ -754,7 +754,7 @@ def _bdpm_load():
     try:
         req = urllib.request.Request(BDPM_URL_CIP, headers={'User-Agent': 'BusinessManager/1.0'})
         with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
-            text = resp.read().decode('utf-8', errors='replace')
+            text = resp.read().decode('latin-1')
         for line in text.strip().split('\n'):
             parts = line.split('\t')
             if len(parts) >= 7:
