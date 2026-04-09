@@ -244,7 +244,7 @@
             <option value="">Tous statuts</option>
           </select>
           <div style="flex:1"></div>
-          <button class="btn btn-gemini" onclick="showToast('Scan Facture IA — disponible avec clé API.','info')">📄 Scan Facture IA</button>
+          <button class="btn btn-gemini" onclick="openScanFactureDialog()">📄 Scan Facture IA</button>
           <button class="btn btn-green" onclick="openMaterielDialog()">➕ Ajouter</button>
           <button class="btn btn-blue" onclick="exportActifsMateriel()">📤 Exporter</button>
         </div>
@@ -1407,6 +1407,160 @@ async function enregistrerContratScanne() {
   } catch (e) {
     showToast('Erreur : ' + e.message, 'error');
   }
+}
+</script>
+
+<!-- ══ DIALOG SCAN FACTURE IA ══════════════════════════════════ -->
+<div id="scan-facture-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
+
+    <div id="sf-step-upload">
+      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">🧾 Scan Facture d'investissement IA</h2>
+      <p style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">PDF, JPG ou PNG — Gemini extrait automatiquement les informations de la facture.</p>
+      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="sf-drop-zone">
+        <div style="font-size:36px;">🧾</div>
+        <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez une facture ici</div>
+        <div style="font-size:11px;color:#B0B0C0;margin-bottom:4px;">PDF, JPG, PNG acceptés</div>
+        <div id="sf-filename" style="font-size:12px;color:#9CA3AF;">Aucun fichier sélectionné</div>
+        <input type="file" id="sf-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSfFileSelected(this)">
+      </label>
+      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+        <button onclick="closeScanFactureDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
+        <button id="sf-analyse-btn" onclick="lancerScanFacture()" disabled style="padding:9px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#5C52CC,#7C6AE8);color:#fff;font-weight:600;cursor:pointer;opacity:.5;">🤖 Analyser avec Gemini</button>
+      </div>
+      <div id="sf-progress-wrap" style="display:none;margin-top:14px;">
+        <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
+          <div id="sf-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+        </div>
+        <div id="sf-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
+      </div>
+    </div>
+
+    <div id="sf-step-preview" style="display:none;">
+      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">✅ Informations extraites</h2>
+      <p style="color:#6B6B8A;font-size:13px;margin:0 0 18px;">Vérifiez et corrigez si nécessaire, puis cliquez sur Enregistrer.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOM / DÉSIGNATION *</label><input id="sf-nom" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">RÉFÉRENCE FACTURE</label><input id="sf-reference" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TYPE</label>
+          <select id="sf-type" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
+            <option>Audiovisuel</option><option>Climatisation</option><option>Electroménager</option>
+            <option>Équipement</option><option>Informatique</option><option>Médical</option>
+            <option>Mobilier</option><option>Outillage</option><option>Sécurité</option>
+            <option>Téléphonie</option><option>Travaux</option><option>Véhicule</option><option>Autre</option>
+          </select>
+        </div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE D'ACHAT</label><input id="sf-date-achat" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">COÛT TTC (€)</label><input id="sf-cout" type="number" min="0" step="0.01" value="0" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOTES</label><textarea id="sf-notes" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+        <button onclick="sfRetourUpload()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">← Retour</button>
+        <button onclick="closeScanFactureDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
+        <button onclick="enregistrerFactureScannee()" style="padding:9px 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#2E7D32,#43A047);color:#fff;font-weight:600;cursor:pointer;">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let _sfFile = null;
+
+function openScanFactureDialog() {
+  _sfFile = null;
+  document.getElementById('sf-filename').textContent = 'Aucun fichier sélectionné';
+  document.getElementById('sf-analyse-btn').disabled = true;
+  document.getElementById('sf-analyse-btn').style.opacity = '.5';
+  document.getElementById('sf-step-upload').style.display = 'block';
+  document.getElementById('sf-step-preview').style.display = 'none';
+  document.getElementById('sf-progress-wrap').style.display = 'none';
+  document.getElementById('sf-progress-bar').style.width = '0%';
+  document.getElementById('scan-facture-overlay').style.display = 'flex';
+}
+function closeScanFactureDialog() {
+  document.getElementById('scan-facture-overlay').style.display = 'none';
+}
+document.getElementById('sf-drop-zone').addEventListener('click', () => document.getElementById('sf-file-input').click());
+document.getElementById('sf-drop-zone').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('sf-drop-zone').addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) { _setSfFile(file); } else { showToast('Format non supporté', 'error'); }
+});
+function onSfFileSelected(input) {
+  if (input.files[0]) _setSfFile(input.files[0]);
+}
+function _setSfFile(file) {
+  const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
+  if (!ok) { showToast('Format accepté : PDF, JPG, PNG', 'error'); return; }
+  _sfFile = file;
+  document.getElementById('sf-filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' Ko)';
+  document.getElementById('sf-analyse-btn').disabled = false;
+  document.getElementById('sf-analyse-btn').style.opacity = '1';
+}
+async function lancerScanFacture() {
+  if (!_sfFile) return;
+  const btn = document.getElementById('sf-analyse-btn');
+  btn.disabled = true; btn.style.opacity = '.6';
+  const wrap = document.getElementById('sf-progress-wrap');
+  const bar = document.getElementById('sf-progress-bar');
+  const lbl = document.getElementById('sf-progress-label');
+  wrap.style.display = 'block';
+  bar.style.width = '20%'; lbl.textContent = 'Envoi du fichier...';
+  try {
+    const formData = new FormData();
+    formData.append('file', _sfFile);
+    bar.style.width = '55%'; lbl.textContent = 'Analyse par Gemini IA...';
+    const res = await fetch('/api/materiels/scan-facture', { method: 'POST', body: formData });
+    bar.style.width = '90%'; lbl.textContent = 'Traitement...';
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur', 'error'); wrap.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1'; return; }
+    bar.style.width = '100%'; lbl.textContent = 'Extraction terminée !';
+    setTimeout(() => { wrap.style.display = 'none'; }, 800);
+
+    document.getElementById('sf-nom').value = data.nom || '';
+    document.getElementById('sf-reference').value = data.reference || data.numero_serie || '';
+    document.getElementById('sf-date-achat').value = data.date_achat || '';
+    document.getElementById('sf-cout').value = data.cout || 0;
+    document.getElementById('sf-notes').value = data.notes || '';
+    const selT = document.getElementById('sf-type');
+    for (let o of selT.options) if (o.value === data.type_materiel) { selT.value = data.type_materiel; break; }
+
+    document.getElementById('sf-step-upload').style.display = 'none';
+    document.getElementById('sf-step-preview').style.display = 'block';
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+    wrap.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1';
+  }
+}
+function sfRetourUpload() {
+  document.getElementById('sf-step-upload').style.display = 'block';
+  document.getElementById('sf-step-preview').style.display = 'none';
+  document.getElementById('sf-analyse-btn').disabled = false;
+  document.getElementById('sf-analyse-btn').style.opacity = '1';
+}
+async function enregistrerFactureScannee() {
+  const nom = document.getElementById('sf-nom').value.trim();
+  if (!nom) { showToast('Le nom est requis', 'error'); return; }
+  const payload = {
+    nom,
+    reference: document.getElementById('sf-reference').value,
+    type_materiel: document.getElementById('sf-type').value,
+    date_achat: document.getElementById('sf-date-achat').value,
+    cout: parseFloat(document.getElementById('sf-cout').value) || 0,
+    notes: document.getElementById('sf-notes').value,
+    duree_amortissement: 5,
+    statut: 'En service',
+  };
+  try {
+    const res = await fetch('/api/materiels', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur', 'error'); return; }
+    closeScanFactureDialog();
+    showToast('✅ Investissement "' + nom + '" ajouté depuis la facture', 'success');
+    switchTab('actifs', 'investissement');
+    await initActifs();
+  } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 </script>
 

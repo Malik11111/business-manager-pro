@@ -485,6 +485,86 @@ def api_get_materiels():
     return jsonify([m.to_dict() for m in items])
 
 
+@app.route('/api/materiels/scan-facture', methods=['POST'])
+@login_required
+def scan_facture_ia():
+    import os as _os, tempfile as _tmp, json as _json, re as _re, urllib.request, base64 as _b64
+
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+
+    f = request.files['file']
+    fname = f.filename.lower()
+    if not (fname.endswith('.pdf') or fname.endswith('.jpg') or fname.endswith('.jpeg') or fname.endswith('.png')):
+        return jsonify({'error': 'Format accepté : PDF, JPG, PNG'}), 400
+
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API Gemini requise'}), 400
+
+    suffix = '.' + fname.rsplit('.', 1)[-1]
+    with _tmp.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        prompt = (
+            "Analyse cette facture d'achat et extrait les informations suivantes en JSON strict, "
+            "sans markdown ni texte autour :\n"
+            '{"nom": "désignation ou nom du matériel/équipement acheté (3-8 mots max)", '
+            '"reference": "numéro de facture ou bon de commande si présent, sinon vide", '
+            '"numero_serie": "numéro de série (labels: S/N, Série, Serial, N° série, SN) — vide si absent", '
+            '"type_materiel": "type parmi: Audiovisuel, Climatisation, Electroménager, Équipement, Informatique, Médical, Mobilier, Outillage, Sécurité, Téléphonie, Travaux, Véhicule, Autre", '
+            '"date_achat": "YYYY-MM-DD", '
+            '"cout": 0, '
+            '"notes": "résumé en 1-2 phrases"}\n'
+            "Règles : date_achat toujours en YYYY-MM-DD. cout = montant total TTC (si HT seulement, multiplier par 1.20). "
+            "Si valeur absente : chaîne vide ou 0."
+        )
+
+        if suffix == '.pdf':
+            texte = _extraire_texte_pdf(tmp_path)
+            if not texte:
+                return jsonify({'error': 'Impossible d\'extraire le texte du PDF'}), 422
+            body = _json.dumps({
+                "contents": [{"parts": [{"text": prompt + "\n\nTexte de la facture :\n" + texte[:40000]}]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+            }).encode("utf-8")
+        else:
+            with open(tmp_path, 'rb') as img_f:
+                img_data = _b64.b64encode(img_f.read()).decode('utf-8')
+            mime = 'image/jpeg' if suffix in ('.jpg', '.jpeg') else 'image/png'
+            body = _json.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime, "data": img_data}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+            }).encode("utf-8")
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            result = _json.loads(r.read().decode("utf-8"))
+        texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+        texte_rep = _re.sub(r"```\s*", "", texte_rep)
+        data = _json.loads(texte_rep)
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
 @app.route('/api/materiels', methods=['POST'])
 @login_required
 def api_add_materiel():
