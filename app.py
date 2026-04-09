@@ -710,6 +710,105 @@ def api_pharma_retirer_perimes():
 
 
 # ══════════════════════════════════════════════════════
+#  API PHARMACIE — BDPM (base officielle medicaments)
+# ══════════════════════════════════════════════════════
+
+BDPM_URL_CIS = "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_bdpm.txt"
+BDPM_URL_CIP = "https://base-donnees-publique.medicaments.gouv.fr/telechargement.php?fichier=CIS_CIP_bdpm.txt"
+
+# Table BDPM en memoire (partagee entre requetes)
+_bdpm_cache = {}  # cip13 -> nom_medicament
+_bdpm_loaded = False
+
+
+def _bdpm_load():
+    """Charge la BDPM en memoire depuis les fichiers gouvernementaux."""
+    global _bdpm_cache, _bdpm_loaded
+    import urllib.request
+    import ssl
+
+    try:
+        ctx = ssl.create_default_context()
+    except Exception:
+        ctx = ssl._create_unverified_context()
+
+    # 1. CIS_bdpm.txt : code CIS -> nom medicament
+    cis_noms = {}
+    try:
+        req = urllib.request.Request(BDPM_URL_CIS, headers={'User-Agent': 'BusinessManager/1.0'})
+        with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
+            text = resp.read().decode('utf-8', errors='replace')
+        for line in text.strip().split('\n'):
+            parts = line.split('\t')
+            if len(parts) >= 2:
+                cis = parts[0].strip()
+                nom = parts[1].strip()
+                cis_noms[cis] = nom
+    except Exception as e:
+        return False, f"Erreur telechargement CIS: {e}"
+
+    # 2. CIS_CIP_bdpm.txt : correspondance CIP13 -> CIS
+    count = 0
+    try:
+        req = urllib.request.Request(BDPM_URL_CIP, headers={'User-Agent': 'BusinessManager/1.0'})
+        with urllib.request.urlopen(req, context=ctx, timeout=30) as resp:
+            text = resp.read().decode('utf-8', errors='replace')
+        for line in text.strip().split('\n'):
+            parts = line.split('\t')
+            if len(parts) >= 7:
+                cis = parts[0].strip()
+                cip13 = parts[6].strip() if len(parts) > 6 else ''
+                if cip13 and cis in cis_noms:
+                    _bdpm_cache[cip13] = cis_noms[cis]
+                    count += 1
+    except Exception as e:
+        return False, f"Erreur telechargement CIP: {e}"
+
+    _bdpm_loaded = True
+    return True, f"{count} medicaments indexes"
+
+
+@app.route('/api/pharmacie/bdpm/status', methods=['GET'])
+@login_required
+def api_bdpm_status():
+    return jsonify({'loaded': _bdpm_loaded, 'count': len(_bdpm_cache)})
+
+
+@app.route('/api/pharmacie/bdpm/download', methods=['POST'])
+@login_required
+def api_bdpm_download():
+    ok, msg = _bdpm_load()
+    if ok:
+        return jsonify({'ok': True, 'message': msg, 'count': len(_bdpm_cache)})
+    return jsonify({'error': msg}), 500
+
+
+@app.route('/api/pharmacie/bdpm/lookup/<cip13>', methods=['GET'])
+@login_required
+def api_bdpm_lookup(cip13):
+    cip13 = cip13.strip()
+    nom = _bdpm_cache.get(cip13)
+    if nom:
+        return jsonify({'found': True, 'nom': nom, 'cip13': cip13})
+    return jsonify({'found': False, 'cip13': cip13})
+
+
+@app.route('/api/pharmacie/bdpm/search', methods=['GET'])
+@login_required
+def api_bdpm_search():
+    q = request.args.get('q', '').strip().lower()
+    if len(q) < 2:
+        return jsonify([])
+    results = []
+    for cip, nom in _bdpm_cache.items():
+        if q in nom.lower():
+            results.append({'cip13': cip, 'nom': nom})
+            if len(results) >= 20:
+                break
+    return jsonify(results)
+
+
+# ══════════════════════════════════════════════════════
 #  API ADMIN
 # ══════════════════════════════════════════════════════
 

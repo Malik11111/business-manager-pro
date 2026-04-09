@@ -524,6 +524,8 @@
 
         <!-- Toolbar -->
         <div style="padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <button id="pharma-scanner-btn" class="btn" onclick="toggleScanner()" style="background:#27AE60;color:white;font-weight:700;font-size:13px">🔫 Scanner (USB)</button>
+          <button class="btn btn-blue" onclick="openManualScanDialog()" style="font-size:12px" title="Saisir manuellement un code-barres">⌨️ Code</button>
           <button class="btn btn-green"  onclick="openPharmaAddDialog()">➕ Ajouter</button>
           <button class="btn btn-orange" onclick="openPharmaSortie()">📤 Sortie</button>
 
@@ -535,6 +537,10 @@
 
           <div style="flex:1"></div>
 
+          <span id="pharma-scan-status" style="display:none;font-size:11px;color:#EF6C00;font-weight:600"></span>
+          <span id="pharma-bdpm-status" style="font-size:11px;color:#999"></span>
+          <button id="pharma-bdpm-btn" class="btn" onclick="downloadBdpm()" style="background:#0277bd;color:white;font-size:12px;font-weight:700" title="Telecharger la base officielle des medicaments">🏛️ BDPM</button>
+          <button class="btn" onclick="searchBdpm()" style="background:#7B1FA2;color:white;font-size:12px;font-weight:700" title="Rechercher un medicament dans la BDPM">🔍 Chercher</button>
           <button class="btn btn-red" onclick="removePharmaPerimes()" style="font-size:12px">🗑️ Périmés</button>
           <button class="btn btn-gray" onclick="showPharmaCorbeille()" style="font-size:12px;color:#6D4C41">🗑️ Corbeille</button>
           <button class="btn btn-blue" onclick="exportPharmaCSV()" style="font-size:12px">📊 Export CSV</button>

@@ -54,6 +54,7 @@ async function initPharmacie() {
   }
   renderPharmaTable();
   _updatePharmaBadges();
+  checkBdpmStatus();
 
   const s = document.getElementById('pharma-search');
   if (s) s.oninput = debounce(() => { _pharmaSearch = s.value; renderPharmaTable(); }, 200);
@@ -463,6 +464,243 @@ async function _reloadPharma() {
   ]);
   renderPharmaTable();
   _updatePharmaBadges();
+}
+
+/* ══════════════════════════════════════════════════════
+   SCANNER USB (GS1 DataMatrix)
+══════════════════════════════════════════════════════ */
+
+let _scannerActive = false;
+let _scanBuffer = '';
+let _scanTimeout = null;
+
+function _parseGS1(data) {
+  const result = {};
+  // Nettoyer prefixes scanner
+  for (const pfx of [']d2',']C1',']e0',']Q3']) {
+    if (data.startsWith(pfx)) data = data.slice(pfx.length);
+  }
+  // Format avec parentheses
+  if (data.includes('(')) {
+    let m = data.match(/\(01\)(\d{14})/);
+    if (m) result.cip = m[1].replace(/^0+/,'') || m[1];
+    m = data.match(/\(17\)(\d{6})/);
+    if (m) _parseDate17(m[1], result);
+    m = data.match(/\(10\)([A-Za-z0-9\-]+)/);
+    if (m) result.lot = m[1];
+    return result;
+  }
+  // Format brut GS1
+  data = data.replace(/\x1d/g,'\x00').replace(/\x1c/g,'\x00');
+  const FIXED = {'01':14,'17':6,'11':6,'13':6,'15':6};
+  let pos = 0;
+  while (pos < data.length) {
+    if (data[pos] === '\x00') { pos++; continue; }
+    const ai2 = data.slice(pos, pos+2);
+    if (FIXED[ai2]) {
+      const flen = FIXED[ai2];
+      if (pos+2+flen <= data.length) {
+        const val = data.slice(pos+2, pos+2+flen);
+        if (ai2==='01') result.cip = val.replace(/^0+/,'') || val;
+        else if (ai2==='17') _parseDate17(val, result);
+      }
+      pos += 2 + flen;
+    } else if (ai2==='10') {
+      const rest = data.slice(pos+2);
+      let end = rest.length;
+      for (let i=1; i<rest.length; i++) {
+        if (rest[i]==='\x00') { end=i; break; }
+        if (/^(01\d{14}|17\d{6}|11\d{6}|15\d{6})/.test(rest.slice(i))) { end=i; break; }
+      }
+      result.lot = rest.slice(0, end).trim();
+      pos += 2 + end;
+    } else if (ai2==='21') {
+      const rest = data.slice(pos+2);
+      let end = rest.length;
+      for (let i=1; i<rest.length; i++) { if (rest[i]==='\x00') { end=i; break; } }
+      pos += 2 + end;
+    } else {
+      pos++;
+    }
+  }
+  return result;
+}
+
+function _parseDate17(d6, result) {
+  try {
+    const yy = parseInt(d6.slice(0,2));
+    const mm = parseInt(d6.slice(2,4));
+    let dd = parseInt(d6.slice(4,6));
+    const year = 2000 + yy;
+    if (dd === 0) dd = new Date(year, mm, 0).getDate();
+    result.date_peremption = `${year}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  } catch(e) {}
+}
+
+function toggleScanner() {
+  _scannerActive = !_scannerActive;
+  const btn = document.getElementById('pharma-scanner-btn');
+  const status = document.getElementById('pharma-scan-status');
+  if (_scannerActive) {
+    btn.textContent = '🔫 Scanner ON';
+    btn.style.background = '#EF6C00';
+    if (status) { status.textContent = '⏳ En attente de scan...'; status.style.display = 'inline'; }
+    document.addEventListener('keydown', _onScanKeydown);
+  } else {
+    btn.textContent = '🔫 Scanner (USB)';
+    btn.style.background = '#27AE60';
+    if (status) status.style.display = 'none';
+    document.removeEventListener('keydown', _onScanKeydown);
+    _scanBuffer = '';
+  }
+}
+
+function _onScanKeydown(e) {
+  if (!_scannerActive) return;
+  // Ignore si focus dans un input/textarea (sauf le scan)
+  const tag = document.activeElement?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_scanBuffer.length > 5) {
+      _processScan(_scanBuffer);
+    }
+    _scanBuffer = '';
+    clearTimeout(_scanTimeout);
+    return;
+  }
+  if (e.key.length === 1) {
+    _scanBuffer += e.key;
+    clearTimeout(_scanTimeout);
+    _scanTimeout = setTimeout(() => { _scanBuffer = ''; }, 300);
+  }
+}
+
+async function _processScan(raw) {
+  const status = document.getElementById('pharma-scan-status');
+  const btn = document.getElementById('pharma-scanner-btn');
+
+  // Flash orange
+  if (btn) { btn.style.background = '#FF9800'; setTimeout(()=> btn.style.background = '#EF6C00', 400); }
+
+  const parsed = _parseGS1(raw);
+  if (status) status.textContent = `✅ Scan: CIP=${parsed.cip||'?'} Lot=${parsed.lot||'?'}`;
+
+  // Lookup BDPM
+  let nomMed = '';
+  if (parsed.cip) {
+    try {
+      const res = await api(`/api/pharmacie/bdpm/lookup/${parsed.cip}`);
+      if (res.found) nomMed = res.nom;
+    } catch(e) {}
+  }
+
+  // Ouvrir le formulaire pre-rempli
+  openPharmaAddDialog();
+  if (nomMed) document.getElementById('pharma-med-nom').value = nomMed;
+  if (parsed.lot) document.getElementById('pharma-med-lot').value = parsed.lot;
+  if (parsed.date_peremption) document.getElementById('pharma-med-peremption').value = parsed.date_peremption;
+
+  showToast(`Scan detecte${nomMed ? ': '+nomMed : ''}`, 'success');
+}
+
+/* ── Saisie manuelle du code scan ─────────────────── */
+function openManualScanDialog() {
+  openModal('🔫 Saisir un code-barres', `
+    <div style="padding:10px">
+      <p style="font-size:13px;color:#666;margin-bottom:12px">
+        Collez ou tapez le code DataMatrix / code-barres GS1 du medicament :
+      </p>
+      <input id="manual-scan-input" class="modal-input" style="width:100%;font-family:monospace;font-size:14px"
+             placeholder="Ex: 010341234500001317250630103AB456" autofocus>
+      <div id="manual-scan-result" style="margin-top:12px;font-size:12px;color:#666"></div>
+    </div>
+  `, async () => {
+    const raw = document.getElementById('manual-scan-input')?.value?.trim();
+    if (raw) {
+      closeGenericModal();
+      await _processScan(raw);
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   BDPM — Base officielle medicaments
+══════════════════════════════════════════════════════ */
+
+let _bdpmLoaded = false;
+
+async function checkBdpmStatus() {
+  try {
+    const res = await api('/api/pharmacie/bdpm/status');
+    _bdpmLoaded = res.loaded;
+    const el = document.getElementById('pharma-bdpm-status');
+    if (el) {
+      el.textContent = res.loaded ? `🏛️ BDPM: ${res.count} meds` : '🏛️ BDPM: non chargee';
+      el.style.color = res.loaded ? '#2E7D32' : '#999';
+    }
+  } catch(e) {}
+}
+
+async function downloadBdpm() {
+  const btn = document.getElementById('pharma-bdpm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Telechargement...'; }
+  try {
+    const res = await api('/api/pharmacie/bdpm/download', 'POST');
+    _bdpmLoaded = true;
+    showToast(res.message || 'BDPM chargee.', 'success');
+    checkBdpmStatus();
+  } catch(e) {
+    showToast('Erreur BDPM: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🏛️ BDPM'; }
+  }
+}
+
+async function searchBdpm() {
+  openModal('🏛️ Rechercher un medicament (BDPM)', `
+    <div style="padding:10px">
+      <p style="font-size:13px;color:#666;margin-bottom:10px">
+        Recherchez dans la base officielle des medicaments francais :
+      </p>
+      <input id="bdpm-search-input" class="modal-input" style="width:100%;font-size:14px"
+             placeholder="Nom du medicament..." oninput="_doBdpmSearch()" autofocus>
+      <div id="bdpm-search-results" style="margin-top:10px;max-height:300px;overflow:auto"></div>
+    </div>
+  `, null);
+}
+
+async function _doBdpmSearch() {
+  const q = document.getElementById('bdpm-search-input')?.value?.trim();
+  const div = document.getElementById('bdpm-search-results');
+  if (!div) return;
+  if (!q || q.length < 2) { div.innerHTML = '<p style="color:#999;font-size:12px">Tapez au moins 2 caracteres...</p>'; return; }
+  if (!_bdpmLoaded) { div.innerHTML = '<p style="color:#C62828;font-size:12px">⚠️ BDPM non chargee. Cliquez sur le bouton BDPM pour la telecharger.</p>'; return; }
+  try {
+    const results = await api(`/api/pharmacie/bdpm/search?q=${encodeURIComponent(q)}`);
+    if (results.length === 0) {
+      div.innerHTML = '<p style="color:#999;font-size:12px">Aucun resultat.</p>';
+    } else {
+      div.innerHTML = results.map(r => `
+        <div style="padding:8px 10px;border-bottom:1px solid #eee;cursor:pointer;font-size:13px;display:flex;justify-content:space-between;align-items:center"
+             onclick="_selectBdpmResult('${esc(r.nom.replace(/'/g,"\\'"))}','${r.cip13}')"
+             onmouseover="this.style.background='#F3E5F5'" onmouseout="this.style.background=''">
+          <span style="flex:1">${esc(r.nom)}</span>
+          <span style="color:#999;font-size:11px;margin-left:8px">CIP: ${r.cip13}</span>
+        </div>
+      `).join('');
+    }
+  } catch(e) {
+    div.innerHTML = '<p style="color:#C62828;font-size:12px">Erreur recherche.</p>';
+  }
+}
+
+function _selectBdpmResult(nom, cip) {
+  closeGenericModal();
+  openPharmaAddDialog();
+  document.getElementById('pharma-med-nom').value = nom;
+  showToast('Medicament selectionne: ' + nom, 'success');
 }
 
 /* ── Modal helper ───────────────────────────────────── */
