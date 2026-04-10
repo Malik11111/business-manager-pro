@@ -57,6 +57,9 @@ class Etablissement(db.Model):
     pharma_archive = db.relationship('PharmaArchive', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     vehicules = db.relationship('Vehicule', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     analyses_pdf = db.relationship('AnalysePDF', backref='etablissement', lazy=True, cascade='all, delete-orphan')
+    cles_items = db.relationship('CleItem', backref='etablissement', lazy=True, cascade='all, delete-orphan')
+    employes_cles = db.relationship('EmployeCle', backref='etablissement', lazy=True, cascade='all, delete-orphan')
+    historique_cles = db.relationship('HistoriqueCle', backref='etablissement', lazy=True, cascade='all, delete-orphan')
 
 
 # ── Prestataires ──────────────────────────────────────
@@ -276,6 +279,78 @@ class AnalysePDF(db.Model):
             'nb_faible': self.nb_faible, 'resume_executif': self.resume_executif,
             'data_json': self.data_json
         }
+
+
+# ── Clés ──────────────────────────────────────────────
+
+class CleItem(db.Model):
+    __tablename__ = 'cles_items'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    numero = db.Column(db.String(50), default='')
+    nom = db.Column(db.String(200), nullable=False)
+    quantite_totale = db.Column(db.Integer, default=1)
+
+    def to_dict(self):
+        return {'id': self.id, 'numero': self.numero, 'nom': self.nom,
+                'quantite_totale': self.quantite_totale}
+
+
+class EmployeCle(db.Model):
+    __tablename__ = 'employes_cles'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    prenom = db.Column(db.String(100), default='')
+    nom = db.Column(db.String(100), nullable=False)
+    type_contrat = db.Column(db.String(50), default='CDI')
+    poste = db.Column(db.String(100), default='')
+    date_arrivee = db.Column(db.String(10), default='')
+    date_depart = db.Column(db.String(10), default='')
+
+    def to_dict(self):
+        return {'id': self.id, 'prenom': self.prenom, 'nom': self.nom,
+                'type_contrat': self.type_contrat, 'poste': self.poste,
+                'date_arrivee': self.date_arrivee, 'date_depart': self.date_depart}
+
+
+class AttributionCle(db.Model):
+    __tablename__ = 'attributions_cles'
+    id = db.Column(db.Integer, primary_key=True)
+    employe_id = db.Column(db.Integer, db.ForeignKey('employes_cles.id'), nullable=False)
+    cle_id = db.Column(db.Integer, db.ForeignKey('cles_items.id'), nullable=False)
+    date_attribution = db.Column(db.String(10), nullable=False)
+    date_retour = db.Column(db.String(10), default='')
+    notes = db.Column(db.Text, default='')
+
+    employe = db.relationship('EmployeCle', backref='attributions', lazy=True)
+    cle = db.relationship('CleItem', backref='attributions', lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employe_id': self.employe_id,
+            'cle_id': self.cle_id,
+            'date_attribution': self.date_attribution,
+            'date_retour': self.date_retour,
+            'notes': self.notes,
+            'employe_nom': f"{self.employe.prenom} {self.employe.nom}".strip() if self.employe else '',
+            'employe_poste': self.employe.poste if self.employe else '',
+            'cle_nom': self.cle.nom if self.cle else '',
+            'cle_numero': self.cle.numero if self.cle else '',
+        }
+
+
+class HistoriqueCle(db.Model):
+    __tablename__ = 'historique_cles'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    event_type = db.Column(db.String(50), default='')
+    details = db.Column(db.Text, default='')
+    event_date = db.Column(db.String(20), default='')
+
+    def to_dict(self):
+        return {'id': self.id, 'event_type': self.event_type,
+                'details': self.details, 'event_date': self.event_date}
 
 
 # ── Parc Auto ─────────────────────────────────────────

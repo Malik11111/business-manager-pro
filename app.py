@@ -10,6 +10,7 @@ from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePr
 from models import Personnel, Unite, Materiel
 from models import PharmaStock, PharmaMouvement, PharmaArchive
 from models import Vehicule, Entretien, Carburant
+from models import CleItem, EmployeCle, AttributionCle, HistoriqueCle
 from models import AnalysePDF
 import json
 
@@ -1708,6 +1709,221 @@ def delete_carburant(cid):
 def data_today():
     from datetime import date
     return date.today().isoformat()
+
+
+# ══════════════════════════════════════════════════════
+#  API CLÉS
+# ══════════════════════════════════════════════════════
+
+def _log_cle_event(etab_id, event_type, details):
+    from datetime import datetime
+    h = HistoriqueCle(etab_id=etab_id, event_type=event_type, details=details,
+                      event_date=datetime.now().strftime('%d/%m/%Y %H:%M'))
+    db.session.add(h)
+
+
+@app.route('/api/cles/cles', methods=['GET'])
+@login_required
+def api_cles_list():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    items = CleItem.query.filter_by(etab_id=etab.id).order_by(CleItem.nom).all()
+    result = []
+    for c in items:
+        d = c.to_dict()
+        attribuees = AttributionCle.query.filter_by(cle_id=c.id).filter(
+            (AttributionCle.date_retour == '') | (AttributionCle.date_retour == None)
+        ).count()
+        d['attribuees'] = attribuees
+        d['disponibles'] = max(0, c.quantite_totale - attribuees)
+        result.append(d)
+    return jsonify(result)
+
+
+@app.route('/api/cles/cles', methods=['POST'])
+@login_required
+def api_cles_add():
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    data = request.get_json()
+    nom = (data.get('nom') or '').strip()
+    if not nom: return jsonify({'error': 'Nom requis'}), 400
+    c = CleItem(etab_id=etab.id, nom=nom,
+                numero=data.get('numero', ''),
+                quantite_totale=int(data.get('quantite_totale', 1)))
+    db.session.add(c)
+    db.session.flush()
+    _log_cle_event(etab.id, 'cle_ajoutee', f'Clé ajoutée: {nom} (n°{c.numero})')
+    db.session.commit()
+    return jsonify(c.to_dict()), 201
+
+
+@app.route('/api/cles/cles/<int:cle_id>', methods=['PUT'])
+@login_required
+def api_cles_update(cle_id):
+    etab = get_current_etab()
+    c = CleItem.query.filter_by(id=cle_id, etab_id=etab.id).first_or_404()
+    data = request.get_json()
+    c.nom = data.get('nom', c.nom)
+    c.numero = data.get('numero', c.numero)
+    c.quantite_totale = int(data.get('quantite_totale', c.quantite_totale))
+    _log_cle_event(etab.id, 'cle_modifiee', f'Clé modifiée: {c.nom}')
+    db.session.commit()
+    return jsonify(c.to_dict())
+
+
+@app.route('/api/cles/cles/<int:cle_id>', methods=['DELETE'])
+@login_required
+def api_cles_delete(cle_id):
+    etab = get_current_etab()
+    c = CleItem.query.filter_by(id=cle_id, etab_id=etab.id).first_or_404()
+    _log_cle_event(etab.id, 'cle_supprimee', f'Clé supprimée: {c.nom}')
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/cles/employes', methods=['GET'])
+@login_required
+def api_employes_list():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    employes = EmployeCle.query.filter_by(etab_id=etab.id).order_by(EmployeCle.nom).all()
+    result = []
+    for e in employes:
+        d = e.to_dict()
+        cles_actives = AttributionCle.query.filter_by(employe_id=e.id).filter(
+            (AttributionCle.date_retour == '') | (AttributionCle.date_retour == None)
+        ).all()
+        d['cles'] = [{'id': a.cle_id, 'nom': a.cle.nom if a.cle else '', 'numero': a.cle.numero if a.cle else '',
+                      'attribution_id': a.id, 'date_attribution': a.date_attribution} for a in cles_actives]
+        d['nb_cles'] = len(cles_actives)
+        result.append(d)
+    return jsonify(result)
+
+
+@app.route('/api/cles/employes', methods=['POST'])
+@login_required
+def api_employes_add():
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    data = request.get_json()
+    nom = (data.get('nom') or '').strip()
+    if not nom: return jsonify({'error': 'Nom requis'}), 400
+    e = EmployeCle(etab_id=etab.id, nom=nom,
+                   prenom=data.get('prenom', ''),
+                   type_contrat=data.get('type_contrat', 'CDI'),
+                   poste=data.get('poste', ''),
+                   date_arrivee=data.get('date_arrivee', ''),
+                   date_depart=data.get('date_depart', ''))
+    db.session.add(e)
+    db.session.flush()
+    _log_cle_event(etab.id, 'employe_ajoute', f'Employé ajouté: {e.prenom} {e.nom}')
+    db.session.commit()
+    return jsonify(e.to_dict()), 201
+
+
+@app.route('/api/cles/employes/<int:emp_id>', methods=['PUT'])
+@login_required
+def api_employes_update(emp_id):
+    etab = get_current_etab()
+    e = EmployeCle.query.filter_by(id=emp_id, etab_id=etab.id).first_or_404()
+    data = request.get_json()
+    e.nom = data.get('nom', e.nom)
+    e.prenom = data.get('prenom', e.prenom)
+    e.type_contrat = data.get('type_contrat', e.type_contrat)
+    e.poste = data.get('poste', e.poste)
+    e.date_arrivee = data.get('date_arrivee', e.date_arrivee)
+    e.date_depart = data.get('date_depart', e.date_depart)
+    _log_cle_event(etab.id, 'employe_modifie', f'Employé modifié: {e.prenom} {e.nom}')
+    db.session.commit()
+    return jsonify(e.to_dict())
+
+
+@app.route('/api/cles/employes/<int:emp_id>', methods=['DELETE'])
+@login_required
+def api_employes_delete(emp_id):
+    etab = get_current_etab()
+    e = EmployeCle.query.filter_by(id=emp_id, etab_id=etab.id).first_or_404()
+    _log_cle_event(etab.id, 'employe_supprime', f'Employé supprimé: {e.prenom} {e.nom}')
+    db.session.delete(e)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/cles/attributions', methods=['GET'])
+@login_required
+def api_attributions_list():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    # Attributions en cours uniquement
+    attrs = (AttributionCle.query
+             .join(EmployeCle, AttributionCle.employe_id == EmployeCle.id)
+             .filter(EmployeCle.etab_id == etab.id)
+             .filter((AttributionCle.date_retour == '') | (AttributionCle.date_retour == None))
+             .order_by(AttributionCle.date_attribution.desc())
+             .all())
+    return jsonify([a.to_dict() for a in attrs])
+
+
+@app.route('/api/cles/attributions', methods=['POST'])
+@login_required
+def api_attributions_add():
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    data = request.get_json()
+    emp_id = data.get('employe_id')
+    cle_id = data.get('cle_id')
+    if not emp_id or not cle_id: return jsonify({'error': 'employe_id et cle_id requis'}), 400
+
+    emp = EmployeCle.query.filter_by(id=emp_id, etab_id=etab.id).first()
+    cle = CleItem.query.filter_by(id=cle_id, etab_id=etab.id).first()
+    if not emp or not cle: return jsonify({'error': 'Employé ou clé introuvable'}), 404
+
+    # Vérifier disponibilité
+    attribuees = AttributionCle.query.filter_by(cle_id=cle_id).filter(
+        (AttributionCle.date_retour == '') | (AttributionCle.date_retour == None)
+    ).count()
+    if attribuees >= cle.quantite_totale:
+        return jsonify({'error': f'Clé "{cle.nom}" plus disponible (toutes attribuées)'}), 409
+
+    from datetime import date
+    today = date.today().isoformat()
+    a = AttributionCle(employe_id=emp_id, cle_id=cle_id,
+                       date_attribution=data.get('date_attribution', today),
+                       notes=data.get('notes', ''))
+    db.session.add(a)
+    db.session.flush()
+    _log_cle_event(etab.id, 'attribution',
+                   f'Clé "{cle.nom}" attribuée à {emp.prenom} {emp.nom}')
+    db.session.commit()
+    return jsonify(a.to_dict()), 201
+
+
+@app.route('/api/cles/attributions/<int:attr_id>/retour', methods=['POST'])
+@login_required
+def api_attribution_retour(attr_id):
+    etab = get_current_etab()
+    a = AttributionCle.query.get_or_404(attr_id)
+    # Vérifier appartenance
+    emp = EmployeCle.query.filter_by(id=a.employe_id, etab_id=etab.id).first()
+    if not emp: return jsonify({'error': 'Non autorise'}), 403
+    from datetime import date
+    a.date_retour = request.get_json().get('date_retour', date.today().isoformat())
+    _log_cle_event(etab.id, 'retour',
+                   f'Clé "{a.cle.nom if a.cle else "?"}" rendue par {emp.prenom} {emp.nom}')
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/cles/historique', methods=['GET'])
+@login_required
+def api_cles_historique():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    hist = (HistoriqueCle.query.filter_by(etab_id=etab.id)
+            .order_by(HistoriqueCle.id.desc()).limit(200).all())
+    return jsonify([h.to_dict() for h in hist])
 
 
 # ══════════════════════════════════════════════════════

@@ -92,6 +92,8 @@ function navigateTo(moduleId) {
       initAnalysePDF();
     } else if (moduleId === 'pharmacie') {
       initPharmacie();
+    } else if (moduleId === 'cles') {
+      initCles();
     } else if (moduleId === 'admin') {
       initAdminPanel();
     }

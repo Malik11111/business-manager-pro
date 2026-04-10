@@ -320,7 +320,85 @@
 
     </div><!-- /view-actifs -->
 
-    <div id="view-cles"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🔑</div><h2>Clés</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <!-- ════════════════════════════════════════════════
+         VUE : CLÉS
+    ════════════════════════════════════════════════ -->
+    <div id="view-cles" class="module-view hidden">
+
+      <!-- Toolbar -->
+      <div class="module-toolbar">
+        <div class="filters">
+          <input id="cles-search" class="search-input" type="text" placeholder="🔍 Rechercher..." oninput="filterCles()">
+        </div>
+        <button class="btn btn-green"  onclick="openAddCleDialog()">🔑 Ajouter une clé</button>
+        <button class="btn btn-blue"   onclick="openAddEmployeDialog()">👤 Ajouter employé</button>
+        <button class="btn btn-orange" onclick="openAttribuerDialog()">📋 Attribuer</button>
+        <button class="btn btn-purple" onclick="openScannerCleDialog()">🔫 Scanner</button>
+      </div>
+
+      <!-- KPIs -->
+      <div id="cles-kpis" style="display:flex;gap:12px;padding:12px 16px;flex-wrap:wrap;"></div>
+
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="cles" data-tab-id="cles-tab"      onclick="switchTab('cles','cles-tab')">      🔑 Clés</button>
+        <button class="tab-btn"        data-tab-group="cles" data-tab-id="employes-tab"  onclick="switchTab('cles','employes-tab')">  👥 Employés</button>
+        <button class="tab-btn"        data-tab-group="cles" data-tab-id="attribs-tab"   onclick="switchTab('cles','attribs-tab')">   📋 Attributions en cours</button>
+        <button class="tab-btn"        data-tab-group="cles" data-tab-id="histo-tab"     onclick="switchTab('cles','histo-tab')">     📜 Historique</button>
+      </div>
+
+      <!-- Onglet Clés -->
+      <div class="tab-content active" data-tab-group="cles" data-tab-id="cles-tab">
+        <div class="table-wrapper">
+          <table id="cles-table">
+            <thead><tr>
+              <th>N°</th><th>NOM DE LA CLÉ</th><th>TOTAL</th>
+              <th>ATTRIBUÉES</th><th>DISPONIBLES</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="cles-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Employés -->
+      <div class="tab-content" data-tab-group="cles" data-tab-id="employes-tab">
+        <div class="table-wrapper">
+          <table id="employes-cles-table">
+            <thead><tr>
+              <th>NOM</th><th>PRÉNOM</th><th>CONTRAT</th><th>POSTE</th>
+              <th>ARRIVÉE</th><th>CLÉS EN COURS</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="employes-cles-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Attributions en cours -->
+      <div class="tab-content" data-tab-group="cles" data-tab-id="attribs-tab">
+        <div class="table-wrapper">
+          <table id="attribs-table">
+            <thead><tr>
+              <th>EMPLOYÉ</th><th>POSTE</th><th>CLÉ</th><th>N°</th>
+              <th>DATE ATTRIBUTION</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="attribs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Historique -->
+      <div class="tab-content" data-tab-group="cles" data-tab-id="histo-tab">
+        <div class="table-wrapper">
+          <table id="histo-cles-table">
+            <thead><tr>
+              <th>DATE</th><th>ÉVÉNEMENT</th><th>DÉTAILS</th>
+            </tr></thead>
+            <tbody id="histo-cles-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /view-cles -->
     <div id="view-stock"     class="module-view hidden"><div class="coming-soon"><div class="cs-icon">📦</div><h2>Stock</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <!-- ════════════════════════════════════════════════
          VUE : PARC AUTO
@@ -1146,6 +1224,7 @@
 <script src="/static/js/parc_auto.js"></script>
 <script src="/static/js/analyse_pdf.js"></script>
 <script src="/static/js/pharmacie.js"></script>
+<script src="/static/js/cles.js"></script>
 <script src="/static/js/app.js"></script>
 
 <!-- Initialisation du champ date des évaluations -->
