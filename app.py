@@ -13,6 +13,7 @@ from models import Vehicule, Entretien, Carburant
 from models import CleItem, EmployeCle, AttributionCle, HistoriqueCle
 from models import StockProduit, StockMouvement
 from models import AnalysePDF
+from models import ContratPDF
 import json
 
 # ── App factory ───────────────────────────────────────
@@ -2387,6 +2388,74 @@ def api_cles_historique():
     hist = (HistoriqueCle.query.filter_by(etab_id=etab.id)
             .order_by(HistoriqueCle.id.desc()).limit(200).all())
     return jsonify([h.to_dict() for h in hist])
+
+
+# ══════════════════════════════════════════════════════
+#  CONTRATS PDF PRESTATAIRES
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/prestataires/contrats', methods=['GET'])
+@login_required
+def api_contrats_list():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    contrats = (ContratPDF.query.filter_by(etab_id=etab.id)
+                .order_by(ContratPDF.id.desc()).all())
+    return jsonify([c.to_dict() for c in contrats])
+
+
+@app.route('/api/prestataires/<int:pid>/contrats', methods=['POST'])
+@login_required
+def api_contrat_upload(pid):
+    from datetime import date as _date
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+    f = request.files['file']
+    if not f.filename.lower().endswith('.pdf'):
+        return jsonify({'error': 'Seuls les PDF sont acceptés'}), 400
+    presta = Prestataire.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not presta: return jsonify({'error': 'Prestataire introuvable'}), 404
+    contenu = f.read()
+    c = ContratPDF(
+        etab_id=etab.id, presta_id=pid,
+        nom_fichier=f.filename,
+        date_ajout=_date.today().isoformat(),
+        contenu=contenu
+    )
+    db.session.add(c)
+    db.session.commit()
+    return jsonify(c.to_dict()), 201
+
+
+@app.route('/api/prestataires/contrats/<int:cid>', methods=['GET'])
+@login_required
+def api_contrat_download(cid):
+    from flask import send_file
+    import io
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    c = ContratPDF.query.filter_by(id=cid, etab_id=etab.id).first()
+    if not c: return jsonify({'error': 'Contrat introuvable'}), 404
+    return send_file(
+        io.BytesIO(c.contenu),
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=c.nom_fichier
+    )
+
+
+@app.route('/api/prestataires/contrats/<int:cid>', methods=['DELETE'])
+@login_required
+def api_contrat_delete(cid):
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    c = ContratPDF.query.filter_by(id=cid, etab_id=etab.id).first()
+    if not c: return jsonify({'error': 'Contrat introuvable'}), 404
+    db.session.delete(c)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ══════════════════════════════════════════════════════

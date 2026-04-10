@@ -430,6 +430,101 @@ function renderCharts() {
   }
 }
 
+/* ══════════════════════════════════════════════════════
+   CONTRATS PDF
+══════════════════════════════════════════════════════ */
+let _contrats = [];
+
+async function loadContrats() {
+  try {
+    _contrats = await api('/api/prestataires/contrats');
+  } catch (e) {
+    _contrats = [];
+  }
+  renderContrats(_contrats);
+}
+
+function filterContrats() {
+  const q = (document.getElementById('contrat-search')?.value || '').toLowerCase();
+  const filtered = !q ? _contrats : _contrats.filter(c =>
+    [c.presta_nom, c.presta_service, c.nom_fichier].some(v => (v || '').toLowerCase().includes(q))
+  );
+  renderContrats(filtered);
+}
+
+function renderContrats(list) {
+  const tbody = document.getElementById('contrats-tbody');
+  if (!tbody) return;
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Aucun contrat PDF. Cliquez sur "Ajouter un contrat PDF" pour importer.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(c => `<tr>
+    <td><strong>${esc(c.presta_nom)}</strong></td>
+    <td><span class="badge badge-blue">${esc(c.presta_service || '—')}</span></td>
+    <td>📄 ${esc(c.nom_fichier)}</td>
+    <td>${c.date_ajout || '—'}</td>
+    <td><div class="row-actions">
+      <button class="btn-sm btn-sm-blue" onclick="downloadContrat(${c.id},'${esc(c.nom_fichier)}')" title="Télécharger">⬇️</button>
+      <button class="btn-sm btn-sm-red" onclick="deleteContrat(${c.id})" title="Supprimer">🗑️</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+async function uploadContrat(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  // Trouver le prestataire sélectionné (ligne active dans la table)
+  const selRow = document.querySelector('#presta-table tbody tr.selected-row');
+  let prestaId = null;
+  if (selRow) prestaId = parseInt(selRow.dataset.id);
+
+  if (!prestaId) {
+    // Demander à l'utilisateur de sélectionner un prestataire
+    const ids = _presta.map(p => p.id);
+    if (ids.length === 0) { showToast('Ajoutez d\'abord un prestataire.', 'error'); return; }
+    // Utiliser le premier si un seul, sinon demander
+    const nom = prompt(`Entrez l'ID du prestataire (${_presta.map(p => `${p.id}:${p.nom}`).join(', ')}) :`);
+    prestaId = parseInt(nom);
+    if (!prestaId || !_presta.find(p => p.id === prestaId)) {
+      showToast('ID prestataire invalide.', 'error'); return;
+    }
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`/api/prestataires/${prestaId}/contrats`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur upload', 'error'); return; }
+    showToast(`Contrat "${file.name}" ajouté.`, 'success');
+    await loadContrats();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+function downloadContrat(id, nom) {
+  const a = document.createElement('a');
+  a.href = `/api/prestataires/contrats/${id}`;
+  a.download = nom;
+  a.click();
+}
+
+async function deleteContrat(id) {
+  const c = _contrats.find(x => x.id === id);
+  if (!c || !confirmAction(`Supprimer "${c.nom_fichier}" ?`)) return;
+  try {
+    await api(`/api/prestataires/contrats/${id}`, 'DELETE');
+    showToast('Contrat supprimé.', 'success');
+    await loadContrats();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
 /* ── Modal helpers ─────────────────────────────────── */
 function closeModal(id) {
   document.getElementById(id)?.classList.add('hidden');

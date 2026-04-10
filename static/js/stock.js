@@ -531,3 +531,73 @@ function _ddmmyyyyToISO(ddmmyyyy) {
   const m = ddmmyyyy.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
   return m ? `${m[3]}-${m[2]}-${m[1]}` : new Date().toISOString().slice(0,10);
 }
+
+/* ══════════════════════════════════════════════════════
+   ONGLET ANALYSE DE DONNÉES
+══════════════════════════════════════════════════════ */
+let _analyseChartDept = null, _analyseChartProd = null;
+
+async function renderStockAnalyse() {
+  try {
+    const jours = document.getElementById('stock-analyse-jours')?.value || '30';
+    let url = '/api/stock/mouvements?type=sortie';
+    if (jours !== '0') url += `&jours=${jours}`;
+    const mvts = await api(url);
+
+    const pal1 = ['#1565C0','#C62828','#2E7D32','#E65100','#6A1B9A','#00838F','#AD1457','#F9A825','#37474F','#558B2F'];
+    const pal2 = ['#E74C3C','#3498DB','#2ECC71','#F39C12','#9B59B6','#1ABC9C','#E67E22','#95A5A6','#D35400','#27AE60'];
+
+    // Par département
+    const byDept = {};
+    mvts.forEach(m => {
+      const d = m.departement || 'Non spécifié';
+      byDept[d] = (byDept[d] || 0) + (m.quantite || 0);
+    });
+    const deptList = Object.entries(byDept).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+    const ctxDept = document.getElementById('chart-stock-dept')?.getContext('2d');
+    if (ctxDept) {
+      if (_analyseChartDept) _analyseChartDept.destroy();
+      _analyseChartDept = new Chart(ctxDept, {
+        type: 'bar',
+        data: {
+          labels: deptList.map(([d]) => d.length > 18 ? d.slice(0, 16) + '…' : d),
+          datasets: [{ data: deptList.map(([, v]) => Math.round(v * 10) / 10), backgroundColor: deptList.map((_, i) => pal1[i % pal1.length]), borderRadius: 6 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Quantité sortie' } } }
+        }
+      });
+    }
+
+    // Par produit
+    const byProd = {};
+    mvts.forEach(m => {
+      const p = m.produit_nom || 'Inconnu';
+      byProd[p] = (byProd[p] || 0) + (m.quantite || 0);
+    });
+    const prodList = Object.entries(byProd).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+    const ctxProd = document.getElementById('chart-stock-prod')?.getContext('2d');
+    if (ctxProd) {
+      if (_analyseChartProd) _analyseChartProd.destroy();
+      _analyseChartProd = new Chart(ctxProd, {
+        type: 'bar',
+        data: {
+          labels: prodList.map(([p]) => p.length > 20 ? p.slice(0, 18) + '…' : p),
+          datasets: [{ data: prodList.map(([, v]) => Math.round(v * 10) / 10), backgroundColor: prodList.map((_, i) => pal2[i % pal2.length]), borderRadius: 6 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, title: { display: true, text: 'Quantité sortie' } } }
+        }
+      });
+    }
+  } catch (e) {
+    console.error('Erreur analyse stock:', e);
+    showToast('Erreur chargement analyse stock', 'error');
+  }
+}

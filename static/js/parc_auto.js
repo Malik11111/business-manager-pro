@@ -668,3 +668,83 @@ async function onScanVehiculeSelected(input) {
     showToast('Erreur : ' + e.message, 'error');
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   ONGLET COÛTS
+══════════════════════════════════════════════════════ */
+let _coutsChart = null;
+
+async function renderCouts() {
+  // Charger les données si pas encore chargées
+  if (!_carburants.length && !_entretiens.length) {
+    await Promise.all([loadEntretiens(), loadCarburant()]);
+  }
+
+  const totalCarb = _carburants.reduce((s, c) => s + (c.cout || 0), 0);
+  const totalEnt  = _entretiens.reduce((s, e) => s + (e.cout || 0), 0);
+  const totalGen  = totalCarb + totalEnt;
+
+  const setKpi = (id, val, label) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelector('.kpi-label').textContent = label;
+    el.querySelector('.kpi-value').textContent = formatEUR(val);
+  };
+  setKpi('couts-kpi-carburant', totalCarb, '⛽ Carburant total');
+  setKpi('couts-kpi-entretien', totalEnt,  '🔧 Entretien total');
+  setKpi('couts-kpi-total',     totalGen,  '💶 Coût total');
+
+  // Par véhicule
+  const byVeh = {};
+  _vehicules.forEach(v => {
+    byVeh[v.id] = {
+      nom: `${v.marque || ''} ${v.modele || ''} (${v.immatriculation})`.trim(),
+      carb: 0, ent: 0
+    };
+  });
+  _carburants.forEach(c => { if (byVeh[c.vehicule_id]) byVeh[c.vehicule_id].carb += c.cout || 0; });
+  _entretiens.forEach(e => { if (byVeh[e.vehicule_id]) byVeh[e.vehicule_id].ent  += e.cout || 0; });
+
+  const vList = Object.values(byVeh)
+    .filter(v => v.carb + v.ent > 0)
+    .sort((a, b) => (b.carb + b.ent) - (a.carb + a.ent));
+
+  // Chart Chart.js
+  const ctx = document.getElementById('chart-couts')?.getContext('2d');
+  if (ctx) {
+    if (_coutsChart) _coutsChart.destroy();
+    _coutsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: vList.map(v => v.nom.length > 28 ? v.nom.slice(0, 26) + '…' : v.nom),
+        datasets: [
+          { label: '⛽ Carburant', data: vList.map(v => Math.round(v.carb)), backgroundColor: '#FF6B6B', borderRadius: 4 },
+          { label: '🔧 Entretien', data: vList.map(v => Math.round(v.ent)),  backgroundColor: '#4ECDC4', borderRadius: 4 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top' } },
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true, beginAtZero: true, ticks: { callback: v => formatEUR(v) } }
+        }
+      }
+    });
+  }
+
+  // Tableau
+  const tbody = document.getElementById('couts-tbody');
+  if (tbody) {
+    if (vList.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Aucune donnée de coût — ajoutez des pleins ou des entretiens.</td></tr>';
+    } else {
+      tbody.innerHTML = vList.map(v => `<tr>
+        <td><strong>${esc(v.nom)}</strong></td>
+        <td style="text-align:right">${formatEUR(Math.round(v.carb))}</td>
+        <td style="text-align:right">${formatEUR(Math.round(v.ent))}</td>
+        <td style="text-align:right;font-weight:700">${formatEUR(Math.round(v.carb + v.ent))}</td>
+      </tr>`).join('');
+    }
+  }
+}

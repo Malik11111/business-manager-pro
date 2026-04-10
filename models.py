@@ -470,3 +470,24 @@ class Carburant(db.Model):
             'cout': self.cout, 'kilometrage': self.kilometrage,
             'immatriculation': self.vehicule.immatriculation if self.vehicule else ''
         }
+
+
+class ContratPDF(db.Model):
+    __tablename__ = 'contrats_pdf'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    presta_id = db.Column(db.Integer, db.ForeignKey('prestataires.id'), nullable=True)
+    nom_fichier = db.Column(db.String(300), nullable=False)
+    date_ajout = db.Column(db.String(10), default='')
+    contenu = db.Column(db.LargeBinary, nullable=False)
+
+    def to_dict(self):
+        presta = Prestataire.query.get(self.presta_id) if self.presta_id else None
+        return {
+            'id': self.id,
+            'presta_id': self.presta_id,
+            'presta_nom': presta.nom if presta else '—',
+            'presta_service': presta.service if presta else '—',
+            'nom_fichier': self.nom_fichier,
+            'date_ajout': self.date_ajout,
+        }

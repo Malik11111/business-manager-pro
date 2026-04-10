@@ -73,7 +73,7 @@
         <button class="tab-btn active" data-tab-group="presta" data-tab-id="liste"       onclick="switchTab('presta','liste')">       📋 Prestataires</button>
         <button class="tab-btn"        data-tab-group="presta" data-tab-id="statistiques" onclick="switchTab('presta','statistiques')"> 📈 Statistiques</button>
         <button class="tab-btn"        data-tab-group="presta" data-tab-id="analyse"      onclick="switchTab('presta','analyse')">      📊 Analyse</button>
-        <button class="tab-btn"        data-tab-group="presta" data-tab-id="contrats"     onclick="switchTab('presta','contrats')">     📄 Contrats</button>
+        <button class="tab-btn"        data-tab-group="presta" data-tab-id="contrats"     onclick="switchTab('presta','contrats');loadContrats()">     📄 Contrats</button>
       </div>
 
       <!-- ── Onglet Liste ─────────────────────────── -->
@@ -151,27 +151,24 @@
       </div>
 
       <!-- ── Onglet Contrats ──────────────────────── -->
-      <div class="tab-content" data-tab-group="presta" data-tab-id="contrats" style="flex-direction:column">
-        <div class="contrats-toolbar">
-          <input class="search-input" style="width:320px" type="text" placeholder="🔍 Filtrer par prestataire, service, nom de fichier...">
-          <button class="btn btn-green" onclick="showToast('Glisser-déposer un PDF à venir.','info')">➕ Ajouter un contrat PDF</button>
+      <div class="tab-content" data-tab-group="presta" data-tab-id="contrats" style="flex-direction:column" data-on-show="loadContrats()">
+        <div class="contrats-toolbar" style="padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <input id="contrat-search" class="search-input" style="width:300px" type="text" placeholder="🔍 Filtrer par prestataire, service, fichier..." oninput="filterContrats()">
+          <div style="flex:1"></div>
+          <label class="btn btn-green" style="cursor:pointer;position:relative;">
+            ➕ Ajouter un contrat PDF
+            <input type="file" id="contrat-upload-input" accept=".pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="uploadContrat(this)">
+          </label>
+        </div>
+        <div style="padding:6px 14px;background:#E3F2FD;border-bottom:1px solid #BBDEFB">
+          <span style="font-size:12px;color:#1565C0">💡 Sélectionnez un prestataire dans la liste avant d'ajouter un contrat, ou choisissez-le après l'import.</span>
         </div>
         <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Prestataire</th>
-                <th>Service</th>
-                <th>Nom du fichier</th>
-                <th>Date d'ajout</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="empty-row">
-                <td colspan="5">Aucun contrat PDF enregistré.<br><small>Cette fonctionnalité sera disponible prochainement.</small></td>
-              </tr>
-            </tbody>
+          <table id="contrats-table">
+            <thead><tr>
+              <th>Prestataire</th><th>Service</th><th>Nom du fichier</th><th>Date d'ajout</th><th>Actions</th>
+            </tr></thead>
+            <tbody id="contrats-tbody"><tr class="empty-row"><td colspan="5">Chargement…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -430,6 +427,7 @@
         <button class="tab-btn"        data-tab-group="stock" data-tab-id="receptions-tab" onclick="switchTab('stock','receptions-tab');loadStockMvts('reception')">📥 Réceptions</button>
         <button class="tab-btn"        data-tab-group="stock" data-tab-id="alertes-tab"    onclick="switchTab('stock','alertes-tab');loadStockAlertes()">🔔 Alertes <span id="stock-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
         <button class="tab-btn"        data-tab-group="stock" data-tab-id="histo-stock-tab" onclick="switchTab('stock','histo-stock-tab');loadStockMvts('')">   📜 Historique</button>
+        <button class="tab-btn"        data-tab-group="stock" data-tab-id="analyse-stock-tab" onclick="switchTab('stock','analyse-stock-tab');renderStockAnalyse()"> 📊 Analyse</button>
       </div>
 
       <!-- Onglet Produits -->
@@ -506,6 +504,30 @@
         </div>
       </div>
 
+      <!-- Onglet Analyse -->
+      <div class="tab-content" data-tab-group="stock" data-tab-id="analyse-stock-tab">
+        <div style="padding:8px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #EDEDF5;background:#fff;">
+          <label style="font-size:13px;font-weight:600;">Période :</label>
+          <select id="stock-analyse-jours" class="filter-select" style="width:150px" onchange="renderStockAnalyse()">
+            <option value="30" selected>30 jours</option>
+            <option value="7">7 jours</option>
+            <option value="90">90 jours</option>
+            <option value="365">1 an</option>
+            <option value="0">Tout</option>
+          </select>
+        </div>
+        <div class="charts-row" style="padding:14px 16px;gap:14px">
+          <div class="chart-box">
+            <h4>🏢 Top 10 — Sorties par département</h4>
+            <div style="flex:1;min-height:0;position:relative"><canvas id="chart-stock-dept"></canvas></div>
+          </div>
+          <div class="chart-box">
+            <h4>📦 Top 10 — Produits les plus sortis</h4>
+            <div style="flex:1;min-height:0;position:relative"><canvas id="chart-stock-prod"></canvas></div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /view-stock -->
     <!-- ════════════════════════════════════════════════
          VUE : PARC AUTO
@@ -529,6 +551,7 @@
         <button class="tab-btn"        data-tab-group="auto" data-tab-id="entretien"  onclick="switchTab('auto','entretien')"> 🔧 Entretien</button>
         <button class="tab-btn"        data-tab-group="auto" data-tab-id="carburant"  onclick="switchTab('auto','carburant')"> ⛽ Carburant</button>
         <button class="tab-btn"        data-tab-group="auto" data-tab-id="alertes"    onclick="switchTab('auto','alertes')">   🔔 Alertes <span id="auto-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
+        <button class="tab-btn"        data-tab-group="auto" data-tab-id="couts"      onclick="switchTab('auto','couts');renderCouts()">     💶 Coûts</button>
       </div>
 
       <!-- Onglet Véhicules -->
@@ -597,6 +620,30 @@
               <th>VÉHICULE</th><th>MARQUE / MODÈLE</th><th>DATE CT</th><th>ÉTAT CT</th><th>DATE ASSURANCE</th><th>ÉTAT ASSURANCE</th>
             </tr></thead>
             <tbody id="alertes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Coûts -->
+      <div class="tab-content" data-tab-group="auto" data-tab-id="couts">
+        <!-- KPIs -->
+        <div style="display:flex;gap:12px;padding:12px 16px;flex-wrap:wrap">
+          <div class="kpi-card"       id="couts-kpi-carburant"><div class="kpi-label">⛽ Carburant total</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card blue"  id="couts-kpi-entretien"><div class="kpi-label">🔧 Entretien total</div><div class="kpi-value">—</div></div>
+          <div class="kpi-card green" id="couts-kpi-total">    <div class="kpi-label">💶 Coût total</div>    <div class="kpi-value">—</div></div>
+        </div>
+        <!-- Graphique -->
+        <div style="padding:0 16px 12px">
+          <div style="background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:14px">
+            <h4 style="margin:0 0 10px;font-size:13px;color:#1A1A2E">💶 Coûts par véhicule (carburant + entretien)</h4>
+            <div style="height:260px;position:relative"><canvas id="chart-couts"></canvas></div>
+          </div>
+        </div>
+        <!-- Tableau récapitulatif -->
+        <div class="table-wrapper" style="margin:0 16px 16px">
+          <table>
+            <thead><tr><th>VÉHICULE</th><th style="text-align:right">⛽ CARBURANT</th><th style="text-align:right">🔧 ENTRETIEN</th><th style="text-align:right">💶 TOTAL</th></tr></thead>
+            <tbody id="couts-tbody"></tbody>
           </table>
         </div>
       </div>
