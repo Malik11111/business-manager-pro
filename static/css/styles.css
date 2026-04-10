@@ -30,7 +30,7 @@
   --sidebar-active:   #2D2B55;
   --sidebar-text:     #A8A6C8;
   --sidebar-active-text: #FFFFFF;
-  --sidebar-width:    210px;
+  --sidebar-width:    160px;
 
   /* App chrome — dark */
   --app-bg:       #0A091E;
@@ -182,11 +182,11 @@ body {
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 8px 14px;
+  gap: 7px;
+  padding: 7px 10px;
   color: var(--sidebar-text);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 500;
   border-left: 3px solid transparent;
   transition: background .15s, border-color .15s;

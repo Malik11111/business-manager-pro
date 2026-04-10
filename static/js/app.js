@@ -7,10 +7,10 @@
 const MODULES = [
   { id: 'prestataires', icon: '🤝', label: 'Prestataires', ready: true },
   { id: 'actifs',       icon: '🏢', label: 'Actifs',       ready: true },
-  { id: 'cles',         icon: '🔑', label: 'Cles',         ready: false },
-  { id: 'stock',        icon: '📦', label: 'Stock',        ready: false },
+  { id: 'cles',         icon: '🔑', label: 'Clés',         ready: true },
+  { id: 'stock',        icon: '📦', label: 'Stock',        ready: true },
   { id: 'auto',         icon: '🚗', label: 'Parc Auto',    ready: true },
-  { id: 'analyse',      icon: '🤖', label: 'Analyse PDF',  ready: true },
+  { id: 'analyse',      icon: '📄', label: 'Analyse PDF',  ready: true },
   { id: 'pharmacie',    icon: '💊', label: 'Pharmacie',    ready: true },
 ];
 
