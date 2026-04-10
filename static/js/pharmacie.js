@@ -735,8 +735,17 @@ function _sdSetStatus(text, color) {
 async function _sdProcessScan(raw) {
   const parsed = _parseGS1(raw);
 
-  // Flash orange sur la LED
-  _sdSetStatus('📡 Scan détecté...', '#FF9800');
+  // Fallback : si aucun AI trouvé mais raw est un nombre de 13 chiffres → CIP13 direct
+  if (!parsed.cip && /^\d{13}$/.test(raw.trim())) {
+    parsed.cip = raw.trim();
+  }
+  // Fallback : 14 chiffres → AI=01 implicite (CIP13 avec leading zero)
+  if (!parsed.cip && /^\d{14}$/.test(raw.trim())) {
+    parsed.cip = raw.trim().replace(/^0+/, '') || raw.trim();
+  }
+
+  // Afficher le code brut reçu (debug)
+  _sdSetStatus(`📡 Scan: ${raw.slice(0,30)}…`, '#FF9800');
   const led = document.getElementById('sd-led');
   if (led) {
     led.style.background = '#FF9800';

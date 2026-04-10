@@ -1711,6 +1711,24 @@ def data_today():
 
 
 # ══════════════════════════════════════════════════════
+#  CHARGEMENT BDPM AU DEMARRAGE (background thread)
+# ══════════════════════════════════════════════════════
+
+def _auto_load_bdpm():
+    """Charge la BDPM en arriere-plan au demarrage."""
+    import time
+    time.sleep(3)  # Laisser le serveur démarrer d'abord
+    try:
+        ok, msg = _bdpm_load()
+        print(f"[BDPM] {msg}" if ok else f"[BDPM] Echec: {msg}")
+    except Exception as e:
+        print(f"[BDPM] Erreur auto-load: {e}")
+
+import threading
+_bdpm_thread = threading.Thread(target=_auto_load_bdpm, daemon=True)
+_bdpm_thread.start()
+
+# ══════════════════════════════════════════════════════
 #  DEMARRAGE
 # ══════════════════════════════════════════════════════
 
