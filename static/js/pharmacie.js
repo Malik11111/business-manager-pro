@@ -537,55 +537,215 @@ function _parseDate17(d6, result) {
   } catch(e) {}
 }
 
+/* ══════════════════════════════════════════════════════
+   DIALOG SCANNER USB — fenêtre dédiée comme l'app Python
+══════════════════════════════════════════════════════ */
+
+let _scanDialogOpen = false;
+let _scanDialogBuffer = '';
+let _scanDialogTimeout = null;
+
 function toggleScanner() {
-  _scannerActive = !_scannerActive;
-  const btn = document.getElementById('pharma-scanner-btn');
-  const status = document.getElementById('pharma-scan-status');
-  if (_scannerActive) {
-    btn.textContent = '🔫 Scanner ON';
-    btn.style.background = '#EF6C00';
-    if (status) { status.textContent = '⏳ En attente de scan...'; status.style.display = 'inline'; }
-    document.addEventListener('keydown', _onScanKeydown);
-  } else {
-    btn.textContent = '🔫 Scanner (USB)';
-    btn.style.background = '#27AE60';
-    if (status) status.style.display = 'none';
-    document.removeEventListener('keydown', _onScanKeydown);
-    _scanBuffer = '';
-  }
+  // Ouvre directement le dialog scanner (comme l'app Python)
+  openScannerDialog();
 }
 
-function _onScanKeydown(e) {
-  if (!_scannerActive) return;
-  // Ignore si focus dans un input/textarea (sauf le scan)
-  const tag = document.activeElement?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+function openScannerDialog(prefill) {
+  if (_scanDialogOpen) return;
+  _scanDialogOpen = true;
+  _scanDialogBuffer = '';
 
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    if (_scanBuffer.length > 5) {
-      _processScan(_scanBuffer);
+  // Créer l'overlay
+  const overlay = document.createElement('div');
+  overlay.id = 'scanner-dialog-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:4000;display:flex;align-items:center;justify-content:center;';
+
+  const today_val = new Date().toISOString().slice(0, 10);
+
+  overlay.innerHTML = `
+    <div style="background:#1A1A2E;border-radius:14px;width:520px;max-width:96vw;max-height:94vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);padding:0;">
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#3949AB,#5C52CC);padding:16px 20px;border-radius:14px 14px 0 0;display:flex;align-items:center;justify-content:space-between;">
+        <span style="color:#fff;font-weight:700;font-size:16px;">💊 Ajouter un médicament</span>
+        <button id="sd-close" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:16px;">✕</button>
+      </div>
+
+      <!-- Barre scanner -->
+      <div id="sd-scan-bar" style="background:#1B5E20;padding:10px 20px;display:flex;align-items:center;gap:10px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:#4CAF50;box-shadow:0 0 6px #4CAF50;" id="sd-led"></div>
+        <span style="color:#fff;font-size:13px;font-weight:600;" id="sd-scan-status">⏳ En attente de scan...</span>
+        <!-- Champ invisible capture scanner -->
+        <input id="sd-scan-capture" type="text" maxlength="256"
+          style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;left:-9999px;"
+          autocomplete="off">
+      </div>
+
+      <!-- Formulaire -->
+      <div style="padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:span 2;">
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">💊 MÉDICAMENT *</label>
+          <input id="sd-nom" type="text" value="${prefill?.nom||''}"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">🏷️ N° DE LOT</label>
+          <input id="sd-lot" type="text" value="${prefill?.lot||''}"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">📅 DATE PÉREMPTION *</label>
+          <input id="sd-peremption" type="date" value="${prefill?.date_peremption||''}"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">📦 QUANTITÉ</label>
+          <input id="sd-qte" type="number" value="1" min="1"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">⚠️ STOCK MINIMUM</label>
+          <input id="sd-min" type="number" value="0" min="0"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">📍 EMPLACEMENT</label>
+          <input id="sd-empl" type="text"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">👤 RÉCEPTIONNÉ PAR</label>
+          <select id="sd-pers" style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:13px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+            <option value="">— Sélectionner —</option>
+            <option>Infirmier du matin</option>
+            <option>Infirmier de l'après-midi</option>
+            <option>Infirmier de nuit</option>
+            <option>Médecin</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:#9CA3AF;display:block;margin-bottom:4px;">🗓️ DATE D'ENTRÉE</label>
+          <input id="sd-date-entree" type="date" value="${today_val}"
+            style="width:100%;padding:10px;border:2px solid #3949AB;border-radius:8px;font-size:14px;background:#0F0F23;color:#fff;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:14px 20px;border-top:1px solid #2D2D4E;display:flex;gap:10px;justify-content:flex-end;">
+        <button id="sd-cancel" style="padding:10px 22px;border:1px solid #444;border-radius:8px;background:transparent;color:#ccc;cursor:pointer;font-size:14px;">❌ Annuler</button>
+        <button id="sd-save" style="padding:10px 26px;border:none;border-radius:8px;background:linear-gradient(135deg,#2E7D32,#43A047);color:#fff;font-weight:700;cursor:pointer;font-size:14px;">✅ Enregistrer</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Focus sur le champ capture invisible
+  const capture = document.getElementById('sd-scan-capture');
+
+  // ── Bouton fermer ──
+  const closeDialog = () => {
+    _scanDialogOpen = false;
+    _scanDialogBuffer = '';
+    clearTimeout(_scanDialogTimeout);
+    document.removeEventListener('keydown', _sdKeydown);
+    overlay.remove();
+    // Remettre le bouton scanner
+    const btn = document.getElementById('pharma-scanner-btn');
+    if (btn) { btn.textContent = '🔫 Scanner (USB)'; btn.style.background = '#27AE60'; }
+  };
+
+  document.getElementById('sd-close').onclick = closeDialog;
+  document.getElementById('sd-cancel').onclick = closeDialog;
+
+  // ── Bouton Enregistrer — PAS de type submit, jamais déclenché par Enter ──
+  document.getElementById('sd-save').onclick = async () => {
+    const nom = document.getElementById('sd-nom').value.trim();
+    const per = document.getElementById('sd-peremption').value.trim();
+    if (!nom) { _sdSetStatus('⚠️ Nom du médicament requis', '#EF6C00'); return; }
+    if (!per) { _sdSetStatus('⚠️ Date de péremption requise', '#EF6C00'); return; }
+    const obj = {
+      nom_medicament: nom,
+      lot: document.getElementById('sd-lot').value.trim(),
+      date_peremption: per,
+      quantite: parseInt(document.getElementById('sd-qte').value)||1,
+      stock_minimum: parseInt(document.getElementById('sd-min').value)||0,
+      emplacement: document.getElementById('sd-empl').value,
+      personne_entree: document.getElementById('sd-pers').value,
+      date_ajout: document.getElementById('sd-date-entree').value || today_val,
+      heure: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+    };
+    try {
+      await api('/api/pharmacie/stock', 'POST', obj);
+      showToast(`✅ ${nom} enregistré`, 'success');
+      closeDialog();
+      await initPharmacie();
+    } catch(e) { _sdSetStatus('Erreur: ' + e.message, '#C62828'); }
+  };
+
+  // ── Empêcher Enter sur les inputs de sauvegarder ──
+  overlay.querySelectorAll('input,select').forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  });
+
+  // ── Capture clavier du scanner ──
+  function _sdKeydown(e) {
+    if (!_scanDialogOpen) return;
+    // Enter → traiter le buffer scanner
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      if (_scanDialogBuffer.length > 4) {
+        _sdProcessScan(_scanDialogBuffer);
+      }
+      _scanDialogBuffer = '';
+      clearTimeout(_scanDialogTimeout);
+      return;
     }
-    _scanBuffer = '';
-    clearTimeout(_scanTimeout);
-    return;
+    // Ignorer les touches de contrôle
+    if (e.key.length !== 1) return;
+    // Si focus sur un champ texte (utilisateur tape manuellement), laisser passer
+    const tag = document.activeElement?.tagName;
+    const activeId = document.activeElement?.id;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA') && activeId !== 'sd-scan-capture') return;
+
+    _scanDialogBuffer += e.key;
+    clearTimeout(_scanDialogTimeout);
+    _scanDialogTimeout = setTimeout(() => { _scanDialogBuffer = ''; }, 300);
   }
-  if (e.key.length === 1) {
-    _scanBuffer += e.key;
-    clearTimeout(_scanTimeout);
-    _scanTimeout = setTimeout(() => { _scanBuffer = ''; }, 300);
+
+  document.addEventListener('keydown', _sdKeydown);
+
+  // Si prefill (venu d'un scan déjà parsé), afficher statut
+  if (prefill?.statusText) {
+    _sdSetStatus(prefill.statusText, prefill.statusColor || '#4CAF50');
   }
+
+  // Mettre le bouton scanner en orange
+  const btn = document.getElementById('pharma-scanner-btn');
+  if (btn) { btn.textContent = '🔫 Scanner ON'; btn.style.background = '#EF6C00'; }
 }
 
-async function _processScan(raw) {
-  const status = document.getElementById('pharma-scan-status');
-  const btn = document.getElementById('pharma-scanner-btn');
+function _sdSetStatus(text, color) {
+  const el = document.getElementById('sd-scan-status');
+  const led = document.getElementById('sd-led');
+  if (el) el.textContent = text;
+  if (led) { led.style.background = color; led.style.boxShadow = `0 0 6px ${color}`; }
+}
 
-  // Flash orange
-  if (btn) { btn.style.background = '#FF9800'; setTimeout(()=> btn.style.background = '#EF6C00', 400); }
-
+async function _sdProcessScan(raw) {
   const parsed = _parseGS1(raw);
-  if (status) status.textContent = `✅ Scan: CIP=${parsed.cip||'?'} Lot=${parsed.lot||'?'}`;
+
+  // Flash orange sur la LED
+  _sdSetStatus('📡 Scan détecté...', '#FF9800');
+  const led = document.getElementById('sd-led');
+  if (led) {
+    led.style.background = '#FF9800';
+    let n = 0;
+    const blink = setInterval(() => {
+      led.style.background = n%2===0 ? '#FF9800' : '#EF6C00';
+      if (++n >= 6) { clearInterval(blink); led.style.background = '#4CAF50'; led.style.boxShadow = '0 0 6px #4CAF50'; }
+    }, 100);
+  }
 
   // Lookup BDPM
   let nomMed = '';
@@ -596,13 +756,47 @@ async function _processScan(raw) {
     } catch(e) {}
   }
 
-  // Ouvrir le formulaire pre-rempli
-  openPharmaAddDialog();
-  if (nomMed) document.getElementById('pharma-med-nom').value = nomMed;
-  if (parsed.lot) document.getElementById('pharma-med-lot').value = parsed.lot;
-  if (parsed.date_peremption) document.getElementById('pharma-med-peremption').value = parsed.date_peremption;
+  // Remplir les champs
+  if (nomMed) document.getElementById('sd-nom').value = nomMed;
+  if (parsed.lot) document.getElementById('sd-lot').value = parsed.lot;
+  if (parsed.date_peremption) document.getElementById('sd-peremption').value = parsed.date_peremption;
 
-  showToast(`Scan detecte${nomMed ? ': '+nomMed : ''}`, 'success');
+  // Remettre la quantité à 1
+  document.getElementById('sd-qte').value = '1';
+
+  const statusMsg = nomMed ? `✅ ${nomMed} — vérifiez puis cliquez Enregistrer` : `⚠️ CIP non trouvé — complétez manuellement`;
+  const statusColor = nomMed ? '#4CAF50' : '#FF9800';
+  setTimeout(() => _sdSetStatus(statusMsg, statusColor), 700);
+
+  // Bloquer Enregistrer 600ms (protection contre Enter résiduel du scanner)
+  const saveBtn = document.getElementById('sd-save');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    setTimeout(() => { saveBtn.disabled = false; }, 600);
+  }
+}
+
+async function _processScan(raw) {
+  // Compatibilité : si dialog ouvert, router dedans ; sinon ouvrir le dialog
+  if (_scanDialogOpen) {
+    await _sdProcessScan(raw);
+    return;
+  }
+  const parsed = _parseGS1(raw);
+  let nomMed = '';
+  if (parsed.cip) {
+    try {
+      const res = await api(`/api/pharmacie/bdpm/lookup/${parsed.cip}`);
+      if (res.found) nomMed = res.nom;
+    } catch(e) {}
+  }
+  openScannerDialog({
+    nom: nomMed,
+    lot: parsed.lot || '',
+    date_peremption: parsed.date_peremption || '',
+    statusText: nomMed ? `✅ ${nomMed}` : '⚠️ Code non reconnu — complétez',
+    statusColor: nomMed ? '#4CAF50' : '#FF9800'
+  });
 }
 
 /* ── Saisie manuelle du code scan ─────────────────── */
