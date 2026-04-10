@@ -490,3 +490,138 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', loadHistoCles);
   });
 });
+
+/* ── Scan fiche distribution de clés ─────────────── */
+function openScanFicheCles() {
+  const input = document.getElementById('scan-cles-input');
+  input.value = '';
+  input.click();
+}
+
+async function onScanFicheClsSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  // Overlay de chargement (réutilise le même overlay que les véhicules)
+  const overlay = document.getElementById('scan-vehicule-overlay');
+  const bar     = document.getElementById('scan-vehicule-bar');
+  const lbl     = document.getElementById('scan-vehicule-label');
+  document.querySelector('#scan-vehicule-overlay h2').textContent = 'Lecture de la fiche clés';
+  overlay.style.display = 'flex';
+  bar.style.width = '15%';
+  lbl.textContent = 'Envoi du document…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    bar.style.width = '50%';
+    lbl.textContent = 'Analyse de la fiche en cours…';
+
+    const res = await fetch('/api/cles/scan-fiche', { method: 'POST', body: formData });
+    bar.style.width = '90%';
+    lbl.textContent = 'Extraction des informations…';
+    const data = await res.json();
+
+    if (!res.ok) {
+      overlay.style.display = 'none';
+      showToast(data.error || 'Erreur scan', 'error');
+      return;
+    }
+
+    bar.style.width = '100%';
+    lbl.textContent = 'Terminé !';
+    await new Promise(r => setTimeout(r, 400));
+    overlay.style.display = 'none';
+
+    _afficherPreviewScanCles(data);
+
+  } catch (e) {
+    overlay.style.display = 'none';
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+function _afficherPreviewScanCles(data) {
+  const entries = data.entries || [];
+  const empOptions = _employesList.map(e =>
+    `<option value="${e.id}" ${e.id == data.employee_id ? 'selected' : ''}>${esc(e.nom)} ${esc(e.prenom)} — ${esc(e.poste||'')}</option>`
+  ).join('');
+
+  const lignesCles = entries.map((entry, i) => {
+    const cleFound = _clesList.find(c => c.id == entry.key_id);
+    const badge = entry.confidence === 'high' ? '🟢' : entry.confidence === 'medium' ? '🟡' : '🔴';
+    const cleOpts = _clesList.filter(c => c.disponibles > 0 || c.id == entry.key_id).map(c =>
+      `<option value="${c.id}" ${c.id == entry.key_id ? 'selected' : ''}>${esc(c.nom)}${c.numero ? ` (N°${c.numero})` : ''}</option>`
+    ).join('');
+    return `
+      <tr>
+        <td><input type="checkbox" id="sc-chk-${i}" checked></td>
+        <td style="font-size:12px;color:#6B6B8A">${badge} ${esc(entry.raw||'')}</td>
+        <td>
+          <select id="sc-key-${i}" class="modal-input" style="padding:4px 6px;font-size:12px;">
+            <option value="">— Aucune correspondance —</option>${cleOpts}
+          </select>
+        </td>
+      </tr>`;
+  }).join('');
+
+  openModal('📋 Fiche clés détectée — vérifier', `
+    <div style="display:grid;gap:10px;padding:4px">
+      <div>
+        <label class="modal-label">Employé *</label>
+        <select id="sc-emp" class="modal-input">
+          <option value="">— Sélectionner l'employé —</option>${empOptions}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label class="modal-label">Date attribution</label>
+          <input id="sc-date" class="modal-input" placeholder="JJ-MM-AAAA" value="${esc(data.assignment_date||'')}">
+        </div>
+        <div>
+          <label class="modal-label">Notes</label>
+          <input id="sc-notes-cle" class="modal-input" placeholder="Optionnel" value="${esc(data.notes||'')}">
+        </div>
+      </div>
+      ${entries.length ? `
+      <div>
+        <label class="modal-label">Clés détectées — cochez celles à attribuer</label>
+        <div style="max-height:220px;overflow-y:auto;border:1px solid #E0E0E0;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#F5F4FF">
+              <th style="padding:6px;width:30px">✓</th>
+              <th style="padding:6px;text-align:left">Lu sur la fiche</th>
+              <th style="padding:6px;text-align:left">Clé identifiée</th>
+            </tr></thead>
+            <tbody>${lignesCles}</tbody>
+          </table>
+        </div>
+      </div>` : '<p style="color:#9CA3AF;font-size:13px">Aucune clé détectée sur cette fiche.</p>'}
+    </div>
+  `, async () => {
+    const empId = parseInt(document.getElementById('sc-emp').value);
+    if (!empId) { showToast('Sélectionnez un employé', 'error'); return false; }
+    const date = document.getElementById('sc-date').value.trim();
+    const notes = document.getElementById('sc-notes-cle').value.trim();
+
+    const taches = [];
+    entries.forEach((_, i) => {
+      const chk = document.getElementById(`sc-chk-${i}`);
+      const keyId = parseInt(document.getElementById(`sc-key-${i}`).value);
+      if (chk?.checked && keyId) {
+        taches.push(api('/api/cles/attributions', 'POST', {
+          employe_id: empId, cle_id: keyId,
+          date_attribution: date, notes
+        }));
+      }
+    });
+
+    if (!taches.length) { showToast('Aucune clé cochée', 'error'); return false; }
+    try {
+      await Promise.all(taches);
+      showToast(`✅ ${taches.length} clé(s) attribuée(s) avec succès`, 'success');
+      await initCles();
+    } catch (e) { showToast(e.message || 'Erreur attribution', 'error'); return false; }
+  });
+}

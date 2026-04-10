@@ -1,4 +1,14 @@
 import os
+from pathlib import Path
+
+# Charge le fichier .env si présent
+_env_file = Path(__file__).parent / '.env'
+if _env_file.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_file)
+    except ImportError:
+        pass
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-prod')

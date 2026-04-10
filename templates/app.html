@@ -62,7 +62,7 @@
           <input  id="presta-search"         class="search-input"  type="text"  placeholder="🔍 Rechercher un prestataire...">
           <select id="presta-service-filter"  class="filter-select"></select>
         </div>
-        <button class="btn btn-gemini"   onclick="openScanContratDialog()">📄 Scanner contrat IA</button>
+        <button class="btn btn-gemini"   onclick="openScanContratDialog()">📄 Scanner contrat</button>
         <button class="btn btn-green"    onclick="openAddDialog()">➕ Ajouter</button>
         <button class="btn btn-blue"     onclick="exportPrestataires()">📤 Exporter CSV</button>
         <button class="btn btn-red"      onclick="showCorbeille()">🗑️ Corbeille</button>
@@ -244,7 +244,7 @@
             <option value="">Tous statuts</option>
           </select>
           <div style="flex:1"></div>
-          <button class="btn btn-gemini" onclick="openScanFactureDialog()">📄 Scan Facture IA</button>
+          <button class="btn btn-gemini" onclick="openScanFactureDialog()">📄 Scanner facture</button>
           <button class="btn btn-green" onclick="openMaterielDialog()">➕ Ajouter</button>
           <button class="btn btn-blue" onclick="exportActifsMateriel()">📤 Exporter</button>
         </div>
@@ -330,6 +330,7 @@
         <div class="filters">
           <input id="cles-search" class="search-input" type="text" placeholder="🔍 Rechercher..." oninput="filterCles()">
         </div>
+        <button class="btn btn-gemini" onclick="openScanFicheCles()">📄 Scanner fiche</button>
         <button class="btn btn-green"  onclick="openAddCleDialog()">🔑 Ajouter une clé</button>
         <button class="btn btn-blue"   onclick="openAddEmployeDialog()">👤 Ajouter employé</button>
         <button class="btn btn-orange" onclick="openAttribuerDialog()">📋 Attribuer</button>
@@ -412,6 +413,7 @@
             <option value="">Toutes catégories</option>
           </select>
         </div>
+        <button class="btn btn-gemini" onclick="openScanFicheStock()">📄 Scanner fiche</button>
         <button class="btn btn-green"  onclick="openAddProduitDialog()">➕ Ajouter produit</button>
         <button class="btn btn-orange" onclick="openSortieDialog()">📤 Enregistrer sortie</button>
         <button class="btn btn-blue"   onclick="openReceptionDialog()">📥 Réception</button>
@@ -515,6 +517,7 @@
         <div class="filters">
           <input id="auto-search" class="search-input" type="text" placeholder="🔍 Rechercher un véhicule..." oninput="filterVehicules()">
         </div>
+        <button class="btn btn-gemini" onclick="openScanDocVehicule()">📄 Scanner document</button>
         <button class="btn btn-green"  onclick="openAddVehiculeDialog()">➕ Ajouter</button>
         <button class="btn btn-blue"   onclick="exportVehicules()">📤 Exporter CSV</button>
         <button class="btn btn-orange" onclick="majRapideKm()">📏 MAJ km</button>
@@ -606,7 +609,7 @@
 
       <div class="module-toolbar">
         <div class="filters" style="flex:1;gap:10px;">
-          <span id="pdf-api-key-wrap"><input id="pdf-api-key" class="search-input" type="password" placeholder="🔑 Clé API Gemini..." style="width:300px;"></span>
+          <span id="pdf-api-key-wrap"><input id="pdf-api-key" class="search-input" type="password" placeholder="🔑 Clé API..." style="width:300px;"></span>
           <label class="btn btn-gemini" style="cursor:pointer;position:relative;">
             📄 Choisir un PDF à analyser
             <input id="pdf-file-input" type="file" accept=".pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;" onchange="onPdfSelected(this)">
@@ -635,7 +638,7 @@
         <div id="pdf-empty-state" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#9CA3AF;padding:60px;background:#fff;">
           <div style="font-size:56px;">🤖</div>
           <h2 style="color:#6B6B8A;font-size:20px;">Analyse PDF Sécurité</h2>
-          <p style="text-align:center;max-width:400px;line-height:1.6;">Importez un rapport d'inspection sécurité (PDF) et entrez votre clé API Gemini pour détecter automatiquement les non-conformités et problèmes.</p>
+          <p style="text-align:center;max-width:400px;line-height:1.6;">Importez un rapport d'inspection sécurité (PDF) et entrez votre clé API pour détecter automatiquement les non-conformités et problèmes.</p>
         </div>
 
         <!-- Résultat après analyse -->
@@ -945,7 +948,10 @@
         </div>
         <div class="form-group">
           <label>Nouveau montant annuel TTC (€)</label>
-          <input type="number" id="renouv-montant" min="0" step="100">
+          <div class="ht-ttc-row">
+            <input type="number" id="renouv-montant" min="0" step="100">
+            <button class="btn-ht-ttc" onclick="htToTTCRenouv()" title="Convertir HT → TTC (×1.20)">HT → TTC</button>
+          </div>
         </div>
         <div class="form-group full-width">
           <label>Notes</label>
@@ -1341,31 +1347,22 @@
   });
 </script>
 
-<!-- ══ DIALOG SCAN CONTRAT IA ══════════════════════════════════ -->
+<!-- ══ DIALOG SCAN CONTRAT ══════════════════════════════════ -->
 <div id="scan-contrat-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
 
-    <!-- Étape 1 : upload -->
+    <!-- Étape 1 : chargement / progression -->
     <div id="scan-step-upload">
-      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un contrat avec Gemini IA</h2>
-      <p style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">Déposez un contrat PDF — Gemini extrait automatiquement les informations du prestataire.</p>
-
-      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;transition:background .2s;" id="scan-drop-zone">
-        <div style="font-size:36px;">📂</div>
-        <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez un PDF ici</div>
-        <div id="scan-filename" style="font-size:12px;color:#9CA3AF;">Aucun fichier sélectionné</div>
-        <input type="file" id="scan-pdf-input" accept=".pdf" style="display:none;" onchange="onScanPdfSelected(this)">
-      </label>
-
-      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
-        <button onclick="closeScanContratDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
-        <button id="scan-analyse-btn" onclick="lancerScanContrat()" disabled style="padding:9px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#5C52CC,#7C6AE8);color:#fff;font-weight:600;cursor:pointer;opacity:.5;">🤖 Analyser avec Gemini</button>
-      </div>
-      <div id="scan-progress-wrap" style="display:none;margin-top:14px;">
+      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un contrat</h2>
+      <p id="scan-loading-label" style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">Analyse en cours…</p>
+      <div id="scan-progress-wrap" style="margin-top:4px;">
         <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
           <div id="scan-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
         </div>
         <div id="scan-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+        <button onclick="closeScanContratDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
       </div>
     </div>
 
@@ -1404,7 +1401,10 @@
         </div>
         <div>
           <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">MONTANT (€)</label>
-          <input id="sc-montant" type="number" min="0" step="0.01" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
+          <div class="ht-ttc-row">
+            <input id="sc-montant" type="number" min="0" step="0.01" style="padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
+            <button class="btn-ht-ttc" onclick="htToTTCScan()" title="Convertir HT → TTC (×1.20)">HT → TTC</button>
+          </div>
         </div>
         <div>
           <label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE DÉBUT</label>
@@ -1441,28 +1441,41 @@
 </div>
 
 <script>
+// ── HT → TTC helpers ────────────────────────────────
+function _convertHtTtc(inputId) {
+  const input = document.getElementById(inputId);
+  const ht = parseFloat(input.value) || 0;
+  if (ht <= 0) { showToast('Saisir un montant HT valide', 'error'); return; }
+  const ttc = Math.round(ht * 1.20 * 100) / 100;
+  input.value = ttc;
+  showToast(`Converti : ${ht.toFixed(2)} € HT → ${ttc.toFixed(2)} € TTC (TVA 20%)`, 'info');
+}
+function htToTTCRenouv()  { _convertHtTtc('renouv-montant'); }
+function htToTTCScan()    { _convertHtTtc('sc-montant'); }
+function htToTTCFacture() { _convertHtTtc('sf-cout'); }
+
 let _scanPdfFile = null;
 
 function openScanContratDialog() {
+  // Ouvre directement le sélecteur de fichier — pas de dialog intermédiaire
+  document.getElementById('scan-pdf-input').click();
+}
+
+function _showScanOverlayLoading() {
   _scanPdfFile = null;
-  document.getElementById('scan-filename').textContent = 'Aucun fichier sélectionné';
-  document.getElementById('scan-analyse-btn').disabled = true;
-  document.getElementById('scan-analyse-btn').style.opacity = '.5';
   document.getElementById('scan-step-upload').style.display = 'block';
   document.getElementById('scan-step-preview').style.display = 'none';
-  document.getElementById('scan-progress-wrap').style.display = 'none';
   document.getElementById('scan-progress-bar').style.width = '0%';
-  const overlay = document.getElementById('scan-contrat-overlay');
-  overlay.style.display = 'flex';
+  document.getElementById('scan-progress-label').textContent = '';
+  document.getElementById('scan-contrat-overlay').style.display = 'flex';
 }
 
 function closeScanContratDialog() {
   document.getElementById('scan-contrat-overlay').style.display = 'none';
+  _scanPdfFile = null;
 }
 
-document.getElementById('scan-drop-zone').addEventListener('click', () => {
-  document.getElementById('scan-pdf-input').click();
-});
+
 
 document.getElementById('scan-drop-zone').addEventListener('dragover', e => {
   e.preventDefault();
@@ -1489,21 +1502,18 @@ function onScanPdfSelected(input) {
   const file = input.files[0];
   if (!file) return;
   _scanPdfFile = file;
-  document.getElementById('scan-filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' Ko)';
-  document.getElementById('scan-analyse-btn').disabled = false;
-  document.getElementById('scan-analyse-btn').style.opacity = '1';
+  // Réinitialiser l'input pour permettre de re-sélectionner le même fichier plus tard
+  input.value = '';
+  // Afficher l'overlay en mode chargement et lancer l'analyse automatiquement
+  _showScanOverlayLoading();
+  lancerScanContrat();
 }
 
 async function lancerScanContrat() {
   if (!_scanPdfFile) return;
-  const btn = document.getElementById('scan-analyse-btn');
-  btn.disabled = true;
-  btn.style.opacity = '.6';
 
-  const wrap = document.getElementById('scan-progress-wrap');
   const bar = document.getElementById('scan-progress-bar');
   const lbl = document.getElementById('scan-progress-label');
-  wrap.style.display = 'block';
   bar.style.width = '20%';
   lbl.textContent = 'Envoi du PDF...';
 
@@ -1511,7 +1521,7 @@ async function lancerScanContrat() {
     const formData = new FormData();
     formData.append('file', _scanPdfFile);
     bar.style.width = '50%';
-    lbl.textContent = 'Analyse par Gemini IA...';
+    lbl.textContent = 'Analyse en cours...';
 
     const res = await fetch('/api/prestataires/scan-contrat', { method: 'POST', body: formData });
     bar.style.width = '90%';
@@ -1520,15 +1530,13 @@ async function lancerScanContrat() {
     const data = await res.json();
     if (!res.ok) {
       showToast(data.error || 'Erreur scan', 'error');
-      wrap.style.display = 'none';
-      btn.disabled = false;
-      btn.style.opacity = '1';
+      closeScanContratDialog();
       return;
     }
 
     bar.style.width = '100%';
     lbl.textContent = 'Extraction terminée !';
-    setTimeout(() => { wrap.style.display = 'none'; }, 800);
+    await new Promise(r => setTimeout(r, 600));
 
     // Remplir le formulaire de prévisualisation
     document.getElementById('sc-nom').value        = data.nom || '';
@@ -1550,17 +1558,14 @@ async function lancerScanContrat() {
 
   } catch (e) {
     showToast('Erreur : ' + e.message, 'error');
-    wrap.style.display = 'none';
-    btn.disabled = false;
-    btn.style.opacity = '1';
+    closeScanContratDialog();
   }
 }
 
 function scanRetourUpload() {
-  document.getElementById('scan-step-upload').style.display = 'block';
-  document.getElementById('scan-step-preview').style.display = 'none';
-  document.getElementById('scan-analyse-btn').disabled = false;
-  document.getElementById('scan-analyse-btn').style.opacity = '1';
+  // Relancer la sélection de fichier depuis la prévisualisation
+  closeScanContratDialog();
+  setTimeout(() => document.getElementById('scan-pdf-input').click(), 100);
 }
 
 async function enregistrerContratScanne() {
@@ -1595,13 +1600,13 @@ async function enregistrerContratScanne() {
 }
 </script>
 
-<!-- ══ DIALOG SCAN FACTURE IA ══════════════════════════════════ -->
+<!-- ══ DIALOG SCAN FACTURE ══════════════════════════════════ -->
 <div id="scan-facture-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
 
     <div id="sf-step-upload">
-      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">🧾 Scan Facture d'investissement IA</h2>
-      <p style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">PDF, JPG ou PNG — Gemini extrait automatiquement les informations de la facture.</p>
+      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">🧾 Scanner une facture d'investissement</h2>
+      <p style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">PDF, JPG ou PNG — les informations de la facture sont extraites automatiquement.</p>
       <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="sf-drop-zone">
         <div style="font-size:36px;">🧾</div>
         <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez une facture ici</div>
@@ -1611,7 +1616,7 @@ async function enregistrerContratScanne() {
       </label>
       <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
         <button onclick="closeScanFactureDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
-        <button id="sf-analyse-btn" onclick="lancerScanFacture()" disabled style="padding:9px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#5C52CC,#7C6AE8);color:#fff;font-weight:600;cursor:pointer;opacity:.5;">🤖 Analyser avec Gemini</button>
+        <button id="sf-analyse-btn" onclick="lancerScanFacture()" disabled style="padding:9px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#5C52CC,#7C6AE8);color:#fff;font-weight:600;cursor:pointer;opacity:.5;">🔍 Analyser</button>
       </div>
       <div id="sf-progress-wrap" style="display:none;margin-top:14px;">
         <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
@@ -1636,7 +1641,7 @@ async function enregistrerContratScanne() {
           </select>
         </div>
         <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE D'ACHAT</label><input id="sf-date-achat" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
-        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">COÛT TTC (€)</label><input id="sf-cout" type="number" min="0" step="0.01" value="0" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">COÛT TTC (€)</label><div class="ht-ttc-row"><input id="sf-cout" type="number" min="0" step="0.01" value="0" style="padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"><button class="btn-ht-ttc" onclick="htToTTCFacture()" title="Convertir HT → TTC (×1.20)">HT → TTC</button></div></div>
         <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOTES</label><textarea id="sf-notes" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
@@ -1695,7 +1700,7 @@ async function lancerScanFacture() {
   try {
     const formData = new FormData();
     formData.append('file', _sfFile);
-    bar.style.width = '55%'; lbl.textContent = 'Analyse par Gemini IA...';
+    bar.style.width = '55%'; lbl.textContent = 'Analyse en cours...';
     const res = await fetch('/api/materiels/scan-facture', { method: 'POST', body: formData });
     bar.style.width = '90%'; lbl.textContent = 'Traitement...';
     const data = await res.json();
@@ -1748,6 +1753,31 @@ async function enregistrerFactureScannee() {
   } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
 }
 </script>
+
+<!-- Input file caché pour scanner contrat (déclenché directement par le bouton) -->
+<input type="file" id="scan-pdf-input" accept=".pdf" style="display:none;" onchange="onScanPdfSelected(this)">
+
+<!-- Input file caché pour scanner document véhicule -->
+<input type="file" id="scan-vehicule-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onScanVehiculeSelected(this)">
+
+<!-- Input file caché pour scanner fiche clés -->
+<input type="file" id="scan-cles-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onScanFicheClsSelected(this)">
+
+<!-- Input file caché pour scanner fiche stock -->
+<input type="file" id="scan-stock-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onScanFicheStockSelected(this)">
+
+<!-- ══ OVERLAY CHARGEMENT SCAN VÉHICULE ══ -->
+<div id="scan-vehicule-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:14px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:32px 36px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:12px;">🚗</div>
+    <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">Lecture du document</h2>
+    <p id="scan-vehicule-label" style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">Analyse en cours…</p>
+    <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;margin-bottom:8px;">
+      <div id="scan-vehicule-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+    </div>
+    <button onclick="document.getElementById('scan-vehicule-overlay').style.display='none'" style="margin-top:16px;padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;font-size:13px;">Annuler</button>
+  </div>
+</div>
 
 </body>
 </html>

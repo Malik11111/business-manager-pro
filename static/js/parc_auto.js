@@ -344,6 +344,73 @@ async function editVehicule(id) {
   });
 }
 
+// Ouvre le formulaire de modification pré-rempli avec les données scannées (fusion)
+function openEditVehiculeDialog(v, prefill = {}) {
+  // prefill prend priorité sur les données existantes pour les champs non vides
+  const merge = (scan, existing) => (scan && scan.trim()) ? scan : (existing || '');
+  openModal('Mettre à jour le véhicule', `
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Immatriculation</label>
+        <input id="ev-immat" value="${esc(merge(prefill.immatriculation, v.immatriculation))}">
+      </div>
+      <div class="form-group">
+        <label>Marque</label>
+        <input id="ev-marque" value="${esc(merge(prefill.marque, v.marque))}">
+      </div>
+      <div class="form-group">
+        <label>Modèle</label>
+        <input id="ev-modele" value="${esc(merge(prefill.modele, v.modele))}">
+      </div>
+      <div class="form-group">
+        <label>Année</label>
+        <input id="ev-annee" type="number" value="${merge(prefill.annee, v.annee)}">
+      </div>
+      <div class="form-group">
+        <label>Kilométrage</label>
+        <input id="ev-km" type="number" value="${v.kilometrage||''}">
+      </div>
+      <div class="form-group">
+        <label>Couleur</label>
+        <input id="ev-couleur" type="color" value="${v.couleur||'#808080'}" style="height:38px;padding:2px 4px;border-radius:8px;border:1px solid #D8D5F0;cursor:pointer;">
+      </div>
+      <div class="form-group">
+        <label>Conducteur</label>
+        <input id="ev-conducteur" value="${esc(v.conducteur||'')}">
+      </div>
+      <div class="form-group">
+        <label>Date CT (JJ-MM-AAAA)</label>
+        <input id="ev-ct" value="${esc(merge(prefill.date_ct, v.date_ct))}">
+      </div>
+      <div class="form-group">
+        <label>Date Assurance (JJ-MM-AAAA)</label>
+        <input id="ev-ass" value="${esc(merge(prefill.date_assurance, v.date_assurance))}">
+      </div>
+      <div class="form-group full-width">
+        <label>Notes</label>
+        <textarea id="ev-notes">${esc(merge(prefill.notes, v.notes))}</textarea>
+      </div>
+    </div>
+  `, async () => {
+    try {
+      await api(`/api/vehicules/${v.id}`, 'PUT', {
+        immatriculation: document.getElementById('ev-immat').value.trim().toUpperCase(),
+        marque:    document.getElementById('ev-marque').value.trim(),
+        modele:    document.getElementById('ev-modele').value.trim(),
+        annee:     document.getElementById('ev-annee').value,
+        kilometrage: document.getElementById('ev-km').value,
+        couleur:   document.getElementById('ev-couleur').value,
+        conducteur: document.getElementById('ev-conducteur').value.trim(),
+        date_ct:   document.getElementById('ev-ct').value.trim(),
+        date_assurance: document.getElementById('ev-ass').value.trim(),
+        notes:     document.getElementById('ev-notes').value.trim()
+      });
+      showToast('Véhicule mis à jour', 'success');
+      await initParcAuto();
+    } catch (e) { showToast(e.message || 'Erreur', 'error'); return false; }
+  });
+}
+
 async function deleteVehicule(id) {
   const v = _vehicules.find(x => x.id === id);
   if (!v) return;
@@ -527,4 +594,77 @@ function exportVehicules() {
   a.href = URL.createObjectURL(blob);
   a.download = 'parc_auto.csv';
   a.click();
+}
+
+/* ── Scan document véhicule ──────────────────────────────── */
+function openScanDocVehicule() {
+  // Ouvre directement le sélecteur de fichier (PDF, photo carte grise, CT, assurance)
+  const input = document.getElementById('scan-vehicule-input');
+  input.value = '';
+  input.click();
+}
+
+async function onScanVehiculeSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  // Afficher l'overlay de chargement
+  const overlay = document.getElementById('scan-vehicule-overlay');
+  const bar     = document.getElementById('scan-vehicule-bar');
+  const lbl     = document.getElementById('scan-vehicule-label');
+  overlay.style.display = 'flex';
+  bar.style.width = '15%';
+  lbl.textContent = 'Envoi du document…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    bar.style.width = '45%';
+    lbl.textContent = 'Lecture du document en cours…';
+
+    const res = await fetch('/api/vehicules/scan-document', { method: 'POST', body: formData });
+    bar.style.width = '85%';
+    lbl.textContent = 'Extraction des informations…';
+
+    const data = await res.json();
+    if (!res.ok) {
+      overlay.style.display = 'none';
+      showToast(data.error || 'Erreur lors du scan', 'error');
+      return;
+    }
+
+    bar.style.width = '100%';
+    lbl.textContent = 'Terminé !';
+    await new Promise(r => setTimeout(r, 500));
+    overlay.style.display = 'none';
+
+    // Ouvrir le formulaire d'ajout/modification pré-rempli
+    const prefill = {
+      immatriculation: data.immatriculation || '',
+      marque:          data.marque || '',
+      modele:          data.modele || '',
+      annee:           data.annee || '',
+      date_ct:         data.date_ct || '',
+      date_assurance:  data.date_assurance || '',
+      notes:           data.remarques_ct || ''
+    };
+
+    // Si le véhicule existe déjà, proposer de le mettre à jour
+    const existing = _vehicules.find(v =>
+      data.immatriculation &&
+      v.immatriculation.toUpperCase() === data.immatriculation.toUpperCase()
+    );
+    if (existing) {
+      showToast(`Véhicule ${data.immatriculation} trouvé — formulaire pré-rempli pour mise à jour`, 'info');
+      openEditVehiculeDialog(existing, prefill);
+    } else {
+      showToast('Document lu — vérifiez et complétez les informations', 'info');
+      openAddVehiculeDialog(prefill);
+    }
+
+  } catch (e) {
+    overlay.style.display = 'none';
+    showToast('Erreur : ' + e.message, 'error');
+  }
 }

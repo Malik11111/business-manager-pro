@@ -1457,6 +1457,91 @@ def scan_contrat_ia():
             pass
 
 
+@app.route('/api/vehicules/scan-document', methods=['POST'])
+@login_required
+def scan_document_vehicule():
+    """Scan carte grise, CT ou assurance — extrait les infos du vehicule."""
+    import os as _os, tempfile as _tmp, json as _json, re as _re, urllib.request, base64 as _b64
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+
+    f = request.files['file']
+    fname = f.filename.lower()
+    if not (fname.endswith('.pdf') or fname.endswith('.jpg') or fname.endswith('.jpeg') or fname.endswith('.png')):
+        return jsonify({'error': 'Format accepté : PDF, JPG, PNG'}), 400
+
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API requise'}), 400
+
+    suffix = '.' + fname.rsplit('.', 1)[-1]
+    with _tmp.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    prompt = (
+        "Analyse ce document de véhicule (carte grise, certificat de contrôle technique CT, "
+        "ou attestation d'assurance). Extrais les informations en JSON strict, sans markdown :\n"
+        '{"immatriculation": "numéro immatriculation (champ A sur carte grise, ex: AB-123-CD)", '
+        '"marque": "marque du véhicule (champ D.1 sur carte grise)", '
+        '"modele": "modèle / version (champ D.2 ou D.3)", '
+        '"annee": "année de première mise en circulation (champ B, format YYYY)", '
+        '"date_ct": "date limite du prochain CT au format JJ-MM-AAAA — cherche validité, prochain CT, date limite sur le CT", '
+        '"date_assurance": "date de fin de validité de l\'assurance au format JJ-MM-AAAA", '
+        '"remarques_ct": "liste des défauts notés sur le rapport CT séparés par ; — vide si aucun ou si ce n\'est pas un CT"}\n'
+        "Règles : si une info est absente laisse la valeur vide. "
+        "Retourne UNIQUEMENT le JSON, rien d'autre."
+    )
+
+    try:
+        if suffix == '.pdf':
+            texte = _extraire_texte_pdf(tmp_path)
+            if texte:
+                body = _json.dumps({
+                    "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                }).encode("utf-8")
+            else:
+                pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
+                body = _json.dumps({
+                    "contents": [{"parts": [
+                        {"text": prompt + "\n\n[Document scanné en image]"},
+                        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                    ]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                }).encode("utf-8")
+        else:
+            with open(tmp_path, 'rb') as img_f:
+                img_data = _b64.b64encode(img_f.read()).decode('utf-8')
+            mime = 'image/jpeg' if suffix in ('.jpg', '.jpeg') else 'image/png'
+            body = _json.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime, "data": img_data}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+            }).encode("utf-8")
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            result = _json.loads(r.read().decode("utf-8"))
+        texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+        texte_rep = _re.sub(r"```\s*", "", texte_rep)
+        data = _json.loads(texte_rep)
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
 @app.route('/api/analyse-pdf/historique', methods=['GET'])
 @login_required
 def get_historique_analyses():
@@ -1735,6 +1820,108 @@ def data_today():
 
 
 # ══════════════════════════════════════════════════════
+#  SCAN FICHE STOCK
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/stock/scan-fiche', methods=['POST'])
+@login_required
+def scan_fiche_stock():
+    """Scan une fiche de distribution produits — extrait date, departement, produits+quantites."""
+    import os as _os, tempfile as _tmp, json as _json, re as _re, urllib.request, base64 as _b64
+    import datetime as _dt
+
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+
+    f = request.files['file']
+    fname = f.filename.lower()
+    if not (fname.endswith('.pdf') or fname.endswith('.jpg') or fname.endswith('.jpeg') or fname.endswith('.png')):
+        return jsonify({'error': 'Format accepté : PDF, JPG, PNG'}), 400
+
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API requise'}), 400
+
+    # Catalogue produits pour le prompt
+    produits = StockProduit.query.filter_by(etab_id=etab.id).all()
+    product_lines = '\n'.join(f"- {p.id} | {p.nom} ({p.unite})" for p in produits) or '- aucun'
+    today = _dt.date.today().strftime('%d-%m-%Y')
+
+    prompt = (
+        "Tu analyses une fiche de distribution de produits (nettoyage, entretien, etc.).\n"
+        "Le document peut être manuscrit, imprimé ou mixte.\n\n"
+        "Objectif :\n"
+        "- Lire la date (manuscrite ou imprimée)\n"
+        "- Lire le nom du département/groupe/service\n"
+        "- Pour chaque produit : lire le nom et la quantité REMISE (dernière colonne, ignore la quantité demandée)\n"
+        "- Ne garder que les lignes avec une quantité remise > 0\n\n"
+        "Renvoie UNIQUEMENT ce JSON valide :\n"
+        '{"date": "DD-MM-YYYY", "departement": "nom du groupe", '
+        '"entries": [{"produit_id": 123, "produit_nom": "nom exact", "quantite": 2}]}\n\n'
+        f"Règles : date au format DD-MM-YYYY (si illisible utilise {today}). "
+        "produit_id doit venir du catalogue ci-dessous ou null si absent. "
+        "Ne renvoie pas de texte hors JSON.\n\n"
+        f"Catalogue produits :\n{product_lines}"
+    )
+
+    suffix = '.' + fname.rsplit('.', 1)[-1]
+    with _tmp.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        if suffix == '.pdf':
+            texte = _extraire_texte_pdf(tmp_path)
+            if texte:
+                body = _json.dumps({
+                    "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                }).encode("utf-8")
+            else:
+                pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
+                body = _json.dumps({
+                    "contents": [{"parts": [
+                        {"text": prompt + "\n\n[Document scanné]"},
+                        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                    ]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                }).encode("utf-8")
+        else:
+            with open(tmp_path, 'rb') as img_f:
+                img_data = _b64.b64encode(img_f.read()).decode('utf-8')
+            mime = 'image/jpeg' if suffix in ('.jpg', '.jpeg') else 'image/png'
+            body = _json.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime, "data": img_data}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+            }).encode("utf-8")
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            result = _json.loads(r.read().decode("utf-8"))
+        texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+        texte_rep = _re.sub(r"```\s*", "", texte_rep)
+        data = _json.loads(texte_rep)
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
+# ══════════════════════════════════════════════════════
 #  API STOCK
 # ══════════════════════════════════════════════════════
 
@@ -1896,6 +2083,106 @@ def _log_cle_event(etab_id, event_type, details):
     h = HistoriqueCle(etab_id=etab_id, event_type=event_type, details=details,
                       event_date=datetime.now().strftime('%d/%m/%Y %H:%M'))
     db.session.add(h)
+
+
+@app.route('/api/cles/scan-fiche', methods=['POST'])
+@login_required
+def scan_fiche_cles():
+    """Scan une fiche de distribution de cles — extrait employe, date, cles attribuees."""
+    import os as _os, tempfile as _tmp, json as _json, re as _re, urllib.request, base64 as _b64
+    import datetime as _dt, unicodedata as _ud
+
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+
+    f = request.files['file']
+    fname = f.filename.lower()
+    if not (fname.endswith('.pdf') or fname.endswith('.jpg') or fname.endswith('.jpeg') or fname.endswith('.png')):
+        return jsonify({'error': 'Format accepté : PDF, JPG, PNG'}), 400
+
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API requise'}), 400
+
+    # Catalogues pour le prompt
+    employes = EmployeCle.query.filter_by(etab_id=etab.id).all()
+    cles = CleItem.query.filter_by(etab_id=etab.id).all()
+    emp_lines = '\n'.join(f"- {e.id} | {e.nom} {e.prenom} | {e.poste or ''}" for e in employes) or '- aucun'
+    cle_lines = '\n'.join(f"- {c.id} | num={c.numero or '-'} | {c.nom}" for c in cles) or '- aucune'
+    today = _dt.date.today().strftime('%d-%m-%Y')
+
+    prompt = (
+        "Tu analyses une fiche de distribution de clés (manuscrite ou photographiée).\n\n"
+        "Objectif :\n"
+        "- Reconnaître l'employé concerné\n"
+        "- Reconnaître la date d'attribution\n"
+        "- Reconnaître chaque clé notée sur la fiche\n\n"
+        "Renvoie UNIQUEMENT ce JSON valide :\n"
+        '{"employee_id": 123, "employee_name_raw": "nom lu", "assignment_date": "DD-MM-YYYY", '
+        '"notes": "commentaire", "entries": [{"raw": "texte vu", "label": "interprétation", '
+        '"key_id": 456, "confidence": "high"}]}\n\n'
+        f"Règles : employee_id et key_id doivent venir des catalogues ou null. "
+        f"date au format DD-MM-YYYY (si illisible utilise {today}). "
+        "confidence = high/medium/low. Ne renvoie pas de texte hors JSON.\n\n"
+        f"Catalogue employés :\n{emp_lines}\n\n"
+        f"Catalogue clés :\n{cle_lines}"
+    )
+
+    suffix = '.' + fname.rsplit('.', 1)[-1]
+    with _tmp.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        if suffix == '.pdf':
+            texte = _extraire_texte_pdf(tmp_path)
+            if texte:
+                body = _json.dumps({
+                    "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                }).encode("utf-8")
+            else:
+                pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
+                body = _json.dumps({
+                    "contents": [{"parts": [
+                        {"text": prompt + "\n\n[Document scanné]"},
+                        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                    ]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                }).encode("utf-8")
+        else:
+            with open(tmp_path, 'rb') as img_f:
+                img_data = _b64.b64encode(img_f.read()).decode('utf-8')
+            mime = 'image/jpeg' if suffix in ('.jpg', '.jpeg') else 'image/png'
+            body = _json.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime, "data": img_data}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+            }).encode("utf-8")
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            result = _json.loads(r.read().decode("utf-8"))
+        texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+        texte_rep = _re.sub(r"```\s*", "", texte_rep)
+        data = _json.loads(texte_rep)
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
 
 
 @app.route('/api/cles/cles', methods=['GET'])

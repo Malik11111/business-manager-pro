@@ -45,10 +45,12 @@ function onPdfSelected(input) {
 async function lancerAnalysePDF() {
   if (!_pdfFile) { showToast('Sélectionnez un PDF', 'error'); return; }
   const apiKey = (document.getElementById('pdf-api-key')?.value || '').trim();
-  if (!apiKey) { showToast('Clé API Gemini requise', 'error'); return; }
+  const keyWrap = document.getElementById('pdf-api-key-wrap');
+  const serverHasKey = keyWrap && keyWrap.style.display === 'none';
+  if (!apiKey && !serverHasKey) { showToast('Clé API Gemini requise', 'error'); return; }
 
-  // Sauvegarder la clé
-  localStorage.setItem('gemini_api_key', apiKey);
+  // Sauvegarder la clé si saisie
+  if (apiKey) localStorage.setItem('gemini_api_key', apiKey);
 
   // UI loading
   setProgress(10, 'Envoi du PDF...');
@@ -60,7 +62,7 @@ async function lancerAnalysePDF() {
     setProgress(30, 'Extraction du texte...');
     const formData = new FormData();
     formData.append('file', _pdfFile);
-    formData.append('api_key', apiKey);
+    if (apiKey) formData.append('api_key', apiKey);
 
     setProgress(60, 'Analyse par Gemini IA en cours...');
     const res = await fetch('/api/analyse-pdf/upload', {

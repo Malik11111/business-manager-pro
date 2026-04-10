@@ -396,3 +396,138 @@ function exportStockCSV() {
   ]);
   exportCSV(rows, headers, 'stock_' + new Date().toISOString().slice(0,10) + '.csv');
 }
+
+/* ── Scan fiche distribution produits ─────────────── */
+function openScanFicheStock() {
+  const input = document.getElementById('scan-stock-input');
+  input.value = '';
+  input.click();
+}
+
+async function onScanFicheStockSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const overlay = document.getElementById('scan-vehicule-overlay');
+  const bar     = document.getElementById('scan-vehicule-bar');
+  const lbl     = document.getElementById('scan-vehicule-label');
+  document.querySelector('#scan-vehicule-overlay h2').textContent = 'Lecture de la fiche stock';
+  overlay.style.display = 'flex';
+  bar.style.width = '15%';
+  lbl.textContent = 'Envoi du document…';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    bar.style.width = '50%';
+    lbl.textContent = 'Analyse de la fiche en cours…';
+
+    const res = await fetch('/api/stock/scan-fiche', { method: 'POST', body: formData });
+    bar.style.width = '90%';
+    lbl.textContent = 'Extraction des produits…';
+    const data = await res.json();
+
+    if (!res.ok) {
+      overlay.style.display = 'none';
+      showToast(data.error || 'Erreur scan', 'error');
+      return;
+    }
+
+    bar.style.width = '100%';
+    lbl.textContent = 'Terminé !';
+    await new Promise(r => setTimeout(r, 400));
+    overlay.style.display = 'none';
+
+    _afficherPreviewScanStock(data);
+
+  } catch (e) {
+    overlay.style.display = 'none';
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
+function _afficherPreviewScanStock(data) {
+  const entries = data.entries || [];
+
+  const lignes = entries.map((entry, i) => {
+    const prodOpts = _stockProduits.map(p =>
+      `<option value="${p.id}" ${p.id == entry.produit_id ? 'selected' : ''}>${esc(p.nom)} (${esc(p.unite)})</option>`
+    ).join('');
+    return `
+      <tr>
+        <td style="padding:4px"><input type="checkbox" id="ss-chk-${i}" checked></td>
+        <td style="padding:4px">
+          <select id="ss-prod-${i}" class="modal-input" style="padding:4px 6px;font-size:12px;width:100%">
+            <option value="">— Non identifié —</option>${prodOpts}
+          </select>
+        </td>
+        <td style="padding:4px">
+          <input id="ss-qte-${i}" type="number" class="modal-input" value="${entry.quantite||1}" min="0.01" step="0.01" style="width:70px;padding:4px;font-size:12px;">
+        </td>
+      </tr>`;
+  }).join('');
+
+  const today = new Date().toISOString().slice(0,10);
+
+  openModal('📦 Fiche de distribution détectée — vérifier', `
+    <div style="display:grid;gap:10px;padding:4px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <label class="modal-label">Département / Unité</label>
+          <input id="ss-dept" class="modal-input" value="${esc(data.departement||'')}" placeholder="Ex: Cuisine, Bureau 2...">
+        </div>
+        <div>
+          <label class="modal-label">Date (YYYY-MM-DD)</label>
+          <input id="ss-date" class="modal-input" type="date" value="${data.date ? _ddmmyyyyToISO(data.date) : today}">
+        </div>
+      </div>
+      ${entries.length ? `
+      <div>
+        <label class="modal-label">Produits détectés — cochez ceux à enregistrer en sortie</label>
+        <div style="max-height:240px;overflow-y:auto;border:1px solid #E0E0E0;border-radius:8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#F5F4FF">
+              <th style="padding:6px;width:30px">✓</th>
+              <th style="padding:6px;text-align:left">Produit</th>
+              <th style="padding:6px;width:80px">Qté remise</th>
+            </tr></thead>
+            <tbody>${lignes}</tbody>
+          </table>
+        </div>
+      </div>` : '<p style="color:#9CA3AF;font-size:13px">Aucun produit détecté sur cette fiche.</p>'}
+    </div>
+  `, async () => {
+    const dept  = document.getElementById('ss-dept').value.trim();
+    const date  = document.getElementById('ss-date').value || today;
+
+    const taches = [];
+    entries.forEach((_, i) => {
+      const chk  = document.getElementById(`ss-chk-${i}`);
+      const pid  = parseInt(document.getElementById(`ss-prod-${i}`).value);
+      const qte  = parseFloat(document.getElementById(`ss-qte-${i}`).value);
+      if (chk?.checked && pid && qte > 0) {
+        taches.push(api('/api/stock/mouvements', 'POST', {
+          produit_id: pid, type: 'sortie', quantite: qte,
+          departement: dept, date, notes: 'Fiche scannée'
+        }));
+      }
+    });
+
+    if (!taches.length) { showToast('Aucune ligne cochée', 'error'); return false; }
+    try {
+      await Promise.all(taches);
+      showToast(`✅ ${taches.length} sortie(s) enregistrée(s)`, 'success');
+      await loadStockProduits();
+      await loadStockKPIs();
+      switchTab('stock', 'sorties-tab');
+      loadStockMvts('sortie');
+    } catch (e) { showToast(e.message || 'Erreur', 'error'); return false; }
+  });
+}
+
+function _ddmmyyyyToISO(ddmmyyyy) {
+  // Convertit DD-MM-YYYY → YYYY-MM-DD pour input[type=date]
+  const m = ddmmyyyy.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : new Date().toISOString().slice(0,10);
+}
