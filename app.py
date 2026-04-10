@@ -557,7 +557,7 @@ def scan_facture_ia():
                 "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
             }).encode("utf-8")
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=60) as r:
             result = _json.loads(r.read().decode("utf-8"))
@@ -1244,7 +1244,7 @@ def _analyser_gemini(texte, api_key):
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.1, "maxOutputTokens": 8192}
     }).encode("utf-8")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=120) as r:
         result = _json.loads(r.read().decode("utf-8"))
@@ -1320,7 +1320,7 @@ def upload_analyse_pdf():
                 ]}],
                 "generationConfig": {"temperature": 0.1, "maxOutputTokens": 8192}
             }).encode("utf-8")
-            url_v = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+            url_v = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
             req_v = _req.Request(url_v, data=body_v, headers={"Content-Type": "application/json"})
             with _req.urlopen(req_v, timeout=120) as r_v:
                 result_v = _json2.loads(r_v.read().decode("utf-8"))
@@ -1418,7 +1418,7 @@ def scan_contrat_ia():
     try:
         import base64 as _b64
         texte = _extraire_texte_pdf(tmp_path)
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
 
         if texte:
             # PDF textuel
