@@ -57,6 +57,7 @@ class Etablissement(db.Model):
     pharma_archive = db.relationship('PharmaArchive', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     vehicules = db.relationship('Vehicule', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     analyses_pdf = db.relationship('AnalysePDF', backref='etablissement', lazy=True, cascade='all, delete-orphan')
+    stock_produits = db.relationship('StockProduit', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     cles_items = db.relationship('CleItem', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     employes_cles = db.relationship('EmployeCle', backref='etablissement', lazy=True, cascade='all, delete-orphan')
     historique_cles = db.relationship('HistoriqueCle', backref='etablissement', lazy=True, cascade='all, delete-orphan')
@@ -278,6 +279,53 @@ class AnalysePDF(db.Model):
             'nb_eleve': self.nb_eleve, 'nb_moyen': self.nb_moyen,
             'nb_faible': self.nb_faible, 'resume_executif': self.resume_executif,
             'data_json': self.data_json
+        }
+
+
+# ── Stock ─────────────────────────────────────────────
+
+class StockProduit(db.Model):
+    __tablename__ = 'stock_produits'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    nom = db.Column(db.String(200), nullable=False)
+    categorie = db.Column(db.String(100), default='')
+    quantite = db.Column(db.Float, default=0)
+    unite = db.Column(db.String(30), default='unité')
+    seuil_alerte = db.Column(db.Float, default=0)
+    emplacement = db.Column(db.String(200), default='')
+
+    mouvements = db.relationship('StockMouvement', backref='produit', lazy=True, cascade='all, delete-orphan')
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'nom': self.nom, 'categorie': self.categorie,
+            'quantite': self.quantite, 'unite': self.unite,
+            'seuil_alerte': self.seuil_alerte, 'emplacement': self.emplacement,
+            'alerte': self.quantite <= self.seuil_alerte and self.seuil_alerte > 0
+        }
+
+
+class StockMouvement(db.Model):
+    __tablename__ = 'stock_mouvements'
+    id = db.Column(db.Integer, primary_key=True)
+    produit_id = db.Column(db.Integer, db.ForeignKey('stock_produits.id'), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # sortie / reception
+    quantite = db.Column(db.Float, nullable=False)
+    personne = db.Column(db.String(200), default='')
+    departement = db.Column(db.String(200), default='')
+    date = db.Column(db.String(10), default='')
+    notes = db.Column(db.Text, default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'produit_id': self.produit_id,
+            'produit_nom': self.produit.nom if self.produit else '',
+            'produit_unite': self.produit.unite if self.produit else '',
+            'type': self.type, 'quantite': self.quantite,
+            'personne': self.personne, 'departement': self.departement,
+            'date': self.date, 'notes': self.notes
         }
 
 

@@ -399,7 +399,112 @@
       </div>
 
     </div><!-- /view-cles -->
-    <div id="view-stock"     class="module-view hidden"><div class="coming-soon"><div class="cs-icon">📦</div><h2>Stock</h2><p>Ce module sera disponible prochainement.</p></div></div>
+    <!-- ════════════════════════════════════════════════
+         VUE : STOCK
+    ════════════════════════════════════════════════ -->
+    <div id="view-stock" class="module-view hidden">
+
+      <!-- Toolbar -->
+      <div class="module-toolbar">
+        <div class="filters">
+          <input id="stock-search" class="search-input" type="text" placeholder="🔍 Rechercher un produit..." oninput="filterStock()">
+          <select id="stock-cat-filter" class="filter-select" onchange="filterStock()">
+            <option value="">Toutes catégories</option>
+          </select>
+        </div>
+        <button class="btn btn-green"  onclick="openAddProduitDialog()">➕ Ajouter produit</button>
+        <button class="btn btn-orange" onclick="openSortieDialog()">📤 Enregistrer sortie</button>
+        <button class="btn btn-blue"   onclick="openReceptionDialog()">📥 Réception</button>
+        <button class="btn btn-gray"   onclick="exportStockCSV()">📊 Exporter CSV</button>
+      </div>
+
+      <!-- KPIs -->
+      <div id="stock-kpis" style="display:flex;gap:12px;padding:12px 16px;flex-wrap:wrap;"></div>
+
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="stock" data-tab-id="produits-tab"   onclick="switchTab('stock','produits-tab')">  📦 Produits</button>
+        <button class="tab-btn"        data-tab-group="stock" data-tab-id="sorties-tab"    onclick="switchTab('stock','sorties-tab');loadStockMvts('sortie')">   📤 Sorties</button>
+        <button class="tab-btn"        data-tab-group="stock" data-tab-id="receptions-tab" onclick="switchTab('stock','receptions-tab');loadStockMvts('reception')">📥 Réceptions</button>
+        <button class="tab-btn"        data-tab-group="stock" data-tab-id="alertes-tab"    onclick="switchTab('stock','alertes-tab');loadStockAlertes()">🔔 Alertes <span id="stock-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
+        <button class="tab-btn"        data-tab-group="stock" data-tab-id="histo-stock-tab" onclick="switchTab('stock','histo-stock-tab');loadStockMvts('')">   📜 Historique</button>
+      </div>
+
+      <!-- Onglet Produits -->
+      <div class="tab-content active" data-tab-group="stock" data-tab-id="produits-tab">
+        <div class="table-wrapper">
+          <table id="stock-table">
+            <thead><tr>
+              <th onclick="sortStockBy('nom')">NOM ↕</th>
+              <th>CATÉGORIE</th><th>QUANTITÉ</th><th>UNITÉ</th>
+              <th>SEUIL ALERTE</th><th>EMPLACEMENT</th><th>STATUT</th><th>ACTIONS</th>
+            </tr></thead>
+            <tbody id="stock-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Sorties -->
+      <div class="tab-content" data-tab-group="stock" data-tab-id="sorties-tab">
+        <div style="padding:8px 16px;display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13px;font-weight:600;">Période :</label>
+          <select id="stock-sorties-jours" class="filter-select" style="width:150px" onchange="loadStockMvts('sortie')">
+            <option value="30" selected>30 jours</option>
+            <option value="7">7 jours</option>
+            <option value="90">90 jours</option>
+            <option value="365">1 an</option>
+            <option value="0">Tout</option>
+          </select>
+        </div>
+        <div class="table-wrapper">
+          <table id="sorties-table">
+            <thead><tr><th>DATE</th><th>PRODUIT</th><th>QTÉ</th><th>UNITÉ</th><th>PERSONNE</th><th>DÉPARTEMENT</th><th>NOTES</th></tr></thead>
+            <tbody id="sorties-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Réceptions -->
+      <div class="tab-content" data-tab-group="stock" data-tab-id="receptions-tab">
+        <div style="padding:8px 16px;display:flex;align-items:center;gap:10px;">
+          <label style="font-size:13px;font-weight:600;">Période :</label>
+          <select id="stock-receptions-jours" class="filter-select" style="width:150px" onchange="loadStockMvts('reception')">
+            <option value="30" selected>30 jours</option>
+            <option value="7">7 jours</option>
+            <option value="90">90 jours</option>
+            <option value="365">1 an</option>
+            <option value="0">Tout</option>
+          </select>
+        </div>
+        <div class="table-wrapper">
+          <table id="receptions-table">
+            <thead><tr><th>DATE</th><th>PRODUIT</th><th>QTÉ</th><th>UNITÉ</th><th>FOURNISSEUR</th><th>NOTES</th></tr></thead>
+            <tbody id="receptions-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Alertes -->
+      <div class="tab-content" data-tab-group="stock" data-tab-id="alertes-tab">
+        <div class="table-wrapper">
+          <table id="alertes-stock-table">
+            <thead><tr><th>PRODUIT</th><th>CATÉGORIE</th><th>STOCK ACTUEL</th><th>SEUIL</th><th>MANQUANT</th><th>ACTIONS</th></tr></thead>
+            <tbody id="alertes-stock-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Onglet Historique -->
+      <div class="tab-content" data-tab-group="stock" data-tab-id="histo-stock-tab">
+        <div class="table-wrapper">
+          <table id="histo-stock-table">
+            <thead><tr><th>DATE</th><th>TYPE</th><th>PRODUIT</th><th>QTÉ</th><th>PERSONNE/FOURN.</th><th>DÉPARTEMENT</th><th>NOTES</th></tr></thead>
+            <tbody id="histo-stock-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /view-stock -->
     <!-- ════════════════════════════════════════════════
          VUE : PARC AUTO
     ════════════════════════════════════════════════ -->
@@ -1225,6 +1330,7 @@
 <script src="/static/js/analyse_pdf.js"></script>
 <script src="/static/js/pharmacie.js"></script>
 <script src="/static/js/cles.js"></script>
+<script src="/static/js/stock.js"></script>
 <script src="/static/js/app.js"></script>
 
 <!-- Initialisation du champ date des évaluations -->

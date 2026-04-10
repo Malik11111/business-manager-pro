@@ -11,6 +11,7 @@ from models import Personnel, Unite, Materiel
 from models import PharmaStock, PharmaMouvement, PharmaArchive
 from models import Vehicule, Entretien, Carburant
 from models import CleItem, EmployeCle, AttributionCle, HistoriqueCle
+from models import StockProduit, StockMouvement
 from models import AnalysePDF
 import json
 
@@ -1709,6 +1710,159 @@ def delete_carburant(cid):
 def data_today():
     from datetime import date
     return date.today().isoformat()
+
+
+# ══════════════════════════════════════════════════════
+#  API STOCK
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/stock/produits', methods=['GET'])
+@login_required
+def api_stock_produits():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    q = request.args.get('q', '').lower()
+    cat = request.args.get('categorie', '')
+    prods = StockProduit.query.filter_by(etab_id=etab.id).order_by(StockProduit.nom).all()
+    result = [p.to_dict() for p in prods
+              if (not q or q in p.nom.lower())
+              and (not cat or p.categorie == cat)]
+    return jsonify(result)
+
+
+@app.route('/api/stock/produits', methods=['POST'])
+@login_required
+def api_stock_add_produit():
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    data = request.get_json()
+    nom = (data.get('nom') or '').strip()
+    if not nom: return jsonify({'error': 'Nom requis'}), 400
+    p = StockProduit(
+        etab_id=etab.id, nom=nom,
+        categorie=data.get('categorie', ''),
+        quantite=float(data.get('quantite', 0)),
+        unite=data.get('unite', 'unité'),
+        seuil_alerte=float(data.get('seuil_alerte', 0)),
+        emplacement=data.get('emplacement', '')
+    )
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(p.to_dict()), 201
+
+
+@app.route('/api/stock/produits/<int:pid>', methods=['PUT'])
+@login_required
+def api_stock_update_produit(pid):
+    etab = get_current_etab()
+    p = StockProduit.query.filter_by(id=pid, etab_id=etab.id).first_or_404()
+    data = request.get_json()
+    p.nom = data.get('nom', p.nom)
+    p.categorie = data.get('categorie', p.categorie)
+    p.unite = data.get('unite', p.unite)
+    p.seuil_alerte = float(data.get('seuil_alerte', p.seuil_alerte))
+    p.emplacement = data.get('emplacement', p.emplacement)
+    db.session.commit()
+    return jsonify(p.to_dict())
+
+
+@app.route('/api/stock/produits/<int:pid>', methods=['DELETE'])
+@login_required
+def api_stock_delete_produit(pid):
+    etab = get_current_etab()
+    p = StockProduit.query.filter_by(id=pid, etab_id=etab.id).first_or_404()
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/stock/mouvements', methods=['GET'])
+@login_required
+def api_stock_mouvements():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    type_filter = request.args.get('type', '')
+    jours = int(request.args.get('jours', 0))
+    query = (StockMouvement.query
+             .join(StockProduit, StockMouvement.produit_id == StockProduit.id)
+             .filter(StockProduit.etab_id == etab.id))
+    if type_filter:
+        query = query.filter(StockMouvement.type == type_filter)
+    if jours > 0:
+        from datetime import date, timedelta
+        depuis = (date.today() - timedelta(days=jours)).isoformat()
+        query = query.filter(StockMouvement.date >= depuis)
+    mvts = query.order_by(StockMouvement.date.desc(), StockMouvement.id.desc()).limit(500).all()
+    return jsonify([m.to_dict() for m in mvts])
+
+
+@app.route('/api/stock/mouvements', methods=['POST'])
+@login_required
+def api_stock_add_mouvement():
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    data = request.get_json()
+    pid = data.get('produit_id')
+    typ = data.get('type', 'sortie')
+    qte = float(data.get('quantite', 0))
+    if not pid or qte <= 0:
+        return jsonify({'error': 'produit_id et quantite requis'}), 400
+
+    p = StockProduit.query.filter_by(id=pid, etab_id=etab.id).first()
+    if not p: return jsonify({'error': 'Produit introuvable'}), 404
+
+    if typ == 'sortie' and p.quantite < qte:
+        return jsonify({'error': f'Stock insuffisant ({p.quantite} {p.unite} disponibles)'}), 409
+
+    from datetime import date
+    m = StockMouvement(
+        produit_id=pid, type=typ, quantite=qte,
+        personne=data.get('personne', ''),
+        departement=data.get('departement', ''),
+        date=data.get('date', date.today().isoformat()),
+        notes=data.get('notes', '')
+    )
+    db.session.add(m)
+    if typ == 'sortie':
+        p.quantite -= qte
+    else:
+        p.quantite += qte
+    db.session.commit()
+    return jsonify({'ok': True, 'nouvelle_quantite': p.quantite}), 201
+
+
+@app.route('/api/stock/alertes', methods=['GET'])
+@login_required
+def api_stock_alertes():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    prods = StockProduit.query.filter_by(etab_id=etab.id).all()
+    alertes = [p.to_dict() for p in prods if p.seuil_alerte > 0 and p.quantite <= p.seuil_alerte]
+    return jsonify(alertes)
+
+
+@app.route('/api/stock/categories', methods=['GET'])
+@login_required
+def api_stock_categories():
+    etab = get_current_etab()
+    if not etab: return jsonify([])
+    cats = db.session.query(StockProduit.categorie).filter(
+        StockProduit.etab_id == etab.id,
+        StockProduit.categorie != ''
+    ).distinct().all()
+    return jsonify(sorted([c[0] for c in cats]))
+
+
+@app.route('/api/stock/stats', methods=['GET'])
+@login_required
+def api_stock_stats():
+    etab = get_current_etab()
+    if not etab: return jsonify({})
+    prods = StockProduit.query.filter_by(etab_id=etab.id).all()
+    total = len(prods)
+    alertes = sum(1 for p in prods if p.seuil_alerte > 0 and p.quantite <= p.seuil_alerte)
+    ruptures = sum(1 for p in prods if p.quantite == 0)
+    return jsonify({'total_produits': total, 'alertes': alertes, 'ruptures': ruptures})
 
 
 # ══════════════════════════════════════════════════════

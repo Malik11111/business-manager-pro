@@ -94,6 +94,8 @@ function navigateTo(moduleId) {
       initPharmacie();
     } else if (moduleId === 'cles') {
       initCles();
+    } else if (moduleId === 'stock') {
+      initStock();
     } else if (moduleId === 'admin') {
       initAdminPanel();
     }
