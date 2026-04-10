@@ -530,12 +530,21 @@ def scan_facture_ia():
 
         if suffix == '.pdf':
             texte = _extraire_texte_pdf(tmp_path)
-            if not texte:
-                return jsonify({'error': 'Impossible d\'extraire le texte du PDF'}), 422
-            body = _json.dumps({
-                "contents": [{"parts": [{"text": prompt + "\n\nTexte de la facture :\n" + texte[:40000]}]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
-            }).encode("utf-8")
+            if texte:
+                body = _json.dumps({
+                    "contents": [{"parts": [{"text": prompt + "\n\nTexte de la facture :\n" + texte[:40000]}]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                }).encode("utf-8")
+            else:
+                # PDF scanné → Vision Gemini
+                pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
+                body = _json.dumps({
+                    "contents": [{"parts": [
+                        {"text": prompt + "\n\n[Analyse la facture visible dans ce PDF scanné]"},
+                        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                    ]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
                 img_data = _b64.b64encode(img_f.read()).decode('utf-8')
@@ -1407,18 +1416,31 @@ def scan_contrat_ia():
         tmp_path = tmp.name
 
     try:
+        import base64 as _b64
         texte = _extraire_texte_pdf(tmp_path)
-        if not texte:
-            return jsonify({'error': 'Impossible d\'extraire le texte du PDF'}), 422
-
-        prompt = PROMPT_CONTRAT.replace("{texte}", texte[:40000])
-        body = _json.dumps({
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
-        }).encode("utf-8")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+
+        if texte:
+            # PDF textuel
+            prompt = PROMPT_CONTRAT.replace("{texte}", texte[:40000])
+            body = _json.dumps({
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+            }).encode("utf-8")
+        else:
+            # PDF scanné → Vision Gemini
+            pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
+            prompt_vision = PROMPT_CONTRAT.replace("{texte}", "[Analyse le contrat visible dans ce PDF scanné]")
+            body = _json.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt_vision},
+                    {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+            }).encode("utf-8")
+
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=60) as r:
+        with urllib.request.urlopen(req, timeout=90) as r:
             result = _json.loads(r.read().decode("utf-8"))
         texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         texte_rep = _re.sub(r"```json\s*", "", texte_rep)
