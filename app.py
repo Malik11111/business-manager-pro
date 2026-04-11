@@ -387,6 +387,7 @@ def api_add_personnel():
     data = request.get_json()
     p = Personnel(etab_id=etab.id, nom=data.get('nom', ''), prenom=data.get('prenom', ''),
                   type_contrat=data.get('type_contrat', ''), poste=data.get('poste', ''),
+                  service=data.get('service', ''), telephone=data.get('telephone', ''),
                   lieu=data.get('lieu', ''), date_arrivee=data.get('date_arrivee', ''),
                   date_depart=data.get('date_depart', ''))
     db.session.add(p)
@@ -402,7 +403,7 @@ def api_update_personnel(pid):
     if not p:
         return jsonify({'error': 'Introuvable.'}), 404
     data = request.get_json()
-    for f in ['nom', 'prenom', 'type_contrat', 'poste', 'lieu', 'date_arrivee', 'date_depart']:
+    for f in ['nom', 'prenom', 'type_contrat', 'poste', 'service', 'telephone', 'lieu', 'date_arrivee', 'date_depart']:
         if f in data:
             setattr(p, f, data[f])
     db.session.commit()
@@ -419,6 +420,98 @@ def api_delete_personnel(pid):
     db.session.delete(p)
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@app.route('/api/personnel/export-excel', methods=['GET'])
+@login_required
+def api_export_personnel_excel():
+    """Export Personnel → fichier Excel téléchargeable."""
+    import io
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        return jsonify({'error': 'openpyxl non installé.'}), 500
+    etab = get_current_etab()
+    items = Personnel.query.filter_by(etab_id=etab.id).order_by(Personnel.nom).all()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Personnel'
+    headers = ['Nom', 'Prénom', 'Poste', 'Service', 'Type contrat', 'Téléphone', 'Date entrée', 'Date sortie']
+    col_widths = [20, 20, 22, 20, 18, 16, 14, 14]
+    hdr_fill = PatternFill('solid', fgColor='1E3A8A')
+    hdr_font = Font(bold=True, color='FFFFFF', size=11)
+    for ci, (h, w) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=ci, value=h)
+        cell.fill = hdr_fill
+        cell.font = hdr_font
+        cell.alignment = Alignment(horizontal='center')
+        ws.column_dimensions[cell.column_letter].width = w
+    CONTRACT_OPTIONS = ['', 'CDI', 'CDD', 'Intérim', 'Stage', 'Apprentissage', 'Bénévolat', 'Intervenant ext', 'Autre']
+    for row_i, p in enumerate(items, 2):
+        ws.cell(row=row_i, column=1, value=p.nom)
+        ws.cell(row=row_i, column=2, value=p.prenom)
+        ws.cell(row=row_i, column=3, value=p.poste)
+        ws.cell(row=row_i, column=4, value=p.service)
+        ws.cell(row=row_i, column=5, value=p.type_contrat)
+        ws.cell(row=row_i, column=6, value=p.telephone)
+        ws.cell(row=row_i, column=7, value=p.date_arrivee)
+        ws.cell(row=row_i, column=8, value=p.date_depart)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='personnel.xlsx')
+
+
+@app.route('/api/personnel/import-excel', methods=['POST'])
+@login_required
+def api_import_personnel_excel():
+    """Import Personnel depuis fichier Excel (ajoute, ne remplace pas)."""
+    import io
+    try:
+        import openpyxl
+    except ImportError:
+        return jsonify({'error': 'openpyxl non installé.'}), 500
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'Aucun fichier.'}), 400
+    etab = get_current_etab()
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(f.read()), data_only=True)
+        ws = wb.active
+        added = 0
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row or not row[0]:
+                continue
+            nom = str(row[0]).strip()
+            if not nom:
+                continue
+            prenom      = str(row[1] or '').strip()
+            poste       = str(row[2] or '').strip()
+            service     = str(row[3] or '').strip()
+            type_contrat= str(row[4] or '').strip()
+            telephone   = str(row[5] or '').strip()
+            date_arr    = str(row[6] or '').strip()
+            date_dep    = str(row[7] or '').strip()
+            existing = Personnel.query.filter_by(etab_id=etab.id, nom=nom, prenom=prenom).first()
+            if existing:
+                existing.poste = poste or existing.poste
+                existing.service = service or existing.service
+                existing.type_contrat = type_contrat or existing.type_contrat
+                existing.telephone = telephone or existing.telephone
+                existing.date_arrivee = date_arr or existing.date_arrivee
+                existing.date_depart = date_dep or existing.date_depart
+            else:
+                db.session.add(Personnel(etab_id=etab.id, nom=nom, prenom=prenom,
+                    poste=poste, service=service, type_contrat=type_contrat,
+                    telephone=telephone, date_arrivee=date_arr, date_depart=date_dep))
+                added += 1
+        db.session.commit()
+        return jsonify({'ok': True, 'added': added})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 
 # ══════════════════════════════════════════════════════

@@ -33,6 +33,7 @@
 
   <div class="header-spacer"></div>
 
+  <button class="btn-header btn-params" onclick="openParams()" title="Paramètres — Personnel &amp; Lieux">⚙️ Paramètres</button>
   <button class="btn-header" onclick="loadDemoData()" style="color:#1565C0" title="Charger des données de démonstration">🎲 Demo</button>
   <button class="btn-header" onclick="doLogout()" style="color:#C62828">🚪 Déconnexion</button>
 </header>
@@ -205,9 +206,9 @@
         <div class="table-wrapper">
           <table>
             <thead><tr>
-              <th style="width:40px">#</th><th>Nom</th><th>Prénom</th><th>Type contrat</th><th>Poste / Fonction</th><th>Lieu</th><th style="width:100px">Actions</th>
+              <th style="width:40px">#</th><th>Nom</th><th>Prénom</th><th>Contrat</th><th>Poste</th><th>Service</th><th>Tél.</th><th>Entrée</th><th style="width:100px">Actions</th>
             </tr></thead>
-            <tbody id="personnel-tbody"><tr class="empty-row"><td colspan="7">Chargement…</td></tr></tbody>
+            <tbody id="personnel-tbody"><tr class="empty-row"><td colspan="9">Chargement…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1120,7 +1121,8 @@
         <div class="form-group"><label>Prénom *</label><input type="text" id="pers-prenom" placeholder="Marie"></div>
         <div class="form-group"><label>Type de contrat</label><select id="pers-type-contrat"></select></div>
         <div class="form-group"><label>Poste / Fonction</label><input type="text" id="pers-poste" placeholder="Infirmière"></div>
-        <div class="form-group"><label>Lieu</label><input type="text" id="pers-lieu" placeholder="Service A"></div>
+        <div class="form-group"><label>Service</label><input type="text" id="pers-service" placeholder="Unité A"></div>
+        <div class="form-group"><label>Téléphone</label><input type="text" id="pers-telephone" placeholder="06 …"></div>
         <div class="form-group"><label>Date d'arrivée</label><input type="date" id="pers-date-arrivee"></div>
         <div class="form-group"><label>Date de départ</label><input type="date" id="pers-date-depart"></div>
       </div>
@@ -1378,6 +1380,120 @@
     <div class="modal-footer">
       <button class="btn btn-red" onclick="viderPharmaCorbeille()">🗑️ Vider la corbeille</button>
       <button class="btn btn-gray" onclick="closeModal('modal-pharma-corbeille')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MODAL PARAMÈTRES — Personnel & Lieux (référentiel central)
+══════════════════════════════════════════════════════ -->
+<div id="modal-params" class="modal-overlay hidden" style="z-index:2000">
+  <div class="modal-box" style="max-width:860px;width:95%;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <h3>⚙️ Paramètres — Référentiel central</h3>
+      <button class="modal-close" onclick="closeParams()">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;padding:12px 20px 0;border-bottom:1px solid #E5E7EB;background:#F8FAFC">
+      <button class="params-tab active" id="ptab-personnel" onclick="switchParamsTab('personnel')">👤 Personnel</button>
+      <button class="params-tab" id="ptab-lieux" onclick="switchParamsTab('lieux')">📍 Lieux / Unités</button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px 20px">
+
+      <!-- ── ONGLET PERSONNEL ── -->
+      <div id="params-panel-personnel" class="params-panel">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+          <input id="params-pers-search" class="filter-input" placeholder="Rechercher…" style="flex:1;min-width:160px" oninput="renderParamsPersonnel()">
+          <button class="btn-table green" onclick="openParamsPersonnelModal()">+ Ajouter</button>
+          <a href="/api/personnel/export-excel" class="btn-table blue" download style="text-decoration:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600;border:1px solid #1E40AF;color:#1E40AF">⬇ Excel</a>
+          <label class="btn-table" style="cursor:pointer;background:#F59E0B;color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600" title="Importer depuis Excel">
+            ⬆ Importer
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importPersonnelExcel(this)">
+          </label>
+        </div>
+        <div id="params-pers-count" style="font-size:12px;color:#6B7280;margin-bottom:8px"></div>
+        <table class="data-table" style="font-size:12px">
+          <thead>
+            <tr>
+              <th>Nom</th><th>Prénom</th><th>Poste</th><th>Service</th>
+              <th>Contrat</th><th>Tél.</th><th>Entrée</th><th>Sortie</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="params-pers-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- ── ONGLET LIEUX ── -->
+      <div id="params-panel-lieux" class="params-panel hidden">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+          <input id="params-lieux-search" class="filter-input" placeholder="Rechercher…" style="flex:1;min-width:160px" oninput="renderParamsLieux()">
+          <button class="btn-table green" onclick="openParamsLieuModal()">+ Ajouter</button>
+        </div>
+        <div id="params-lieux-count" style="font-size:12px;color:#6B7280;margin-bottom:8px"></div>
+        <table class="data-table" style="font-size:12px">
+          <thead>
+            <tr>
+              <th>Nom</th><th>Description</th><th>Emplacement</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="params-lieux-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sous-modal Ajout/Edit Personnel -->
+<div id="modal-params-pers" class="modal-overlay hidden" style="z-index:2100">
+  <div class="modal-box" style="max-width:480px">
+    <div class="modal-header">
+      <h3 id="params-pers-modal-title">Ajouter du personnel</h3>
+      <button class="modal-close" onclick="document.getElementById('modal-params-pers').classList.add('hidden')">✕</button>
+    </div>
+    <div style="padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <input type="hidden" id="params-pers-id">
+      <div><label class="modal-label">Nom *</label><input id="pp-nom" class="modal-input" placeholder="Dupont"></div>
+      <div><label class="modal-label">Prénom</label><input id="pp-prenom" class="modal-input" placeholder="Jean"></div>
+      <div><label class="modal-label">Poste</label><input id="pp-poste" class="modal-input" placeholder="Éducateur"></div>
+      <div><label class="modal-label">Service</label><input id="pp-service" class="modal-input" placeholder="Unité A"></div>
+      <div>
+        <label class="modal-label">Type contrat</label>
+        <select id="pp-contrat" class="modal-input">
+          <option value="">—</option>
+          <option>CDI</option><option>CDD</option><option>Intérim</option>
+          <option>Stage</option><option>Apprentissage</option><option>Bénévolat</option>
+          <option>Intervenant ext</option><option>Autre</option>
+        </select>
+      </div>
+      <div><label class="modal-label">Téléphone</label><input id="pp-tel" class="modal-input" placeholder="06 …"></div>
+      <div><label class="modal-label">Date entrée</label><input id="pp-entree" type="date" class="modal-input"></div>
+      <div><label class="modal-label">Date sortie</label><input id="pp-sortie" type="date" class="modal-input"></div>
+    </div>
+    <div style="padding:0 20px 16px;text-align:right;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-table" onclick="document.getElementById('modal-params-pers').classList.add('hidden')">Annuler</button>
+      <button class="btn-table green" onclick="saveParamsPersonnel()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sous-modal Ajout/Edit Lieu -->
+<div id="modal-params-lieu" class="modal-overlay hidden" style="z-index:2100">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-header">
+      <h3 id="params-lieu-modal-title">Ajouter un lieu</h3>
+      <button class="modal-close" onclick="document.getElementById('modal-params-lieu').classList.add('hidden')">✕</button>
+    </div>
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+      <input type="hidden" id="params-lieu-id">
+      <div><label class="modal-label">Nom *</label><input id="pl-nom" class="modal-input" placeholder="Unité de vie A"></div>
+      <div><label class="modal-label">Description</label><input id="pl-desc" class="modal-input" placeholder="Ex: Unité de vie, Bureau…"></div>
+      <div><label class="modal-label">Emplacement / Bâtiment</label><input id="pl-emp" class="modal-input" placeholder="Bâtiment A, RDC"></div>
+    </div>
+    <div style="padding:0 20px 16px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-table" onclick="document.getElementById('modal-params-lieu').classList.add('hidden')">Annuler</button>
+      <button class="btn-table green" onclick="saveParamsLieu()">Enregistrer</button>
     </div>
   </div>
 </div>

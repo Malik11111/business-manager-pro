@@ -340,6 +340,213 @@ async function addEtabForUser(uid) {
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   PARAMÈTRES — Référentiel central Personnel & Lieux
+══════════════════════════════════════════════════════════ */
+
+let _paramsPersonnel = [];
+let _paramsLieux     = [];
+
+/* ── Ouverture / fermeture ──────────────────────────────── */
+async function openParams() {
+  document.getElementById('modal-params').classList.remove('hidden');
+  switchParamsTab('personnel');
+  await Promise.all([loadParamsPersonnel(), loadParamsLieux()]);
+}
+
+function closeParams() {
+  document.getElementById('modal-params').classList.add('hidden');
+  // Rafraîchir les modules actifs si besoin
+  if (_activeModule === 'actifs') initActifs();
+}
+
+function switchParamsTab(tab) {
+  document.querySelectorAll('.params-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.params-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(`ptab-${tab}`).classList.add('active');
+  document.getElementById(`params-panel-${tab}`).classList.remove('hidden');
+}
+
+/* ── PERSONNEL ──────────────────────────────────────────── */
+async function loadParamsPersonnel() {
+  try {
+    _paramsPersonnel = await api('/api/personnel');
+    renderParamsPersonnel();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderParamsPersonnel() {
+  const q = (document.getElementById('params-pers-search')?.value || '').toLowerCase();
+  const list = _paramsPersonnel.filter(p =>
+    !q || [p.nom, p.prenom, p.poste, p.service, p.type_contrat].some(v => (v || '').toLowerCase().includes(q))
+  );
+  const count = document.getElementById('params-pers-count');
+  if (count) count.textContent = `${list.length} personne${list.length !== 1 ? 's' : ''}`;
+  const tbody = document.getElementById('params-pers-tbody');
+  if (!tbody) return;
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;padding:18px">Aucun personnel.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(p => `
+    <tr>
+      <td><strong>${esc(p.nom)}</strong></td>
+      <td>${esc(p.prenom || '—')}</td>
+      <td>${esc(p.poste || '—')}</td>
+      <td>${esc(p.service || '—')}</td>
+      <td><span style="font-size:11px;padding:2px 6px;border-radius:10px;background:#EDE9FE;color:#5B21B6">${esc(p.type_contrat || '—')}</span></td>
+      <td>${esc(p.telephone || '—')}</td>
+      <td>${esc(p.date_arrivee || '—')}</td>
+      <td>${esc(p.date_depart || '—')}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-table blue" onclick="openParamsPersonnelModal(${p.id})">✏️</button>
+        <button class="btn-table red" onclick="deleteParamsPersonnel(${p.id},'${esc(p.nom)} ${esc(p.prenom || '')}')">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openParamsPersonnelModal(id) {
+  const p = id ? _paramsPersonnel.find(x => x.id === id) : null;
+  document.getElementById('params-pers-modal-title').textContent = p ? 'Modifier le personnel' : 'Ajouter du personnel';
+  document.getElementById('params-pers-id').value = p?.id || '';
+  document.getElementById('pp-nom').value       = p?.nom || '';
+  document.getElementById('pp-prenom').value    = p?.prenom || '';
+  document.getElementById('pp-poste').value     = p?.poste || '';
+  document.getElementById('pp-service').value   = p?.service || '';
+  document.getElementById('pp-contrat').value   = p?.type_contrat || '';
+  document.getElementById('pp-tel').value       = p?.telephone || '';
+  document.getElementById('pp-entree').value    = p?.date_arrivee || '';
+  document.getElementById('pp-sortie').value    = p?.date_depart || '';
+  document.getElementById('modal-params-pers').classList.remove('hidden');
+  setTimeout(() => document.getElementById('pp-nom').focus(), 80);
+}
+
+async function saveParamsPersonnel() {
+  const nom = document.getElementById('pp-nom').value.trim();
+  if (!nom) { showToast('Le nom est requis.', 'error'); return; }
+  const id = document.getElementById('params-pers-id').value;
+  const payload = {
+    nom, prenom: document.getElementById('pp-prenom').value.trim(),
+    poste:        document.getElementById('pp-poste').value.trim(),
+    service:      document.getElementById('pp-service').value.trim(),
+    type_contrat: document.getElementById('pp-contrat').value,
+    telephone:    document.getElementById('pp-tel').value.trim(),
+    date_arrivee: document.getElementById('pp-entree').value,
+    date_depart:  document.getElementById('pp-sortie').value,
+  };
+  try {
+    if (id) {
+      await api(`/api/personnel/${id}`, 'PUT', payload);
+      showToast('Personnel mis à jour.', 'success');
+    } else {
+      await api('/api/personnel', 'POST', payload);
+      showToast('Personnel ajouté.', 'success');
+    }
+    document.getElementById('modal-params-pers').classList.add('hidden');
+    await loadParamsPersonnel();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteParamsPersonnel(id, name) {
+  if (!confirmAction(`Supprimer "${name}" du référentiel ?`)) return;
+  try {
+    await api(`/api/personnel/${id}`, 'DELETE');
+    showToast('Supprimé.', 'warning');
+    await loadParamsPersonnel();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function importPersonnelExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch('/api/personnel/import-excel', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur import');
+    showToast(`Import terminé — ${data.added} ajouté(s).`, 'success');
+    await loadParamsPersonnel();
+  } catch (e) { showToast(e.message, 'error'); }
+  input.value = '';
+}
+
+/* ── LIEUX ──────────────────────────────────────────────── */
+async function loadParamsLieux() {
+  try {
+    _paramsLieux = await api('/api/unites');
+    renderParamsLieux();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function renderParamsLieux() {
+  const q = (document.getElementById('params-lieux-search')?.value || '').toLowerCase();
+  const list = _paramsLieux.filter(l =>
+    !q || [l.nom, l.description, l.emplacement].some(v => (v || '').toLowerCase().includes(q))
+  );
+  const count = document.getElementById('params-lieux-count');
+  if (count) count.textContent = `${list.length} lieu${list.length !== 1 ? 'x' : ''}`;
+  const tbody = document.getElementById('params-lieux-tbody');
+  if (!tbody) return;
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;padding:18px">Aucun lieu.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(l => `
+    <tr>
+      <td><strong>${esc(l.nom)}</strong></td>
+      <td>${esc(l.description || '—')}</td>
+      <td>${esc(l.emplacement || '—')}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-table blue" onclick="openParamsLieuModal(${l.id})">✏️</button>
+        <button class="btn-table red" onclick="deleteParamsLieu(${l.id},'${esc(l.nom)}')">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function openParamsLieuModal(id) {
+  const l = id ? _paramsLieux.find(x => x.id === id) : null;
+  document.getElementById('params-lieu-modal-title').textContent = l ? 'Modifier le lieu' : 'Ajouter un lieu';
+  document.getElementById('params-lieu-id').value = l?.id || '';
+  document.getElementById('pl-nom').value  = l?.nom || '';
+  document.getElementById('pl-desc').value = l?.description || '';
+  document.getElementById('pl-emp').value  = l?.emplacement || '';
+  document.getElementById('modal-params-lieu').classList.remove('hidden');
+  setTimeout(() => document.getElementById('pl-nom').focus(), 80);
+}
+
+async function saveParamsLieu() {
+  const nom = document.getElementById('pl-nom').value.trim();
+  if (!nom) { showToast('Le nom est requis.', 'error'); return; }
+  const id = document.getElementById('params-lieu-id').value;
+  const payload = {
+    nom, description: document.getElementById('pl-desc').value.trim(),
+    emplacement: document.getElementById('pl-emp').value.trim()
+  };
+  try {
+    if (id) {
+      await api(`/api/unites/${id}`, 'PUT', payload);
+      showToast('Lieu mis à jour.', 'success');
+    } else {
+      await api('/api/unites', 'POST', payload);
+      showToast('Lieu ajouté.', 'success');
+    }
+    document.getElementById('modal-params-lieu').classList.add('hidden');
+    await loadParamsLieux();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteParamsLieu(id, name) {
+  if (!confirmAction(`Supprimer le lieu "${name}" ?`)) return;
+  try {
+    await api(`/api/unites/${id}`, 'DELETE');
+    showToast('Supprimé.', 'warning');
+    await loadParamsLieux();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
 /* ── Demo data ──────────────────────────────────────────── */
 async function loadDemoData() {
   if (!confirmAction('Charger les donnees de demonstration dans cet etablissement ?\n(Les donnees existantes ne seront pas ecrasees.)')) return;

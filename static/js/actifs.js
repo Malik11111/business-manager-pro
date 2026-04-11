@@ -43,7 +43,7 @@ function renderPersonnelTable(filtered) {
   if (!tbody) return;
   document.getElementById('personnel-count').textContent = `${list.length} personne${list.length > 1 ? 's' : ''}`;
   if (list.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Aucun personnel.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Aucun personnel — gérez le dans ⚙️ Paramètres.</td></tr>';
     return;
   }
   tbody.innerHTML = list.map((p, i) => `<tr>
@@ -52,7 +52,9 @@ function renderPersonnelTable(filtered) {
     <td>${esc(p.prenom)}</td>
     <td><span class="badge badge-blue">${esc(p.type_contrat || '—')}</span></td>
     <td>${esc(p.poste || '—')}</td>
-    <td>${esc(p.lieu || '—')}</td>
+    <td>${esc(p.service || '—')}</td>
+    <td>${esc(p.telephone || '—')}</td>
+    <td>${esc(p.date_arrivee || '—')}</td>
     <td><div class="row-actions">
       <button class="btn-sm btn-sm-blue" onclick="editPersonnel(${p.id})" title="Modifier">✏️</button>
       <button class="btn-sm btn-sm-red" onclick="deletePersonnel(${p.id})" title="Supprimer">🗑️</button>
@@ -63,7 +65,7 @@ function renderPersonnelTable(filtered) {
 function filterPersonnel() {
   const q = (document.getElementById('personnel-search')?.value || '').toLowerCase();
   const list = _actifs.personnel.filter(p =>
-    !q || [p.nom, p.prenom, p.poste, p.type_contrat, p.lieu].some(v => (v || '').toLowerCase().includes(q))
+    !q || [p.nom, p.prenom, p.poste, p.service, p.type_contrat].some(v => (v || '').toLowerCase().includes(q))
   );
   renderPersonnelTable(list);
 }
@@ -76,7 +78,8 @@ function openPersonnelDialog(prefill = null) {
   const contratSel = document.getElementById('pers-type-contrat');
   contratSel.innerHTML = TYPES_CONTRAT.map(t => `<option value="${t}"${prefill?.type_contrat === t ? ' selected' : ''}>${t}</option>`).join('');
   document.getElementById('pers-poste').value = prefill?.poste || '';
-  document.getElementById('pers-lieu').value = prefill?.lieu || '';
+  document.getElementById('pers-service').value = prefill?.service || '';
+  document.getElementById('pers-telephone').value = prefill?.telephone || '';
   document.getElementById('pers-date-arrivee').value = prefill?.date_arrivee || '';
   document.getElementById('pers-date-depart').value = prefill?.date_depart || '';
   document.getElementById('modal-personnel').classList.remove('hidden');
@@ -95,10 +98,11 @@ async function savePersonnel() {
   const obj = {
     nom, prenom,
     type_contrat: document.getElementById('pers-type-contrat').value,
-    poste: document.getElementById('pers-poste').value.trim(),
-    lieu: document.getElementById('pers-lieu').value.trim(),
+    poste:     document.getElementById('pers-poste').value.trim(),
+    service:   document.getElementById('pers-service').value.trim(),
+    telephone: document.getElementById('pers-telephone').value.trim(),
     date_arrivee: document.getElementById('pers-date-arrivee').value,
-    date_depart: document.getElementById('pers-date-depart').value,
+    date_depart:  document.getElementById('pers-date-depart').value,
   };
   if (id) obj.id = parseInt(id);
   try {

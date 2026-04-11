@@ -8,10 +8,16 @@ let _stockSortField = 'nom';
 let _stockSortAsc = true;
 
 /* ── Init ──────────────────────────────────────────── */
+let _stockLieux = [];
+
 async function initStock() {
   await loadStockProduits();
   await loadStockKPIs();
   loadStockCategories();
+  // Charger les lieux depuis le référentiel
+  try {
+    _stockLieux = await api('/api/unites');
+  } catch(e) { _stockLieux = []; }
 }
 
 /* ══════════════════════════════════════════════════
@@ -209,7 +215,10 @@ function openSortieDialog(produitIdPrefill) {
         <input id="sm-pers" class="modal-input" placeholder="Nom de la personne">
       </div>
       <div><label class="modal-label">Département / Unité</label>
-        <input id="sm-dept" class="modal-input" placeholder="Ex: Cuisine, Bureau 2...">
+        <select id="sm-dept" class="modal-input">
+          <option value="">— Sélectionner ou saisir —</option>
+          ${_stockLieux.map(l => `<option value="${esc(l.nom)}">${esc(l.nom)}${l.emplacement?' — '+esc(l.emplacement):''}</option>`).join('')}
+        </select>
       </div>
       <div><label class="modal-label">Date</label>
         <input id="sm-date" class="modal-input" type="date" value="${today}">

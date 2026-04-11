@@ -134,6 +134,8 @@ class Personnel(db.Model):
     prenom = db.Column(db.String(100), default='')
     type_contrat = db.Column(db.String(50), default='')
     poste = db.Column(db.String(100), default='')
+    service = db.Column(db.String(100), default='')
+    telephone = db.Column(db.String(30), default='')
     lieu = db.Column(db.String(100), default='')
     date_arrivee = db.Column(db.String(10), default='')
     date_depart = db.Column(db.String(10), default='')
@@ -142,6 +144,7 @@ class Personnel(db.Model):
         return {
             'id': self.id, 'nom': self.nom, 'prenom': self.prenom,
             'type_contrat': self.type_contrat, 'poste': self.poste,
+            'service': self.service, 'telephone': self.telephone,
             'lieu': self.lieu, 'date_arrivee': self.date_arrivee,
             'date_depart': self.date_depart
         }
