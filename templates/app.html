@@ -1388,14 +1388,14 @@
      MODAL PARAMÈTRES — Personnel & Lieux (référentiel central)
 ══════════════════════════════════════════════════════ -->
 <div id="modal-params" class="modal-overlay hidden" style="z-index:2000">
-  <div class="modal-box" style="max-width:860px;width:95%;max-height:92vh;display:flex;flex-direction:column">
-    <div class="modal-header">
+  <div class="modal" style="max-width:860px;width:95%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;padding:0">
+    <div class="modal-header" style="flex-shrink:0">
       <h3>⚙️ Paramètres — Référentiel central</h3>
       <button class="modal-close" onclick="closeParams()">✕</button>
     </div>
 
     <!-- Tabs -->
-    <div style="display:flex;gap:4px;padding:12px 20px 0;border-bottom:1px solid #E5E7EB;background:#F8FAFC">
+    <div style="display:flex;gap:4px;padding:12px 20px 0;border-bottom:1px solid #E5E7EB;background:#F8FAFC;flex-shrink:0">
       <button class="params-tab active" id="ptab-personnel" onclick="switchParamsTab('personnel')">👤 Personnel</button>
       <button class="params-tab" id="ptab-lieux" onclick="switchParamsTab('lieux')">📍 Lieux / Unités</button>
     </div>
@@ -1447,7 +1447,7 @@
 
 <!-- Sous-modal Ajout/Edit Personnel -->
 <div id="modal-params-pers" class="modal-overlay hidden" style="z-index:2100">
-  <div class="modal-box" style="max-width:480px">
+  <div class="modal" style="max-width:480px;padding:0">
     <div class="modal-header">
       <h3 id="params-pers-modal-title">Ajouter du personnel</h3>
       <button class="modal-close" onclick="document.getElementById('modal-params-pers').classList.add('hidden')">✕</button>
@@ -1480,7 +1480,7 @@
 
 <!-- Sous-modal Ajout/Edit Lieu -->
 <div id="modal-params-lieu" class="modal-overlay hidden" style="z-index:2100">
-  <div class="modal-box" style="max-width:420px">
+  <div class="modal" style="max-width:420px;padding:0">
     <div class="modal-header">
       <h3 id="params-lieu-modal-title">Ajouter un lieu</h3>
       <button class="modal-close" onclick="document.getElementById('modal-params-lieu').classList.add('hidden')">✕</button>

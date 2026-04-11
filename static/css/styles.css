@@ -820,6 +820,33 @@ td {
   .charts-row { grid-template-columns: 1fr; }
 }
 
+/* ── Modal-label / Modal-input (sous-modaux Paramètres) ── */
+.modal-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 5px;
+}
+.modal-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0F172A;
+  background: #FFFFFF;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.modal-input:focus {
+  border-color: #F59E0B;
+  box-shadow: 0 0 0 3px rgba(245,158,11,.12);
+}
+
 /* ── Btn Paramètres (header) ───────────────────────────── */
 .btn-params {
   background: linear-gradient(135deg,rgba(91,33,182,.18),rgba(245,158,11,.15)) !important;
