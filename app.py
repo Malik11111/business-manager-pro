@@ -1331,46 +1331,45 @@ def _extraire_texte_pdf(chemin):
 
 
 def _parse_gemini_json(texte_rep):
-    """Parse robuste du JSON retourné par Gemini.
-    Gère : blocs markdown, sauts de ligne dans les chaînes, JSON tronqué,
-    texte parasite avant/après le JSON.
-    """
+    """Parse robuste du JSON retourne par Gemini sans recursion."""
     import json as _json, re as _re
-    # 1. Supprimer les balises markdown ```json ... ```
-    texte_rep = _re.sub(r"```json\s*", "", texte_rep)
-    texte_rep = _re.sub(r"```\s*", "", texte_rep)
+    texte_rep = _re.sub(r'`' + '`' + '`' + r'json\s*', '', texte_rep)
+    texte_rep = _re.sub(r'`' + '`' + '`' + r'\s*', '', texte_rep)
     texte_rep = texte_rep.strip()
-    # 2. Essai direct
+    # 1. Essai direct
     try:
-        return _parse_gemini_json(texte_rep)
-    except _json.JSONDecodeError:
+        return _json.loads(texte_rep)
+    except Exception:
         pass
-    # 3. Extraire le premier objet JSON valide avec regex
-    m = _re.search(r'\{.*\}', texte_rep, _re.DOTALL)
-    if m:
-        candidate = m.group(0)
+    # 2. Extraction par indices (evite regex DOTALL -> max recursion)
+    s = texte_rep.find('{')
+    e = texte_rep.rfind('}')
+    if s != -1 and e != -1 and e > s:
+        candidate = texte_rep[s:e + 1]
         try:
             return _json.loads(candidate)
-        except _json.JSONDecodeError:
+        except Exception:
             pass
-        # 4. Nettoyer les sauts de ligne littéraux à l'intérieur des strings
-        # Remplace les \n non échappés dans les valeurs par espace
-        cleaned = _re.sub(r'(?<!\\)\n', ' ', candidate)
+        # 3. Remplacer sauts de ligne par espace
+        cleaned = candidate
+        for ch in [chr(13)+chr(10), chr(13), chr(10)]:
+            cleaned = cleaned.replace(ch, ' ')
         try:
             return _json.loads(cleaned)
-        except _json.JSONDecodeError:
+        except Exception:
             pass
-        # 5. Tronquage : compléter le JSON si incomplet
-        # Compter les guillemets ouverts, fermer l'objet
+        # 4. JSON tronque: fermer
         try:
-            # Fermer toute chaîne ouverte et l'objet JSON
             fixed = cleaned.rstrip().rstrip(',')
+            n_quotes = fixed.count(chr(34)) - fixed.count(chr(92)+chr(34))
+            if n_quotes % 2 == 1:
+                fixed += chr(34)
             if not fixed.endswith('}'):
-                fixed += '"}'
+                fixed += '}'
             return _json.loads(fixed)
-        except _json.JSONDecodeError:
+        except Exception:
             pass
-    raise ValueError(f"Impossible de parser le JSON Gemini : {texte_rep[:200]}")
+    raise ValueError('JSON Gemini non parseable: ' + texte_rep[:200])
 
 
 def _analyser_gemini(texte, api_key):
