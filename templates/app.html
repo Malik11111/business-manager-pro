@@ -1635,7 +1635,7 @@ function openScanContratDialog() {
 }
 
 function _showScanOverlayLoading() {
-  _scanPdfFile = null;
+  // NE PAS réinitialiser _scanPdfFile ici — il est déjà défini par l'appelant
   document.getElementById('scan-step-upload').style.display = 'block';
   document.getElementById('scan-step-preview').style.display = 'none';
   document.getElementById('scan-progress-bar').style.width = '0%';
@@ -1647,8 +1647,6 @@ function closeScanContratDialog() {
   document.getElementById('scan-contrat-overlay').style.display = 'none';
   _scanPdfFile = null;
 }
-
-
 
 document.getElementById('scan-drop-zone').addEventListener('dragover', e => {
   e.preventDefault();
@@ -1674,12 +1672,10 @@ document.getElementById('scan-drop-zone').addEventListener('drop', e => {
 function onScanPdfSelected(input) {
   const file = input.files[0];
   if (!file) return;
-  _scanPdfFile = file;
-  // Réinitialiser l'input pour permettre de re-sélectionner le même fichier plus tard
-  input.value = '';
-  // Afficher l'overlay en mode chargement et lancer l'analyse automatiquement
-  _showScanOverlayLoading();
-  lancerScanContrat();
+  _scanPdfFile = file;          // ← assigner AVANT _showScanOverlayLoading
+  input.value = '';             // reset pour permettre re-sélection
+  _showScanOverlayLoading();    // affiche overlay (ne touche plus à _scanPdfFile)
+  lancerScanContrat();          // _scanPdfFile est bien défini ici
 }
 
 async function lancerScanContrat() {
