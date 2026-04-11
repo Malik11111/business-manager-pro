@@ -1826,30 +1826,49 @@ async function enregistrerContratScanne() {
 let _sfFile = null;
 
 function openScanFactureDialog() {
-  _sfFile = null;
-  document.getElementById('sf-filename').textContent = 'Aucun fichier sélectionné';
-  document.getElementById('sf-analyse-btn').disabled = true;
-  document.getElementById('sf-analyse-btn').style.opacity = '.5';
+  // Ouvre directement le sélecteur de fichier — pas de page intermédiaire
+  document.getElementById('sf-file-input').click();
+}
+function _showSfOverlayLoading() {
+  // Prépare l'overlay en mode "chargement" (sans réinitialiser _sfFile)
   document.getElementById('sf-step-upload').style.display = 'block';
   document.getElementById('sf-step-preview').style.display = 'none';
-  document.getElementById('sf-progress-wrap').style.display = 'none';
-  document.getElementById('sf-progress-bar').style.width = '0%';
+  document.getElementById('sf-progress-wrap').style.display = 'block';
+  document.getElementById('sf-progress-bar').style.width = '10%';
+  document.getElementById('sf-progress-label').textContent = 'Chargement...';
+  document.getElementById('sf-analyse-btn').disabled = true;
+  document.getElementById('sf-analyse-btn').style.opacity = '.5';
   document.getElementById('scan-facture-overlay').style.display = 'flex';
 }
 function closeScanFactureDialog() {
   document.getElementById('scan-facture-overlay').style.display = 'none';
+  _sfFile = null;
 }
 document.getElementById('sf-drop-zone').addEventListener('click', () => document.getElementById('sf-file-input').click());
 document.getElementById('sf-drop-zone').addEventListener('dragover', e => e.preventDefault());
 document.getElementById('sf-drop-zone').addEventListener('drop', e => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
-  if (file) { _setSfFile(file); } else { showToast('Format non supporté', 'error'); }
+  if (file) {
+    const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
+    if (!ok) { showToast('Format accepté : PDF, JPG, PNG', 'error'); return; }
+    _sfFile = file;
+    _showSfOverlayLoading();
+    lancerScanFacture();
+  }
 });
 function onSfFileSelected(input) {
-  if (input.files[0]) _setSfFile(input.files[0]);
+  const file = input.files[0];
+  if (!file) return;
+  const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
+  if (!ok) { showToast('Format accepté : PDF, JPG, PNG', 'error'); input.value = ''; return; }
+  _sfFile = file;          // assigner AVANT _showSfOverlayLoading
+  input.value = '';        // reset pour permettre re-sélection
+  _showSfOverlayLoading(); // affiche overlay (ne touche pas à _sfFile)
+  lancerScanFacture();     // _sfFile est bien défini ici
 }
 function _setSfFile(file) {
+  // Conservé pour le drag&drop depuis l'overlay
   const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
   if (!ok) { showToast('Format accepté : PDF, JPG, PNG', 'error'); return; }
   _sfFile = file;
