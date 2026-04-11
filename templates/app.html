@@ -63,6 +63,7 @@
           <input  id="presta-search"         class="search-input"  type="text"  placeholder="🔍 Rechercher un prestataire...">
           <select id="presta-service-filter"  class="filter-select"></select>
         </div>
+        <button id="presta-view-toggle" class="btn btn-gray" onclick="togglePrestaView()" style="font-size:12px">☰ Vue complète</button>
         <button class="btn btn-gemini"   onclick="openScanContratDialog()">📄 Scanner contrat</button>
         <button class="btn btn-green"    onclick="openAddDialog()">➕ Ajouter</button>
         <button class="btn btn-blue"     onclick="exportPrestataires()">📤 Exporter CSV</button>
@@ -90,8 +91,8 @@
                 <th onclick="setSortCol(4)" title="Jours restants">J.</th>
                 <th onclick="setSortCol(5)" title="Avancement du contrat" style="min-width:180px">Avancement</th>
                 <th>Statut</th>
-                <th>Fréquence</th>
-                <th>Note</th>
+                <th class="presta-col-extra">Fréquence</th>
+                <th class="presta-col-extra">Note</th>
                 <th style="min-width:140px">Actions</th>
               </tr>
             </thead>
@@ -242,6 +243,7 @@
             <option value="">Tous statuts</option>
           </select>
           <div style="flex:1"></div>
+          <button id="mat-view-toggle" class="btn btn-gray" onclick="toggleMaterielView()" style="font-size:12px">☰ Vue complète</button>
           <button class="btn btn-gemini" onclick="openScanFactureDialog()">📄 Scanner facture</button>
           <button class="btn btn-green" onclick="openMaterielDialog()">➕ Ajouter</button>
           <button class="btn btn-blue" onclick="exportActifsMateriel()">📤 Exporter</button>
@@ -249,7 +251,7 @@
         <div class="table-wrapper">
           <table>
             <thead><tr>
-              <th>Nom</th><th>Référence</th><th>Type</th><th>Date achat</th><th>Coût TTC</th>
+              <th>Nom</th><th class="mat-col-extra">Référence</th><th>Type</th><th class="mat-col-extra">Date achat</th><th>Coût TTC</th>
               <th>Attribué à</th><th style="min-width:150px">Amortissement</th><th>Val. nette</th><th>Statut</th><th style="width:100px">Actions</th>
             </tr></thead>
             <tbody id="materiel-tbody"><tr class="empty-row"><td colspan="10">Chargement…</td></tr></tbody>
@@ -540,6 +542,7 @@
         <div class="filters">
           <input id="auto-search" class="search-input" type="text" placeholder="🔍 Rechercher un véhicule..." oninput="filterVehicules()">
         </div>
+        <button id="auto-view-toggle" class="btn btn-gray" onclick="toggleAutoView()" style="font-size:12px">☰ Vue complète</button>
         <button class="btn btn-gemini" onclick="openScanDocVehicule()">📄 Scanner document</button>
         <button class="btn btn-green"  onclick="openAddVehiculeDialog()">➕ Ajouter</button>
         <button class="btn btn-blue"   onclick="exportVehicules()">📤 Exporter CSV</button>
@@ -565,9 +568,9 @@
               <th onclick="sortVehiculesBy('marque')">MARQUE / MODÈLE</th>
               <th onclick="sortVehiculesBy('annee')">ANNÉE</th>
               <th onclick="sortVehiculesBy('kilometrage')">KM</th>
-              <th onclick="sortVehiculesBy('conducteur')">CONDUCTEUR</th>
-              <th>CT</th>
-              <th>ASSURANCE</th>
+              <th class="auto-col-extra" onclick="sortVehiculesBy('conducteur')">CONDUCTEUR</th>
+              <th class="auto-col-extra">CT</th>
+              <th class="auto-col-extra">ASSURANCE</th>
               <th>ACTIONS</th>
             </tr></thead>
             <tbody id="auto-tbody"></tbody>

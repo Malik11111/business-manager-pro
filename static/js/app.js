@@ -222,6 +222,44 @@ function doLogout() {
 }
 
 /* ══════════════════════════════════════════════════════════
+   VUE TOGGLE — Vue simple / Vue complète (par module)
+   Même principe que pharmacie : masquer les colonnes secondaires
+══════════════════════════════════════════════════════════ */
+
+/* ── Prestataires ───────────────────────────────────────── */
+let _prestaSimple = false;
+function togglePrestaView() {
+  _prestaSimple = !_prestaSimple;
+  const btn = document.getElementById('presta-view-toggle');
+  document.querySelectorAll('.presta-col-extra').forEach(el => {
+    el.style.display = _prestaSimple ? 'none' : '';
+  });
+  if (btn) btn.textContent = _prestaSimple ? '☰ Vue complète' : '☰ Vue simple';
+}
+
+/* ── Investissement / Matériel (Actifs) ─────────────────── */
+let _matSimple = false;
+function toggleMaterielView() {
+  _matSimple = !_matSimple;
+  const btn = document.getElementById('mat-view-toggle');
+  document.querySelectorAll('.mat-col-extra').forEach(el => {
+    el.style.display = _matSimple ? 'none' : '';
+  });
+  if (btn) btn.textContent = _matSimple ? '☰ Vue complète' : '☰ Vue simple';
+}
+
+/* ── Parc Auto ──────────────────────────────────────────── */
+let _autoSimple = false;
+function toggleAutoView() {
+  _autoSimple = !_autoSimple;
+  const btn = document.getElementById('auto-view-toggle');
+  document.querySelectorAll('.auto-col-extra').forEach(el => {
+    el.style.display = _autoSimple ? 'none' : '';
+  });
+  if (btn) btn.textContent = _autoSimple ? '☰ Vue complète' : '☰ Vue simple';
+}
+
+/* ══════════════════════════════════════════════════════════
    ADMIN PANEL
 ══════════════════════════════════════════════════════════ */
 

@@ -54,8 +54,8 @@ function renderTable(filtered) {
         </div>
       </td>
       <td><span class="badge ${status.cls}">${status.label}</span></td>
-      <td>${esc(p.frequence || '—')}</td>
-      <td>${avgStr}</td>
+      <td class="presta-col-extra">${esc(p.frequence || '—')}</td>
+      <td class="presta-col-extra">${avgStr}</td>
       <td>
         <div class="row-actions">
           <button class="btn-sm btn-sm-blue" onclick="editPrestataire(${p.id})" title="Modifier">✏️</button>

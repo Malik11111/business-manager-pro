@@ -228,9 +228,9 @@ function renderMaterielTable(filtered) {
     const fillCls = a.pctAmorti >= 100 ? 'danger' : a.pctAmorti >= 75 ? 'warning' : '';
     return `<tr>
       <td><strong>${esc(m.nom)}</strong></td>
-      <td>${esc(m.reference || '—')}</td>
+      <td class="mat-col-extra">${esc(m.reference || '—')}</td>
       <td><span class="badge badge-blue">${esc(m.type_materiel || '—')}</span></td>
-      <td>${formatDateFR(m.date_achat)}</td>
+      <td class="mat-col-extra">${formatDateFR(m.date_achat)}</td>
       <td style="text-align:right;font-weight:600">${formatEUR(m.cout || 0)}</td>
       <td>${esc(m.attribue_a || '—')}</td>
       <td><div class="progress-bar-wrap"><div class="progress-bar"><div class="progress-bar-fill ${fillCls}" style="width:${a.pctAmorti}%"></div></div><span class="progress-pct">${a.pctAmorti}%</span></div></td>

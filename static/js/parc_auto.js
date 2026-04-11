@@ -91,9 +91,9 @@ function renderVehicules() {
       <td>${esc(v.marque)} ${esc(v.modele || '')}</td>
       <td>${v.annee || '—'}</td>
       <td>${kmFmt}</td>
-      <td>${esc(v.conducteur || '—')}</td>
-      <td>${ctBadge}</td>
-      <td>${assBadge}</td>
+      <td class="auto-col-extra">${esc(v.conducteur || '—')}</td>
+      <td class="auto-col-extra">${ctBadge}</td>
+      <td class="auto-col-extra">${assBadge}</td>
       <td>
         <div class="row-actions">
           <button class="btn-sm btn-sm-blue"   onclick="editVehicule(${v.id})" title="Modifier">✏️</button>
