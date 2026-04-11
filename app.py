@@ -627,7 +627,7 @@ def scan_facture_ia():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte de la facture :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
                 }).encode("utf-8")
             else:
                 # PDF scanné → Vision Gemini
@@ -637,7 +637,7 @@ def scan_facture_ia():
                         {"text": prompt + "\n\n[Analyse la facture visible dans ce PDF scanné]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -648,7 +648,7 @@ def scan_facture_ia():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -658,7 +658,7 @@ def scan_facture_ia():
         texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         texte_rep = _re.sub(r"```json\s*", "", texte_rep)
         texte_rep = _re.sub(r"```\s*", "", texte_rep)
-        data = _json.loads(texte_rep)
+        data = _parse_gemini_json(texte_rep)
         return jsonify(data), 200
 
     except Exception as e:
@@ -1330,6 +1330,49 @@ def _extraire_texte_pdf(chemin):
         return ""
 
 
+def _parse_gemini_json(texte_rep):
+    """Parse robuste du JSON retourné par Gemini.
+    Gère : blocs markdown, sauts de ligne dans les chaînes, JSON tronqué,
+    texte parasite avant/après le JSON.
+    """
+    import json as _json, re as _re
+    # 1. Supprimer les balises markdown ```json ... ```
+    texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+    texte_rep = _re.sub(r"```\s*", "", texte_rep)
+    texte_rep = texte_rep.strip()
+    # 2. Essai direct
+    try:
+        return _parse_gemini_json(texte_rep)
+    except _json.JSONDecodeError:
+        pass
+    # 3. Extraire le premier objet JSON valide avec regex
+    m = _re.search(r'\{.*\}', texte_rep, _re.DOTALL)
+    if m:
+        candidate = m.group(0)
+        try:
+            return _json.loads(candidate)
+        except _json.JSONDecodeError:
+            pass
+        # 4. Nettoyer les sauts de ligne littéraux à l'intérieur des strings
+        # Remplace les \n non échappés dans les valeurs par espace
+        cleaned = _re.sub(r'(?<!\\)\n', ' ', candidate)
+        try:
+            return _json.loads(cleaned)
+        except _json.JSONDecodeError:
+            pass
+        # 5. Tronquage : compléter le JSON si incomplet
+        # Compter les guillemets ouverts, fermer l'objet
+        try:
+            # Fermer toute chaîne ouverte et l'objet JSON
+            fixed = cleaned.rstrip().rstrip(',')
+            if not fixed.endswith('}'):
+                fixed += '"}'
+            return _json.loads(fixed)
+        except _json.JSONDecodeError:
+            pass
+    raise ValueError(f"Impossible de parser le JSON Gemini : {texte_rep[:200]}")
+
+
 def _analyser_gemini(texte, api_key):
     """Envoie le texte à Gemini et retourne le JSON parsé."""
     import urllib.request, json as _json, re as _re
@@ -1345,7 +1388,7 @@ def _analyser_gemini(texte, api_key):
     texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
     texte_rep = _re.sub(r"```json\s*", "", texte_rep)
     texte_rep = _re.sub(r"```\s*", "", texte_rep)
-    return _json.loads(texte_rep)
+    return _parse_gemini_json(texte_rep)
 
 
 @app.route('/api/analyse-pdf/config', methods=['GET'])
@@ -1539,7 +1582,7 @@ def scan_contrat_ia():
         texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         texte_rep = _re.sub(r"```json\s*", "", texte_rep)
         texte_rep = _re.sub(r"```\s*", "", texte_rep)
-        data = _json.loads(texte_rep)
+        data = _parse_gemini_json(texte_rep)
         return jsonify(data), 200
 
     except Exception as e:
@@ -1594,7 +1637,7 @@ def scan_document_vehicule():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
                 }).encode("utf-8")
             else:
                 pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
@@ -1603,7 +1646,7 @@ def scan_document_vehicule():
                         {"text": prompt + "\n\n[Document scanné en image]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -1614,7 +1657,7 @@ def scan_document_vehicule():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -1624,7 +1667,7 @@ def scan_document_vehicule():
         texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         texte_rep = _re.sub(r"```json\s*", "", texte_rep)
         texte_rep = _re.sub(r"```\s*", "", texte_rep)
-        data = _json.loads(texte_rep)
+        data = _parse_gemini_json(texte_rep)
         return jsonify(data), 200
 
     except Exception as e:
@@ -2003,7 +2046,7 @@ def scan_fiche_stock():
         texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         texte_rep = _re.sub(r"```json\s*", "", texte_rep)
         texte_rep = _re.sub(r"```\s*", "", texte_rep)
-        data = _json.loads(texte_rep)
+        data = _parse_gemini_json(texte_rep)
         return jsonify(data), 200
 
     except Exception as e:
@@ -2267,7 +2310,7 @@ def scan_fiche_cles():
         texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
         texte_rep = _re.sub(r"```json\s*", "", texte_rep)
         texte_rep = _re.sub(r"```\s*", "", texte_rep)
-        data = _json.loads(texte_rep)
+        data = _parse_gemini_json(texte_rep)
         return jsonify(data), 200
 
     except Exception as e:
