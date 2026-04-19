@@ -1678,6 +1678,7 @@ def scan_document_vehicule():
             pass
 
 
+@app.route('/api/analyse-pdf/analyses', methods=['GET'])
 @app.route('/api/analyse-pdf/historique', methods=['GET'])
 @login_required
 def get_historique_analyses():
@@ -2321,6 +2322,7 @@ def scan_fiche_cles():
             pass
 
 
+@app.route('/api/cles/items', methods=['GET'])
 @app.route('/api/cles/cles', methods=['GET'])
 @login_required
 def api_cles_list():
