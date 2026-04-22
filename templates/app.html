@@ -1763,8 +1763,17 @@ async function enregistrerContratScanne() {
     const data = await res.json();
     if (!res.ok) { showToast(data.error || 'Erreur', 'error'); return; }
 
+    // Sauvegarder aussi le PDF dans l'onglet Contrats
+    if (_scanPdfFile && data.id) {
+      try {
+        const fd = new FormData();
+        fd.append('file', _scanPdfFile);
+        await fetch(`/api/prestataires/${data.id}/contrats`, { method: 'POST', body: fd });
+      } catch (_) { /* non bloquant */ }
+    }
+
     closeScanContratDialog();
-    showToast(`✅ Prestataire "${nom}" ajouté depuis le contrat`, 'success');
+    showToast(`✅ Prestataire "${nom}" ajouté et contrat PDF sauvegardé`, 'success');
     await initPrestataires();
   } catch (e) {
     showToast('Erreur : ' + e.message, 'error');
