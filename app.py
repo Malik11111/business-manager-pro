@@ -501,7 +501,7 @@ def api_export_personnel_excel():
 @app.route('/api/config/template', methods=['GET'])
 @login_required
 def api_config_template():
-    """Génère un fichier Excel modèle avec 3 lieux et 3 personnel."""
+    """Génère un fichier Excel modèle (format Lieux + Personnel) pré-rempli."""
     import io
     try:
         import openpyxl
@@ -510,32 +510,13 @@ def api_config_template():
         return jsonify({'error': 'openpyxl non installé.'}), 500
 
     wb = openpyxl.Workbook()
-
-    # ── Feuille Personnel ──
-    ws_pers = wb.active
-    ws_pers.title = 'Personnel'
-    pers_headers = ['Nom', 'Prénom', 'Poste', 'Service', 'Type contrat', 'Téléphone', 'Date entrée', 'Date sortie']
-    pers_widths  = [18, 18, 22, 20, 18, 16, 14, 14]
-    fill_p = PatternFill('solid', fgColor='1E3A8A')
     font_h = Font(bold=True, color='FFFFFF', size=11)
-    for ci, (h, w) in enumerate(zip(pers_headers, pers_widths), 1):
-        c = ws_pers.cell(row=1, column=ci, value=h)
-        c.fill = fill_p; c.font = font_h
-        c.alignment = Alignment(horizontal='center')
-        ws_pers.column_dimensions[c.column_letter].width = w
-    pers_rows = [
-        ('DUPONT',  'Marie',  'Éducatrice',   'Unité A', 'CDI',  '06 11 22 33 44', '2020-09-01', ''),
-        ('MARTIN',  'Paul',   'Infirmier',    'Soins',   'CDI',  '06 55 66 77 88', '2019-03-15', ''),
-        ('PETIT',   'Lucas',  'Agent d\'entretien', 'Technique', 'CDD', '06 99 00 11 22', '2024-01-10', '2025-01-09'),
-    ]
-    for ri, row in enumerate(pers_rows, 2):
-        for ci, val in enumerate(row, 1):
-            ws_pers.cell(row=ri, column=ci, value=val)
 
     # ── Feuille Lieux ──
-    ws_lieux = wb.create_sheet('Lieux')
-    lieux_headers = ['Nom', 'Description', 'Emplacement']
-    lieux_widths  = [28, 35, 25]
+    ws_lieux = wb.active
+    ws_lieux.title = 'Lieux'
+    lieux_headers = ['Lieu', 'Type', 'Bâtiment', 'Étage', 'Zone PPMS']
+    lieux_widths  = [28, 18, 14, 14, 12]
     fill_l = PatternFill('solid', fgColor='166534')
     for ci, (h, w) in enumerate(zip(lieux_headers, lieux_widths), 1):
         c = ws_lieux.cell(row=1, column=ci, value=h)
@@ -543,13 +524,131 @@ def api_config_template():
         c.alignment = Alignment(horizontal='center')
         ws_lieux.column_dimensions[c.column_letter].width = w
     lieux_rows = [
-        ('Les Choucas',  'Unité de vie principale',   'Bâtiment A – RDC'),
-        ('Infirmerie',   'Salle de soins',             'Bâtiment B – 1er étage'),
-        ('Cuisine',      'Cuisine collective',         'Bâtiment A – Sous-sol'),
+        ('Atelier Bois',        'Atelier',       'Bâtiment B', 'RDC',       'Non'),
+        ('Atelier Curiosité',   'Atelier',       'Bâtiment B', '1er étage', 'Non'),
+        ('Atelier Hel',         'Atelier',       'Bâtiment B', 'RDC',       'Non'),
+        ('Atelier Horticulture','Atelier',       'Bâtiment B', 'RDC',       'Non'),
+        ('Atelier RAP',         'Atelier',       'Bâtiment B', '1er étage', 'Non'),
+        ('Atelier Restauration','Atelier',       'Bâtiment B', 'RDC',       'Oui'),
+        ("Atelier Z'adulte 1",  'Atelier',       'Bâtiment B', '1er étage', 'Non'),
+        ("Atelier Z'adulte 2",  'Atelier',       'Bâtiment B', '1er étage', 'Non'),
+        ("Atelier Z'adulte 3",  'Atelier',       'Bâtiment B', '1er étage', 'Non'),
+        ("Atelier Z'artiste 2", 'Atelier',       'Bâtiment B', '1er étage', 'Non'),
+        ('Atelier Zartistes',   'Atelier',       'Bâtiment B', '1er étage', 'Oui'),
+        ('Bureau Administratif','Bureau',        'Bâtiment B', '1er étage', 'Non'),
+        ('Bureau Assistante',   'Bureau',        'Bâtiment B', '1er étage', 'Oui'),
+        ('Bureau Médical',      'Bureau',        'Bâtiment B', 'RDC',       'Non'),
+        ('Classe 1',            'Salle',         'Bâtiment B', 'RDC',       'Non'),
+        ('Classe 2',            'Salle',         'Bâtiment B', 'RDC',       'Non'),
+        ('Classe 3',            'Salle',         'Bâtiment B', 'RDC',       'Non'),
+        ('Classe 4',            'Salle',         'Bâtiment B', 'RDC',       'Non'),
+        ('Cuisine',             'Restauration',  'Bâtiment A', 'RDC',       'Non'),
+        ('Gymnase',             'Salle',         'Bâtiment B', 'RDC',       'Non'),
+        ('Infirmerie',          'Infirmerie',    'Bâtiment B', 'RDC',       'Oui'),
+        ('Les Albatros',        'Unité de vie',  'Bâtiment A', '1er étage', 'Non'),
+        ('Les Canaris',         'Unité de vie',  'Bâtiment A', 'RDC',       'Non'),
+        ('Les Choucas',         'Unité de vie',  'Bâtiment A', '1er étage', 'Oui'),
+        ('Les Cigognes',        'Unité de vie',  'Bâtiment A', 'RDC',       'Oui'),
+        ('Les Colombes',        'Unité de vie',  'Bâtiment A', '1er étage', 'Non'),
+        ('Les Perroquets',      'Unité de vie',  'Bâtiment A', '1er étage', 'Oui'),
+        ('Les Phoenix',         'Unité de vie',  'Bâtiment A', 'RDC',       'Oui'),
     ]
     for ri, row in enumerate(lieux_rows, 2):
         for ci, val in enumerate(row, 1):
             ws_lieux.cell(row=ri, column=ci, value=val)
+
+    # ── Feuille Personnel ──
+    ws_pers = wb.create_sheet('Personnel')
+    pers_headers = ['Nom', 'Prénom', 'Poste', 'Lieu', 'Type contrat', 'Date entrée', 'Date fin contrat']
+    pers_widths  = [22, 18, 35, 22, 18, 14, 16]
+    fill_p = PatternFill('solid', fgColor='1E3A8A')
+    for ci, (h, w) in enumerate(zip(pers_headers, pers_widths), 1):
+        c = ws_pers.cell(row=1, column=ci, value=h)
+        c.fill = fill_p; c.font = font_h
+        c.alignment = Alignment(horizontal='center')
+        ws_pers.column_dimensions[c.column_letter].width = w
+    pers_rows = [
+        ('ABDEREMAN',          'Asmahane',     'Maîtresse de maison',                          'Les Colombes',        'CDI',           '10-03-2022', ''),
+        ('ALI-MMADI',           'Nouria',       'Aide médico psychologique',                    'Les Colombes',        'CDI',           '01-01-2020', ''),
+        ('AMZALLAG',            'Micheline',    'Médecin Généraliste',                          'Bureau Médical',      'CDD',           '01-01-2025', '28-02-2026'),
+        ('ARNETON',             'Nelly',        'Surveillant de nuit',                          '',                    'CDI',           '01-02-2022', ''),
+        ('ATMANI',              'Salim-Aïssa',  'Educateur spécialisé',                         'Les Canaris',         'CDD',           '01-06-2020', ''),
+        ('AURELA',              'Hasley',       'Moniteur éducateur',                           'Les Choucas',         'CDI',           '15-06-2019', ''),
+        ('BAHRI JEBLAOUI',      'MYRIAM',       "Moniteur d'enseignement ménager",              '',                    'CDI',           '15-01-2018', ''),
+        ('BARAKAT',             'Halima',       'Psychomotricien',                              'Bureau Médical',      'CDI',           '01-09-2024', ''),
+        ('BEDAD',               'FADILA',       'Educateur spécialisé',                         '',                    'CDI',           '01-09-2024', ''),
+        ('BELDJORD',            'Leila',        'Assistant(e) Administratif',                   'Bureau Administratif','CDI',           '20-04-2019', ''),
+        ('BINON',               'Joëlle',       '',                                             'Bureau Médical',      'Intervenant ext','',          ''),
+        ('BOEDARD',             'Kevin',        'Educateur technique',                          'Les Cigognes',        'CDI',           '01-09-2025', ''),
+        ('BOSQUET',             'Hongyan',      'Maîtresse de maison',                          'Les Choucas',         'CDI',           '01-09-2025', ''),
+        ('BOUISSOU',            'STEPHANIE',    "Moniteur adjoint d'animation et/ou d'activités",'Les Cigognes',       'CDI',           '01-09-2025', ''),
+        ('BOUZAGHOU',           'SABRINA',      'Maîtresse de maison',                          'Les Phoenix',         'CDI',           '01-09-2025', ''),
+        ('BRIZET',              'Celine',       '',                                             'Classe 1',            'Intervenant ext','',          ''),
+        ('CHARLES',             'Ducton',       '',                                             'Classe 4',            'Intervenant ext','',          ''),
+        ('CHARNEAU',            'PASKAL',       "Moniteur adjoint d'animation et/ou d'activités",'Les Albatros',       'CDI',           '01-09-2025', ''),
+        ('CHEBIRI',             'IMEN',         'Maîtresse de maison',                          '',                    'CDI',           '01-09-2025', ''),
+        ('CHRETIEN',            'NICOLE',       'Moniteur éducateur',                           '',                    'CDI',           '01-09-2025', ''),
+        ('COULIBALY',           'Nanko',        "Agent d'entretien",                            'Les Perroquets',      'CDI',           '01-09-2025', ''),
+        ('CRESTE',              'Solena',       'Infirmier',                                    'Bureau Médical',      'CDI',           '01-09-2025', ''),
+        ('DAHO',                'Yasmina',      'Moniteur éducateur',                           '',                    'CDD',           '01-09-2025', '17-06-2026'),
+        ('DAO',                 'LOZENY',       'Surveillant de nuit',                          '',                    'CDI',           '01-09-2025', ''),
+        ('DAVID',               'Marie Agnes',  'chef de service éducatif',                     'Bureau Administratif','CDI',           '01-09-2025', ''),
+        ('DE SOUZA',            'CYNTHIA',      'Educateur spécialisé',                         'Les Perroquets',      'CDI',           '01-09-2025', ''),
+        ('DES CHAMPS',          'OCEANE',       'Moniteur éducateur',                           'Les Colombes',        'CDI',           '01-09-2025', ''),
+        ('DIARRA',              'DJENEBA',      'Maîtresse de maison',                          'Les Albatros',        'CDI',           '01-09-2025', ''),
+        ('DORRYHEE',            'MICHELINE',    'Educateur spécialisé',                         'Les Phoenix',         'CDI',           '01-09-2025', ''),
+        ('DOS REIS BORGES',     'Amandine',     'Moniteur éducateur',                           'Les Canaris',         'CDI',           '01-09-2025', ''),
+        ('DOUCET DO LIVRAMENTO','Emma Louise',  'Candidat élève Educateur spécialisé',          'Les Choucas',         'Stage',         '01-09-2025', '10-07-2026'),
+        ('DUBOIS',              'NATHALIE',     'Educateur spécialisé',                         'Les Perroquets',      'CDI',           '01-09-2025', ''),
+        ('EMMANUEL',            'Willem',       'Educateur spécialisé',                         'Les Canaris',         'CDD',           '01-09-2025', '29-06-2026'),
+        ('ESAT',                'Tarik',        '',                                             'Cuisine',             'Intervenant ext','',          ''),
+        ('ESAT',                'Michel',       '',                                             'Cuisine',             'Intervenant ext','',          ''),
+        ('FERREIRA',            'Maelle',       "Professeur d'éducation physique et sportive",  'Les Canaris',         'CDI',           '01-09-2025', ''),
+        ('FOTIN',               'Solen',        "Moniteur adjoint d'animation et/ou d'activités",'',                  'CDI',           '01-09-2025', ''),
+        ('GARY',                'Hadjia',       "Moniteur adjoint d'animation et/ou d'activités",'Les Canaris',        'CDI',           '01-09-2025', ''),
+        ('GAUGUIN',             'Mélina',       'Educateur spécialisé',                         'Les Colombes',        'Stage',         '01-09-2025', '30-04-2026'),
+        ('GIRAUDEAU',           'SANDRA',       'Directeur',                                    'Bureau Administratif','CDI',           '01-09-2025', ''),
+        ('GRAFON',              'Patrice',      'Educateur spécialisé',                         'Les Phoenix',         'CDI',           '01-09-2025', ''),
+        ('GUILLAUME',           'Marie',        'Moniteur éducateur',                           'Les Canaris',         'CDI',           '01-09-2025', ''),
+        ('HAIDARA',             'FATOUMATA',    "Agent d'entretien",                            '',                    'CDI',           '01-09-2025', ''),
+        ('HAMACHE',             'MALIK',        'Cadre Technicien',                             'Bureau Administratif','CDI',           '01-09-2025', ''),
+        ('HECQUET',             'Isabelle',     'Psychologue',                                  'Bureau Médical',      'CDI',           '01-09-2025', ''),
+        ('HUET',                'Gabrielle',    '',                                             'Classe 3',            'Intervenant ext','',          ''),
+        ('IRSANE',              'NASSIMA',      "Agent d'entretien",                            'Bureau Médical',      'CDI',           '01-09-2025', ''),
+        ('KHENNOUCHE',          'HAMID',        'Moniteur éducateur',                           'Les Phoenix',         'CDI',           '01-09-2025', ''),
+        ('LACUGNE',             'EMMA',         'Educateur spécialisé',                         'Les Perroquets',      'CDI',           '01-09-2025', ''),
+        ('LAUNAY',              'RAYMOND',      'Ouvrier entretien qualifié',                   'Les Phoenix',         'CDI',           '01-09-2025', ''),
+        ('LOPEZ',               'Sophie',       '',                                             'Classe 2',            'Intervenant ext','',          ''),
+        ('MARE--ALABASTRI',     'Elsa',         'Infirmier',                                    'Bureau Médical',      'CDI',           '01-09-2025', ''),
+        ('MERIDAN',             'Joelle',       'Assistante sociale',                           'Bureau Administratif','CDI',           '01-09-2025', ''),
+        ('MOSENGO',             'Kezia',        "Moniteur adjoint d'animation et/ou d'activités",'Les Choucas',        'CDI',           '01-09-2025', ''),
+        ('OSSEDAT',             'OLIVIA',       'Secrétaire de direction',                      'Bureau Administratif','CDI',           '01-09-2025', ''),
+        ('PAOLI SAMBAGOTO',     'Cindy-Marthe', 'Infirmier',                                    '',                    'CDI',           '01-09-2025', ''),
+        ('PARLOT',              'JEROME',       'Educateur technique',                          'Les Cigognes',        'CDI',           '01-09-2025', ''),
+        ('PATERNOSTRE',         'Jeremy',       "Moniteur adjoint d'animation et/ou d'activités",'',                  'CDD',           '01-09-2025', '17-07-2026'),
+        ('PHILIPPON',           'Jeanne Cloe',  'Educateur spécialisé',                         'Les Choucas',         'CDI',           '01-09-2025', ''),
+        ('ROMANIELLO',          'Khadidja',     'Educateur spécialisé',                         '',                    'Stage',         '01-09-2025', '17-07-2026'),
+        ('RUGGIERO',            'JEROME',       'Educateur technique spécialisé',               'Les Cigognes',        'CDI',           '01-09-2025', ''),
+        ('SEKHRI',              'Aicha Annie',  'Moniteur éducateur',                           'Les Choucas',         'CDI',           '01-09-2025', ''),
+        ('SIMONET',             'CHARLINE',     'Moniteur éducateur',                           'Les Phoenix',         'CDI',           '01-09-2025', ''),
+        ('SIMOUILLARD',         'ALEXANDRE',    'Educateur spécialisé',                         'Les Albatros',        'CDI',           '01-09-2026', ''),
+        ('SOCIETE',             'Latifa',       '',                                             'Les Cigognes',        'Intervenant ext','',          ''),
+        ('SOULARD',             'Nina',         'Psychologue',                                  'Bureau Médical',      'CDI',           '01-09-2027', ''),
+        ('SQUARCIONI',          'Gabrielle',    'Psychiatre ou neuro-psychiatre',               'Bureau Médical',      'CDI',           '01-09-2028', ''),
+        ('TALEB',               'ISMA',         'Moniteur éducateur',                           'Les Colombes',        'CDI',           '01-09-2029', ''),
+        ('TANG',                'Annie',        'Aide médico psychologique',                    'Les Canaris',         'CDI',           '01-09-2030', ''),
+        ('THOMAS',              'CORALIE',      'Moniteur éducateur',                           'Les Albatros',        'CDI',           '01-09-2031', ''),
+        ('TISSERANT',           'MURIELLE',     'chef de service éducatif',                     'Bureau Administratif','CDI',           '01-09-2032', ''),
+        ('TUZET KHENICHE',      'CAMILLE',      'Educateur technique spécialisé',               'Les Cigognes',        'CDI',           '01-09-2033', ''),
+        ('VAN HEULE',           'Amandine',     'Moniteur éducateur',                           'Les Canaris',         'CDI',           '01-09-2034', ''),
+        ('VITALREST',           'Diana',        '',                                             'Cuisine',             'Intervenant ext','',          ''),
+        ('VITALREST',           'Paola',        '',                                             'Cuisine',             'Intervenant ext','',          ''),
+        ('YEKKEN',              'ROSA',         'Commis de Cuisine',                            'Cuisine',             'CDI',           '',           ''),
+        ('ZAKROUM',             'Mounia',       '',                                             'Classe 4',            'Intervenant ext','',          ''),
+    ]
+    for ri, row in enumerate(pers_rows, 2):
+        for ci, val in enumerate(row, 1):
+            ws_pers.cell(row=ri, column=ci, value=val)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -578,6 +677,7 @@ def api_import_personnel_excel():
         added_lieux = 0
 
         # ── Feuille Personnel ──
+        # Colonnes : Nom[0] Prénom[1] Poste[2] Lieu[3] Type contrat[4] Date entrée[5] Date fin contrat[6]
         if 'Personnel' in wb.sheetnames:
             ws = wb['Personnel']
             for row in ws.iter_rows(min_row=2, values_only=True):
@@ -589,26 +689,25 @@ def api_import_personnel_excel():
                 r = tuple(row) + (None,) * 8
                 prenom      = str(r[1] or '').strip()
                 poste       = str(r[2] or '').strip()
-                service     = str(r[3] or '').strip()
+                service     = str(r[3] or '').strip()   # Lieu → service
                 type_contrat= str(r[4] or '').strip()
-                telephone   = str(r[5] or '').strip()
-                date_arr    = str(r[6] or '').strip()
-                date_dep    = str(r[7] or '').strip()
+                date_arr    = str(r[5] or '').strip()   # Date entrée
+                date_dep    = str(r[6] or '').strip()   # Date fin contrat
                 existing = Personnel.query.filter_by(etab_id=etab.id, nom=nom, prenom=prenom).first()
                 if existing:
                     existing.poste        = poste or existing.poste
                     existing.service      = service or existing.service
                     existing.type_contrat = type_contrat or existing.type_contrat
-                    existing.telephone    = telephone or existing.telephone
                     existing.date_arrivee = date_arr or existing.date_arrivee
                     existing.date_depart  = date_dep or existing.date_depart
                 else:
                     db.session.add(Personnel(etab_id=etab.id, nom=nom, prenom=prenom,
                         poste=poste, service=service, type_contrat=type_contrat,
-                        telephone=telephone, date_arrivee=date_arr, date_depart=date_dep))
+                        telephone='', date_arrivee=date_arr, date_depart=date_dep))
                     added_pers += 1
 
         # ── Feuille Lieux ──
+        # Colonnes : Lieu[0] Type[1] Bâtiment[2] Étage[3] Zone PPMS[4]
         if 'Lieux' in wb.sheetnames:
             ws_l = wb['Lieux']
             for row in ws_l.iter_rows(min_row=2, values_only=True):
@@ -617,9 +716,11 @@ def api_import_personnel_excel():
                 nom = str(row[0]).strip()
                 if not nom:
                     continue
-                r = tuple(row) + (None,) * 3
-                description = str(r[1] or '').strip()
-                emplacement = str(r[2] or '').strip()
+                r = tuple(row) + (None,) * 5
+                description = str(r[1] or '').strip()   # Type
+                batiment    = str(r[2] or '').strip()
+                etage       = str(r[3] or '').strip()
+                emplacement = f"{batiment} - {etage}".strip(' -') if (batiment or etage) else ''
                 existing = Unite.query.filter_by(etab_id=etab.id, nom=nom).first()
                 if existing:
                     existing.description = description or existing.description
