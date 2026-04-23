@@ -892,7 +892,7 @@ def api_budget_scan_document():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
             else:
                 pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
@@ -901,7 +901,7 @@ def api_budget_scan_document():
                         {"text": prompt + "\n\n[Analyse le document visible dans ce PDF scanné]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -912,7 +912,7 @@ def api_budget_scan_document():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
