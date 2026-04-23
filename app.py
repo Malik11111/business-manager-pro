@@ -2524,6 +2524,25 @@ def api_employes_list():
     return jsonify(result)
 
 
+@app.route('/api/cles/sync-config', methods=['POST'])
+@login_required
+def api_cles_sync_config():
+    """Copie tout le personnel du référentiel (Config) vers les employés Clés."""
+    etab = get_current_etab()
+    if not etab: return jsonify({'error': 'Pas d\'etablissement'}), 400
+    personnel = Personnel.query.filter_by(etab_id=etab.id).all()
+    added = 0
+    for p in personnel:
+        existing = EmployeCle.query.filter_by(etab_id=etab.id, nom=p.nom, prenom=p.prenom).first()
+        if not existing:
+            db.session.add(EmployeCle(etab_id=etab.id, nom=p.nom, prenom=p.prenom,
+                type_contrat=p.type_contrat or 'CDI', poste=p.poste or '',
+                date_arrivee=p.date_arrivee or '', date_depart=p.date_depart or ''))
+            added += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'added': added})
+
+
 @app.route('/api/cles/employes', methods=['POST'])
 @login_required
 def api_employes_add():

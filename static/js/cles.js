@@ -147,6 +147,14 @@ function renderEmployesCles(list) {
   }).join('');
 }
 
+async function syncClesFromConfig() {
+  try {
+    const res = await api('/api/cles/sync-config', 'POST');
+    showToast(`${res.added} employé(s) chargé(s) depuis Config`, 'success');
+    await initCles();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 function openAddEmployeDialog() {
   openModal('👤 Ajouter un employé', _employeForm(), async () => {
     const nom = document.getElementById('m-emp-nom')?.value.trim();
