@@ -43,33 +43,44 @@ def unauthorized():
 # ── Creer les tables au demarrage ─────────────────────
 
 with app.app_context():
-    db.create_all()
-    from sqlalchemy import text
+    try:
+        db.create_all()
+    except Exception as e:
+        import logging
+        logging.warning(f"db.create_all() warning: {e}")
 
-    def _add_col(table, col, col_type):
-        try:
-            db.session.execute(text(f"SELECT {col} FROM {table} LIMIT 1"))
-        except Exception:
-            db.session.rollback()
+    try:
+        from sqlalchemy import text, inspect as sa_inspect
+
+        def _get_cols(table):
             try:
-                db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type} DEFAULT ''"))
-                db.session.commit()
+                insp = sa_inspect(db.engine)
+                return {c['name'] for c in insp.get_columns(table)}
+            except Exception:
+                return set()
+
+        def _add_col(table, col, col_type):
+            try:
+                existing = _get_cols(table)
+                if col not in existing:
+                    db.session.execute(text(f'ALTER TABLE "{table}" ADD COLUMN "{col}" {col_type}'))
+                    db.session.commit()
             except Exception:
                 db.session.rollback()
 
-    # users
-    _add_col('users', 'role', "VARCHAR(20) DEFAULT 'user'")
-    # personnel
-    _add_col('personnel', 'type_contrat', 'VARCHAR(50)')
-    _add_col('personnel', 'poste', 'VARCHAR(100)')
-    _add_col('personnel', 'service', 'VARCHAR(100)')
-    _add_col('personnel', 'telephone', 'VARCHAR(30)')
-    _add_col('personnel', 'lieu', 'VARCHAR(100)')
-    _add_col('personnel', 'date_arrivee', 'VARCHAR(10)')
-    _add_col('personnel', 'date_depart', 'VARCHAR(10)')
-    # unites
-    _add_col('unites', 'description', 'VARCHAR(300)')
-    _add_col('unites', 'emplacement', 'VARCHAR(200)')
+        _add_col('users',     'role',          "VARCHAR(20) DEFAULT 'user'")
+        _add_col('personnel', 'type_contrat',  "VARCHAR(50) DEFAULT ''")
+        _add_col('personnel', 'poste',         "VARCHAR(100) DEFAULT ''")
+        _add_col('personnel', 'service',       "VARCHAR(100) DEFAULT ''")
+        _add_col('personnel', 'telephone',     "VARCHAR(30) DEFAULT ''")
+        _add_col('personnel', 'lieu',          "VARCHAR(100) DEFAULT ''")
+        _add_col('personnel', 'date_arrivee',  "VARCHAR(10) DEFAULT ''")
+        _add_col('personnel', 'date_depart',   "VARCHAR(10) DEFAULT ''")
+        _add_col('unites',    'description',   "VARCHAR(300) DEFAULT ''")
+        _add_col('unites',    'emplacement',   "VARCHAR(200) DEFAULT ''")
+    except Exception as e:
+        import logging
+        logging.warning(f"Migration warning: {e}")
 
 
 @app.errorhandler(500)
