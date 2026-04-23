@@ -1240,7 +1240,7 @@
       <p style="color:#6B6B8A;font-size:13px;margin:0 0 16px;">Vérifiez et corrigez si nécessaire, puis cliquez sur Enregistrer.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
         <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TRAVAUX / ACHAT (DESCRIPTION) *</label><input id="sb-desc" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
-        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">SECTEUR</label><input id="sb-secteur" type="text" placeholder="Ex: Les Colombes, Bureau Administratif…" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">SECTEUR</label><input id="sb-secteur" type="text" list="budget-secteur-list" placeholder="Choisir ou taper…" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"><datalist id="budget-secteur-list"></datalist></div>
         <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TYPE</label>
           <select id="sb-type" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
             <option>Achat</option><option>Travaux</option>
@@ -1284,7 +1284,7 @@
           <select id="budget-type"><option>Achat</option><option>Travaux</option></select>
         </div>
         <div class="form-group full-width"><label>Travaux / Achat (description) *</label><input type="text" id="budget-desc" placeholder="Ex: Achat réfrigérateur..."></div>
-        <div class="form-group full-width"><label>Secteur</label><input type="text" id="budget-secteur" placeholder="Ex: Les Colombes, Bureau Administratif..."></div>
+        <div class="form-group full-width"><label>Secteur</label><input type="text" id="budget-secteur" list="budget-secteur-list" placeholder="Choisir ou taper…"></div>
         <div class="form-group"><label>Réalisation</label>
           <select id="budget-realisation">
             <option>En attente</option>

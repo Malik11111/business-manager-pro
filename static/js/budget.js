@@ -118,11 +118,32 @@ const BUDGET_COLORS = {
   'En attente':     { bg: '#F3F4F6', text: '#374151', badge: '#E5E7EB', badgeText: '#374151' },
 };
 
+function _populateSecteurDatalist() {
+  const dl = document.getElementById('budget-secteur-list');
+  if (!dl) return;
+  dl.innerHTML = '';
+  // Lieux en premier
+  (_actifs?.unites || []).forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u.nom;
+    opt.label = '📍 ' + u.nom;
+    dl.appendChild(opt);
+  });
+  // Personnel ensuite
+  (_actifs?.personnel || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = `${p.nom} ${p.prenom}`;
+    opt.label = '👤 ' + `${p.nom} ${p.prenom}`;
+    dl.appendChild(opt);
+  });
+}
+
 async function initBudget() {
   try {
     const annees = await api('/api/budget/annees');
     _budget.annees = annees;
     if (!annees.includes(_budget.annee)) _budget.annee = annees[0] || new Date().getFullYear();
+    _populateSecteurDatalist();
     await loadBudget();
   } catch (e) { showToast(e.message, 'error'); }
 }
