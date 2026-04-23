@@ -495,6 +495,24 @@ async function deleteParamsPersonnel(id, name) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+async function deleteAllPersonnel() {
+  if (!confirm('Supprimer TOUT le personnel ? Cette action est irréversible.')) return;
+  try {
+    const res = await api('/api/personnel/all', 'DELETE');
+    showToast(`${res.deleted} personnel supprimé(s).`, 'success');
+    await loadParamsPersonnel();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteAllLieux() {
+  if (!confirm('Supprimer TOUS les lieux ? Cette action est irréversible.')) return;
+  try {
+    const res = await api('/api/unites/all', 'DELETE');
+    showToast(`${res.deleted} lieu(x) supprimé(s).`, 'success');
+    await loadParamsLieux();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
 async function importPersonnelExcel(input) {
   const file = input.files[0];
   if (!file) return;

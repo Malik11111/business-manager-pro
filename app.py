@@ -443,6 +443,24 @@ def api_update_personnel(pid):
     return jsonify(p.to_dict())
 
 
+@app.route('/api/personnel/all', methods=['DELETE'])
+@login_required
+def api_delete_all_personnel():
+    etab = get_current_etab()
+    count = Personnel.query.filter_by(etab_id=etab.id).delete()
+    db.session.commit()
+    return jsonify({'ok': True, 'deleted': count})
+
+
+@app.route('/api/unites/all', methods=['DELETE'])
+@login_required
+def api_delete_all_unites():
+    etab = get_current_etab()
+    count = Unite.query.filter_by(etab_id=etab.id).delete()
+    db.session.commit()
+    return jsonify({'ok': True, 'deleted': count})
+
+
 @app.route('/api/personnel/<int:pid>', methods=['DELETE'])
 @login_required
 def api_delete_personnel(pid):
