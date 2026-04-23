@@ -574,7 +574,7 @@ def api_import_personnel_excel():
     etab = get_current_etab()
     try:
         wb = openpyxl.load_workbook(io.BytesIO(f.read()), data_only=True)
-        ws = wb.active
+        ws = wb['Personnel'] if 'Personnel' in wb.sheetnames else wb.active
         added = 0
         for row in ws.iter_rows(min_row=2, values_only=True):
             if not row or not row[0]:
