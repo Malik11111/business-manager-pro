@@ -1831,6 +1831,12 @@ async function enregistrerContratScanne() {
         </div>
         <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DATE D'ACHAT</label><input id="sf-date-achat" type="date" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
         <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">COÛT TTC (€)</label><div class="ht-ttc-row"><input id="sf-cout" type="number" min="0" step="0.01" value="0" style="padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"><button class="btn-ht-ttc" onclick="htToTTCFacture()" title="Convertir HT → TTC (×1.20)">HT → TTC</button></div></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">DURÉE D'AMORTISSEMENT (ANS)</label><input id="sf-duree-amort" type="number" min="1" max="50" value="5" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">ATTRIBUÉ À</label>
+          <select id="sf-attribue" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
+            <option value="">— Non attribué —</option>
+          </select>
+        </div>
         <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOTES</label><textarea id="sf-notes" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
@@ -1921,8 +1927,18 @@ async function lancerScanFacture() {
     document.getElementById('sf-date-achat').value = data.date_achat || '';
     document.getElementById('sf-cout').value = data.cout || 0;
     document.getElementById('sf-notes').value = data.notes || '';
+    document.getElementById('sf-duree-amort').value = 5;
     const selT = document.getElementById('sf-type');
     for (let o of selT.options) if (o.value === data.type_materiel) { selT.value = data.type_materiel; break; }
+    // Peupler le select Attribué à
+    const selA = document.getElementById('sf-attribue');
+    selA.innerHTML = '<option value="">— Non attribué —</option>';
+    (_actifs?.personnel || []).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = `${p.nom} ${p.prenom}`;
+      opt.textContent = `${p.nom} ${p.prenom}`;
+      selA.appendChild(opt);
+    });
 
     document.getElementById('sf-step-upload').style.display = 'none';
     document.getElementById('sf-step-preview').style.display = 'block';
@@ -1947,7 +1963,8 @@ async function enregistrerFactureScannee() {
     date_achat: document.getElementById('sf-date-achat').value,
     cout: parseFloat(document.getElementById('sf-cout').value) || 0,
     notes: document.getElementById('sf-notes').value,
-    duree_amortissement: 5,
+    duree_amortissement: parseInt(document.getElementById('sf-duree-amort').value) || 5,
+    attribue_a: document.getElementById('sf-attribue').value || '',
     statut: 'En service',
   };
   try {
