@@ -105,7 +105,7 @@ function setProgress(pct, label) {
   if (pct <= 0) { wrap.style.display = 'none'; return; }
   wrap.style.display = 'block';
   if (bar) bar.style.width = pct + '%';
-  if (lbl) lbl.textContent = label;
+  if (lbl) lbl.textContent = 'Analyse ' + pct + '%';
 }
 
 /* ── Afficher les résultats ────────────────────────── */

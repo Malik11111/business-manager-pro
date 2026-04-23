@@ -1817,18 +1817,18 @@ async function lancerScanContrat() {
 
   const bar = document.getElementById('scan-progress-bar');
   const lbl = document.getElementById('scan-progress-label');
-  bar.style.width = '20%';
-  lbl.textContent = 'Envoi du PDF...';
+  let pct = 0;
+  bar.style.width = '0%'; lbl.textContent = 'Analyse 0%';
+  const timer = setInterval(() => {
+    if (pct < 90) { pct++; bar.style.width = pct + '%'; lbl.textContent = 'Analyse ' + pct + '%'; }
+  }, 35);
 
   try {
     const formData = new FormData();
     formData.append('file', _scanPdfFile);
-    bar.style.width = '50%';
-    lbl.textContent = 'Analyse en cours...';
-
     const res = await fetch('/api/prestataires/scan-contrat', { method: 'POST', body: formData });
-    bar.style.width = '90%';
-    lbl.textContent = 'Traitement des résultats...';
+    clearInterval(timer);
+    bar.style.width = '100%'; lbl.textContent = 'Analyse 100%';
 
     const data = await res.json();
     if (!res.ok) {
@@ -1837,9 +1837,7 @@ async function lancerScanContrat() {
       return;
     }
 
-    bar.style.width = '100%';
-    lbl.textContent = 'Extraction terminée !';
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 500));
 
     // Remplir le formulaire de prévisualisation
     document.getElementById('sc-nom').value        = data.nom || '';
@@ -1860,6 +1858,7 @@ async function lancerScanContrat() {
     document.getElementById('scan-step-preview').style.display = 'block';
 
   } catch (e) {
+    clearInterval(timer);
     showToast('Erreur : ' + e.message, 'error');
     closeScanContratDialog();
   }
@@ -1998,16 +1997,20 @@ async function lancerScanFacture() {
   if (!_sfFile) return;
   const bar = document.getElementById('sf-progress-bar');
   const lbl = document.getElementById('sf-progress-label');
-  bar.style.width = '20%'; lbl.textContent = 'Envoi du fichier...';
+  let pct = 0;
+  bar.style.width = '0%'; lbl.textContent = 'Analyse 0%';
+  const timer = setInterval(() => {
+    if (pct < 90) { pct++; bar.style.width = pct + '%'; lbl.textContent = 'Analyse ' + pct + '%'; }
+  }, 35);
   try {
     const formData = new FormData();
     formData.append('file', _sfFile);
-    bar.style.width = '55%'; lbl.textContent = 'Analyse en cours...';
     const res = await fetch('/api/materiels/scan-facture', { method: 'POST', body: formData });
-    bar.style.width = '90%'; lbl.textContent = 'Traitement...';
+    clearInterval(timer);
+    bar.style.width = '100%'; lbl.textContent = 'Analyse 100%';
     const data = await res.json();
     if (!res.ok) { showToast(data.error || 'Erreur', 'error'); closeScanFactureDialog(); return; }
-    bar.style.width = '100%'; lbl.textContent = 'Extraction terminée !';
+    await new Promise(r => setTimeout(r, 500));
 
     document.getElementById('sf-nom').value = data.nom || '';
     document.getElementById('sf-reference').value = data.reference || data.numero_serie || '';
@@ -2030,6 +2033,7 @@ async function lancerScanFacture() {
     document.getElementById('sf-step-upload').style.display = 'none';
     document.getElementById('sf-step-preview').style.display = 'block';
   } catch (e) {
+    clearInterval(timer);
     showToast('Erreur : ' + e.message, 'error');
     closeScanFactureDialog();
   }

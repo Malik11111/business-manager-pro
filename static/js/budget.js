@@ -39,22 +39,24 @@ function htToTTCBudget() {
 }
 
 async function lancerBudgetScan(file) {
-  const bar  = document.getElementById('sb-progress-bar');
-  const lbl  = document.getElementById('sb-progress-label');
-  const wrap = document.getElementById('sb-progress-wrap');
-  wrap.style.display = 'block';
-  bar.style.width = '20%'; lbl.textContent = 'Envoi du fichier...';
+  const bar = document.getElementById('sb-progress-bar');
+  const lbl = document.getElementById('sb-progress-label');
+
+  let pct = 0;
+  bar.style.width = '0%'; lbl.textContent = 'Analyse 0%';
+  const timer = setInterval(() => {
+    if (pct < 90) { pct++; bar.style.width = pct + '%'; lbl.textContent = 'Analyse ' + pct + '%'; }
+  }, 35);
 
   try {
     const form = new FormData();
     form.append('file', file);
-    bar.style.width = '55%'; lbl.textContent = 'Analyse en cours...';
     const r = await fetch('/api/budget/scan-document', { method: 'POST', body: form });
-    bar.style.width = '90%'; lbl.textContent = 'Traitement...';
+    clearInterval(timer);
+    bar.style.width = '100%'; lbl.textContent = 'Analyse 100%';
     const data = await r.json();
-    if (!r.ok) { showToast(data.error || 'Erreur', 'error'); wrap.style.display = 'none'; return; }
-    bar.style.width = '100%'; lbl.textContent = 'Extraction terminée !';
-    setTimeout(() => wrap.style.display = 'none', 700);
+    if (!r.ok) { showToast(data.error || 'Erreur', 'error'); closeBudgetScanDialog(); return; }
+    await new Promise(res => setTimeout(res, 500));
 
     // Remplir les champs éditables
     document.getElementById('sb-desc').value        = data.description || '';
@@ -68,8 +70,9 @@ async function lancerBudgetScan(file) {
     document.getElementById('sb-step-upload').style.display  = 'none';
     document.getElementById('sb-step-preview').style.display = 'block';
   } catch (e) {
+    clearInterval(timer);
     showToast('Erreur : ' + e.message, 'error');
-    wrap.style.display = 'none';
+    closeBudgetScanDialog();
   }
 }
 
