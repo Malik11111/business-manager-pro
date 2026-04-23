@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from config import Config
 from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePresta
-from models import Personnel, Unite, Materiel
+from models import Personnel, Unite, Materiel, BudgetLigne
 from models import PharmaStock, PharmaMouvement, PharmaArchive
 from models import Vehicule, Entretien, Carburant
 from models import CleItem, EmployeCle, AttributionCle, HistoriqueCle
@@ -761,6 +761,88 @@ def api_import_personnel_excel():
         return jsonify({'ok': True, 'added': added_pers, 'added_lieux': added_lieux})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+
+# ══════════════════════════════════════════════════════
+#  API BUDGET ANNUEL
+# ══════════════════════════════════════════════════════
+
+@app.route('/api/budget/annees', methods=['GET'])
+@login_required
+def api_budget_annees():
+    etab = get_current_etab()
+    rows = db.session.query(BudgetLigne.annee).filter_by(etab_id=etab.id).distinct().order_by(BudgetLigne.annee.desc()).all()
+    annees = [r[0] for r in rows]
+    from datetime import date
+    cur = date.today().year
+    if cur not in annees:
+        annees = [cur] + annees
+    return jsonify(annees)
+
+
+@app.route('/api/budget', methods=['GET'])
+@login_required
+def api_get_budget():
+    etab = get_current_etab()
+    from datetime import date
+    annee = request.args.get('annee', date.today().year, type=int)
+    items = BudgetLigne.query.filter_by(etab_id=etab.id, annee=annee).order_by(BudgetLigne.numero_piece).all()
+    return jsonify([i.to_dict() for i in items])
+
+
+@app.route('/api/budget', methods=['POST'])
+@login_required
+def api_create_budget():
+    etab = get_current_etab()
+    d = request.get_json()
+    from datetime import date
+    annee = d.get('annee', date.today().year)
+    max_num = db.session.query(db.func.max(BudgetLigne.numero_piece)).filter_by(etab_id=etab.id, annee=annee).scalar() or 0
+    ligne = BudgetLigne(
+        etab_id=etab.id, annee=annee,
+        numero_piece=max_num + 1,
+        description=d.get('description', ''),
+        secteur=d.get('secteur', ''),
+        type_ligne=d.get('type_ligne', 'Achat'),
+        realisation=d.get('realisation', 'En attente'),
+        entreprise=d.get('entreprise', ''),
+        montant_ttc=float(d.get('montant_ttc', 0) or 0),
+        notes=d.get('notes', ''),
+    )
+    db.session.add(ligne)
+    db.session.commit()
+    return jsonify(ligne.to_dict()), 201
+
+
+@app.route('/api/budget/<int:lid>', methods=['PUT'])
+@login_required
+def api_update_budget(lid):
+    etab = get_current_etab()
+    ligne = BudgetLigne.query.filter_by(id=lid, etab_id=etab.id).first()
+    if not ligne:
+        return jsonify({'error': 'Introuvable.'}), 404
+    d = request.get_json()
+    for f in ['description', 'secteur', 'type_ligne', 'realisation', 'entreprise', 'notes']:
+        if f in d:
+            setattr(ligne, f, d[f])
+    if 'montant_ttc' in d:
+        ligne.montant_ttc = float(d['montant_ttc'] or 0)
+    if 'numero_piece' in d:
+        ligne.numero_piece = int(d['numero_piece'] or 0)
+    db.session.commit()
+    return jsonify(ligne.to_dict())
+
+
+@app.route('/api/budget/<int:lid>', methods=['DELETE'])
+@login_required
+def api_delete_budget(lid):
+    etab = get_current_etab()
+    ligne = BudgetLigne.query.filter_by(id=lid, etab_id=etab.id).first()
+    if not ligne:
+        return jsonify({'error': 'Introuvable.'}), 404
+    db.session.delete(ligne)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ══════════════════════════════════════════════════════

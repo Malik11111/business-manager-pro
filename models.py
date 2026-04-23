@@ -185,6 +185,31 @@ class Materiel(db.Model):
         }
 
 
+# ── Budget annuel ──────────────────────────────────────
+
+class BudgetLigne(db.Model):
+    __tablename__ = 'budget_lignes'
+    id           = db.Column(db.Integer, primary_key=True)
+    etab_id      = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    annee        = db.Column(db.Integer, nullable=False)
+    numero_piece = db.Column(db.Integer, default=0)
+    description  = db.Column(db.String(300), default='')
+    secteur      = db.Column(db.String(200), default='')
+    type_ligne   = db.Column(db.String(20), default='Achat')   # Travaux / Achat
+    realisation  = db.Column(db.String(30), default='En attente')  # Fait / Devis signé / Devis en cours / En attente
+    entreprise   = db.Column(db.String(200), default='')
+    montant_ttc  = db.Column(db.Float, default=0)
+    notes        = db.Column(db.Text, default='')
+
+    def to_dict(self):
+        return {
+            'id': self.id, 'annee': self.annee, 'numero_piece': self.numero_piece,
+            'description': self.description, 'secteur': self.secteur,
+            'type_ligne': self.type_ligne, 'realisation': self.realisation,
+            'entreprise': self.entreprise, 'montant_ttc': self.montant_ttc, 'notes': self.notes
+        }
+
+
 # ── Pharmacie ─────────────────────────────────────────
 
 class PharmaStock(db.Model):
