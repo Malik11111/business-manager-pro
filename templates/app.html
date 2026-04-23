@@ -1434,6 +1434,10 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
           <input id="params-lieux-search" class="filter-input" placeholder="Rechercher…" style="flex:1;min-width:160px" oninput="renderParamsLieux()">
           <button class="btn-table green" onclick="openParamsLieuModal()">+ Ajouter</button>
+          <label class="btn-table" style="cursor:pointer;background:#F59E0B;color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600" title="Importer depuis Excel">
+            ⬆ Importer
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importLieuxExcel(this)">
+          </label>
         </div>
         <div id="params-lieux-count" style="font-size:12px;color:#6B7280;margin-bottom:8px"></div>
         <table class="data-table" style="font-size:12px">

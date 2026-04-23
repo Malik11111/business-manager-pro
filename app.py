@@ -574,37 +574,63 @@ def api_import_personnel_excel():
     etab = get_current_etab()
     try:
         wb = openpyxl.load_workbook(io.BytesIO(f.read()), data_only=True)
-        ws = wb['Personnel'] if 'Personnel' in wb.sheetnames else wb.active
-        added = 0
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if not row or not row[0]:
-                continue
-            nom = str(row[0]).strip()
-            if not nom:
-                continue
-            r = tuple(row) + (None,) * 8  # pad pour eviter index out of range
-            prenom      = str(r[1] or '').strip()
-            poste       = str(r[2] or '').strip()
-            service     = str(r[3] or '').strip()
-            type_contrat= str(r[4] or '').strip()
-            telephone   = str(r[5] or '').strip()
-            date_arr    = str(r[6] or '').strip()
-            date_dep    = str(r[7] or '').strip()
-            existing = Personnel.query.filter_by(etab_id=etab.id, nom=nom, prenom=prenom).first()
-            if existing:
-                existing.poste = poste or existing.poste
-                existing.service = service or existing.service
-                existing.type_contrat = type_contrat or existing.type_contrat
-                existing.telephone = telephone or existing.telephone
-                existing.date_arrivee = date_arr or existing.date_arrivee
-                existing.date_depart = date_dep or existing.date_depart
-            else:
-                db.session.add(Personnel(etab_id=etab.id, nom=nom, prenom=prenom,
-                    poste=poste, service=service, type_contrat=type_contrat,
-                    telephone=telephone, date_arrivee=date_arr, date_depart=date_dep))
-                added += 1
+        added_pers = 0
+        added_lieux = 0
+
+        # ── Feuille Personnel ──
+        if 'Personnel' in wb.sheetnames:
+            ws = wb['Personnel']
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row or not row[0]:
+                    continue
+                nom = str(row[0]).strip()
+                if not nom:
+                    continue
+                r = tuple(row) + (None,) * 8
+                prenom      = str(r[1] or '').strip()
+                poste       = str(r[2] or '').strip()
+                service     = str(r[3] or '').strip()
+                type_contrat= str(r[4] or '').strip()
+                telephone   = str(r[5] or '').strip()
+                date_arr    = str(r[6] or '').strip()
+                date_dep    = str(r[7] or '').strip()
+                existing = Personnel.query.filter_by(etab_id=etab.id, nom=nom, prenom=prenom).first()
+                if existing:
+                    existing.poste        = poste or existing.poste
+                    existing.service      = service or existing.service
+                    existing.type_contrat = type_contrat or existing.type_contrat
+                    existing.telephone    = telephone or existing.telephone
+                    existing.date_arrivee = date_arr or existing.date_arrivee
+                    existing.date_depart  = date_dep or existing.date_depart
+                else:
+                    db.session.add(Personnel(etab_id=etab.id, nom=nom, prenom=prenom,
+                        poste=poste, service=service, type_contrat=type_contrat,
+                        telephone=telephone, date_arrivee=date_arr, date_depart=date_dep))
+                    added_pers += 1
+
+        # ── Feuille Lieux ──
+        if 'Lieux' in wb.sheetnames:
+            ws_l = wb['Lieux']
+            for row in ws_l.iter_rows(min_row=2, values_only=True):
+                if not row or not row[0]:
+                    continue
+                nom = str(row[0]).strip()
+                if not nom:
+                    continue
+                r = tuple(row) + (None,) * 3
+                description = str(r[1] or '').strip()
+                emplacement = str(r[2] or '').strip()
+                existing = Unite.query.filter_by(etab_id=etab.id, nom=nom).first()
+                if existing:
+                    existing.description = description or existing.description
+                    existing.emplacement = emplacement or existing.emplacement
+                else:
+                    db.session.add(Unite(etab_id=etab.id, nom=nom,
+                        description=description, emplacement=emplacement))
+                    added_lieux += 1
+
         db.session.commit()
-        return jsonify({'ok': True, 'added': added})
+        return jsonify({'ok': True, 'added': added_pers, 'added_lieux': added_lieux})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

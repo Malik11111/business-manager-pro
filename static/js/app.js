@@ -504,8 +504,9 @@ async function importPersonnelExcel(input) {
     const res = await fetch('/api/personnel/import-excel', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Erreur import');
-    showToast(`Import terminé — ${data.added} ajouté(s).`, 'success');
+    showToast(`Import terminé — ${data.added} personnel + ${data.added_lieux || 0} lieux ajouté(s).`, 'success');
     await loadParamsPersonnel();
+    await loadParamsLieux();
   } catch (e) { showToast(e.message, 'error'); }
   input.value = '';
 }
