@@ -1211,29 +1211,59 @@
      SCAN DOCUMENT — Budget Annuel (overlay Gemini)
 ══════════════════════════════════════════════════════ -->
 <div id="scan-budget-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:14px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
-    <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un document budget</h2>
-    <p style="color:#6B6B8A;font-size:13px;margin:0 0 18px;">Facture, devis signé ou devis en cours — Gemini détecte le type et pré-remplit le formulaire.</p>
-    <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="sb-drop-zone">
-      <div style="font-size:36px;">📄</div>
-      <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez un document ici</div>
-      <div style="font-size:11px;color:#B0B0C0;">PDF, JPG, PNG acceptés</div>
-      <input type="file" id="sb-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSbFileSelected(this)">
-    </label>
-    <div id="sb-progress-wrap" style="display:none;margin-top:14px;">
-      <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
-        <div id="sb-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+  <div style="background:#fff;border-radius:14px;width:580px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
+
+    <!-- Étape 1 : upload -->
+    <div id="sb-step-upload">
+      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un document budget</h2>
+      <p style="color:#6B6B8A;font-size:13px;margin:0 0 18px;">Facture, devis signé ou devis en cours — Gemini détecte le type et pré-remplit le formulaire.</p>
+      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="sb-drop-zone">
+        <div style="font-size:36px;">📄</div>
+        <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez un document ici</div>
+        <div style="font-size:11px;color:#B0B0C0;">PDF, JPG, PNG acceptés</div>
+        <input type="file" id="sb-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSbFileSelected(this)">
+      </label>
+      <div id="sb-progress-wrap" style="display:none;margin-top:14px;">
+        <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
+          <div id="sb-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+        </div>
+        <div id="sb-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
       </div>
-      <div id="sb-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
+      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+        <button onclick="closeBudgetScanDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
+      </div>
     </div>
-    <div id="sb-result" style="display:none;margin-top:14px;padding:12px;border-radius:8px;background:#F0FDF4;border:1px solid #86EFAC;">
-      <div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ Document analysé</div>
-      <div id="sb-result-text" style="font-size:13px;color:#166534;line-height:1.6;"></div>
+
+    <!-- Étape 2 : preview éditable -->
+    <div id="sb-step-preview" style="display:none;">
+      <h2 style="margin:0 0 4px;color:#1A1A2E;font-size:18px;">✅ Informations extraites</h2>
+      <p style="color:#6B6B8A;font-size:13px;margin:0 0 16px;">Vérifiez et corrigez si nécessaire, puis cliquez sur Enregistrer.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TRAVAUX / ACHAT (DESCRIPTION) *</label><input id="sb-desc" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">SECTEUR</label><input id="sb-secteur" type="text" placeholder="Ex: Les Colombes, Bureau Administratif…" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">TYPE</label>
+          <select id="sb-type" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
+            <option>Achat</option><option>Travaux</option>
+          </select>
+        </div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">RÉALISATION</label>
+          <select id="sb-realisation" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;">
+            <option>En attente</option><option>Devis en cours</option><option>Devis signé</option><option>Fait</option>
+          </select>
+        </div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">ENTREPRISE / FOURNISSEUR</label><input id="sb-entreprise" type="text" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"></div>
+        <div><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">RÉEL TTC (€)</label>
+          <div class="ht-ttc-row"><input id="sb-montant" type="number" min="0" step="0.01" value="0" style="padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;"><button class="btn-ht-ttc" onclick="htToTTCBudget()" title="Convertir HT → TTC (×1.20)">HT → TTC</button></div>
+        </div>
+        <div style="grid-column:span 2;"><label style="font-size:11px;font-weight:600;color:#5C52CC;display:block;margin-bottom:4px;">NOTES</label><textarea id="sb-notes" rows="2" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:13px;box-sizing:border-box;resize:vertical;"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+        <button onclick="sbRetourUpload()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">← Retour</button>
+        <button onclick="closeBudgetScanDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
+        <button onclick="enregistrerBudgetScanne()" style="padding:9px 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#2E7D32,#43A047);color:#fff;font-weight:600;cursor:pointer;">💾 Enregistrer</button>
+      </div>
     </div>
-    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
-      <button onclick="closeBudgetScanDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
-      <button id="sb-confirm-btn" onclick="confirmBudgetScan()" style="display:none;padding:9px 22px;border:none;border-radius:8px;background:linear-gradient(135deg,#2E7D32,#43A047);color:#fff;font-weight:600;cursor:pointer;">✏️ Remplir le formulaire</button>
-    </div>
+
   </div>
 </div>
 

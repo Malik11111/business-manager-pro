@@ -1,22 +1,23 @@
 /* budget.js — Budget Annuel (Travaux & Achats) */
 
 let _budget = { lignes: [], annee: new Date().getFullYear(), annees: [] };
-let _sbData = null; // résultat Gemini en attente de confirmation
-
 // ── Scan Document Gemini ──────────────────────────────
 
 function openBudgetScanDialog() {
-  _sbData = null;
+  document.getElementById('sb-step-upload').style.display = 'block';
+  document.getElementById('sb-step-preview').style.display = 'none';
   document.getElementById('sb-progress-wrap').style.display = 'none';
-  document.getElementById('sb-result').style.display = 'none';
-  document.getElementById('sb-confirm-btn').style.display = 'none';
   document.getElementById('sb-file-input').value = '';
   document.getElementById('scan-budget-overlay').style.display = 'flex';
 }
 
 function closeBudgetScanDialog() {
   document.getElementById('scan-budget-overlay').style.display = 'none';
-  _sbData = null;
+}
+
+function sbRetourUpload() {
+  document.getElementById('sb-step-upload').style.display = 'block';
+  document.getElementById('sb-step-preview').style.display = 'none';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -27,24 +28,34 @@ document.addEventListener('DOMContentLoaded', () => {
   dz.addEventListener('drop', e => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file) lancerBudgetScan(file);
+    if (file) { _showSbLoading(); lancerBudgetScan(file); }
   });
 });
 
 function onSbFileSelected(input) {
   const file = input.files[0];
-  if (file) lancerBudgetScan(file);
+  if (!file) return;
   input.value = '';
+  _showSbLoading();
+  lancerBudgetScan(file);
+}
+
+function _showSbLoading() {
+  document.getElementById('sb-progress-wrap').style.display = 'block';
+  document.getElementById('sb-progress-bar').style.width = '10%';
+  document.getElementById('sb-progress-label').textContent = 'Chargement...';
+  document.getElementById('scan-budget-overlay').style.display = 'flex';
+}
+
+function htToTTCBudget() {
+  const inp = document.getElementById('sb-montant');
+  inp.value = (parseFloat(inp.value) * 1.20).toFixed(2);
 }
 
 async function lancerBudgetScan(file) {
-  const bar   = document.getElementById('sb-progress-bar');
-  const lbl   = document.getElementById('sb-progress-label');
-  const wrap  = document.getElementById('sb-progress-wrap');
-  const res   = document.getElementById('sb-result');
-  const btn   = document.getElementById('sb-confirm-btn');
-  res.style.display = 'none';
-  btn.style.display = 'none';
+  const bar  = document.getElementById('sb-progress-bar');
+  const lbl  = document.getElementById('sb-progress-label');
+  const wrap = document.getElementById('sb-progress-wrap');
   wrap.style.display = 'block';
   bar.style.width = '20%'; lbl.textContent = 'Envoi du fichier...';
 
@@ -56,44 +67,47 @@ async function lancerBudgetScan(file) {
     bar.style.width = '90%'; lbl.textContent = 'Traitement...';
     const data = await r.json();
     if (!r.ok) { showToast(data.error || 'Erreur', 'error'); wrap.style.display = 'none'; return; }
-    bar.style.width = '100%'; lbl.textContent = 'Analyse terminée !';
-    setTimeout(() => wrap.style.display = 'none', 600);
+    bar.style.width = '100%'; lbl.textContent = 'Extraction terminée !';
+    setTimeout(() => wrap.style.display = 'none', 700);
 
-    _sbData = data;
+    // Remplir les champs éditables
+    document.getElementById('sb-desc').value        = data.description || '';
+    document.getElementById('sb-secteur').value     = data.secteur     || '';
+    document.getElementById('sb-type').value        = data.type_ligne  || 'Achat';
+    document.getElementById('sb-realisation').value = data.realisation || 'En attente';
+    document.getElementById('sb-entreprise').value  = data.entreprise  || '';
+    document.getElementById('sb-montant').value     = data.montant_ttc || 0;
+    document.getElementById('sb-notes').value       = data.notes       || '';
 
-    // Labels lisibles
-    const typDoc = { facture: '🧾 Facture', devis_signe: '✅ Devis signé', devis_en_cours: '📝 Devis en cours' };
-    const rea = data.realisation || '—';
-    document.getElementById('sb-result-text').innerHTML =
-      `<b>Type document :</b> ${typDoc[data.type_document] || data.type_document || '—'}<br>` +
-      `<b>Réalisation :</b> ${rea}<br>` +
-      `<b>Type :</b> ${data.type_ligne || '—'}<br>` +
-      `<b>Description :</b> ${data.description || '—'}<br>` +
-      `<b>Secteur :</b> ${data.secteur || '—'}<br>` +
-      `<b>Entreprise :</b> ${data.entreprise || '—'}<br>` +
-      `<b>Montant TTC :</b> ${data.montant_ttc ? data.montant_ttc.toLocaleString('fr-FR') + ' €' : '—'}`;
-
-    res.style.display = 'block';
-    btn.style.display = 'inline-block';
+    document.getElementById('sb-step-upload').style.display  = 'none';
+    document.getElementById('sb-step-preview').style.display = 'block';
   } catch (e) {
     showToast('Erreur : ' + e.message, 'error');
     wrap.style.display = 'none';
   }
 }
 
-function confirmBudgetScan() {
-  if (!_sbData) return;
-  closeBudgetScanDialog();
-  // Pré-remplir le modal avec les données Gemini
-  openBudgetModal({
-    description: _sbData.description || '',
-    secteur:     _sbData.secteur     || '',
-    type_ligne:  _sbData.type_ligne  || 'Achat',
-    realisation: _sbData.realisation || 'En attente',
-    entreprise:  _sbData.entreprise  || '',
-    montant_ttc: _sbData.montant_ttc || 0,
-    notes:       _sbData.notes       || '',
-  });
+async function enregistrerBudgetScanne() {
+  const desc = document.getElementById('sb-desc').value.trim();
+  if (!desc) { showToast('La description est requise', 'error'); return; }
+  const maxNum = Math.max(0, ..._budget.lignes.map(l => l.numero_piece || 0));
+  const payload = {
+    annee:        _budget.annee,
+    numero_piece: maxNum + 1,
+    description:  desc,
+    secteur:      document.getElementById('sb-secteur').value.trim(),
+    type_ligne:   document.getElementById('sb-type').value,
+    realisation:  document.getElementById('sb-realisation').value,
+    entreprise:   document.getElementById('sb-entreprise').value.trim(),
+    montant_ttc:  parseFloat(document.getElementById('sb-montant').value) || 0,
+    notes:        document.getElementById('sb-notes').value.trim(),
+  };
+  try {
+    await api('/api/budget', 'POST', payload);
+    closeBudgetScanDialog();
+    await loadBudget();
+    showToast('✅ Ligne ajoutée depuis le document scanné', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 // Couleurs par statut (reprend les couleurs Excel)
