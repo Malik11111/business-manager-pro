@@ -1930,15 +1930,15 @@ async function lancerScanFacture() {
     document.getElementById('sf-duree-amort').value = 5;
     const selT = document.getElementById('sf-type');
     for (let o of selT.options) if (o.value === data.type_materiel) { selT.value = data.type_materiel; break; }
-    // Peupler le select Attribué à
+    // Peupler le select Attribué à (Personnel + Lieux)
     const selA = document.getElementById('sf-attribue');
-    selA.innerHTML = '<option value="">— Non attribué —</option>';
-    (_actifs?.personnel || []).forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = `${p.nom} ${p.prenom}`;
-      opt.textContent = `${p.nom} ${p.prenom}`;
-      selA.appendChild(opt);
-    });
+    selA.innerHTML = '<option value="">— Non attribué —</option>' +
+      '<optgroup label="👤 Personnel">' +
+      (_actifs?.personnel || []).map(p => { const v = `${p.nom} ${p.prenom}`; return `<option value="${v}">${v}</option>`; }).join('') +
+      '</optgroup>' +
+      '<optgroup label="📍 Lieux">' +
+      (_actifs?.unites || []).map(u => `<option value="${u.nom}">${u.nom}</option>`).join('') +
+      '</optgroup>';
 
     document.getElementById('sf-step-upload').style.display = 'none';
     document.getElementById('sf-step-preview').style.display = 'block';

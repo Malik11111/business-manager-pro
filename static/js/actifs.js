@@ -269,8 +269,14 @@ function openMaterielDialog(prefill = null) {
   document.getElementById('mat-duree-amort').value = prefill?.duree_amortissement || 5;
   document.getElementById('mat-statut').innerHTML = STATUTS_MATERIEL.map(s => `<option value="${s}"${prefill?.statut === s ? ' selected' : ''}>${s}</option>`).join('');
   const persSel = document.getElementById('mat-personnel');
-  persSel.innerHTML = '<option value="">— Non attribue —</option>' +
-    _actifs.personnel.map(p => `<option value="${esc(p.nom)} ${esc(p.prenom)}"${prefill?.attribue_a === `${p.nom} ${p.prenom}` ? ' selected' : ''}>${esc(p.nom)} ${esc(p.prenom)}</option>`).join('');
+  const curVal = prefill?.attribue_a || '';
+  persSel.innerHTML = '<option value="">— Non attribué —</option>' +
+    '<optgroup label="👤 Personnel">' +
+    _actifs.personnel.map(p => { const v = `${p.nom} ${p.prenom}`; return `<option value="${esc(v)}"${curVal === v ? ' selected' : ''}>${esc(v)}</option>`; }).join('') +
+    '</optgroup>' +
+    '<optgroup label="📍 Lieux">' +
+    _actifs.unites.map(u => `<option value="${esc(u.nom)}"${curVal === u.nom ? ' selected' : ''}>${esc(u.nom)}</option>`).join('') +
+    '</optgroup>';
   document.getElementById('mat-notes').value = prefill?.notes || '';
   document.getElementById('modal-materiel').classList.remove('hidden');
 }
