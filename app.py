@@ -44,17 +44,39 @@ def unauthorized():
 
 with app.app_context():
     db.create_all()
-    # Migration : ajouter colonne role si elle n'existe pas
-    try:
-        from sqlalchemy import text
-        db.session.execute(text("SELECT role FROM users LIMIT 1"))
-    except Exception:
-        db.session.rollback()
+    from sqlalchemy import text
+
+    def _add_col(table, col, col_type):
         try:
-            db.session.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'"))
-            db.session.commit()
+            db.session.execute(text(f"SELECT {col} FROM {table} LIMIT 1"))
         except Exception:
             db.session.rollback()
+            try:
+                db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {col_type} DEFAULT ''"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    # users
+    _add_col('users', 'role', "VARCHAR(20) DEFAULT 'user'")
+    # personnel
+    _add_col('personnel', 'type_contrat', 'VARCHAR(50)')
+    _add_col('personnel', 'poste', 'VARCHAR(100)')
+    _add_col('personnel', 'service', 'VARCHAR(100)')
+    _add_col('personnel', 'telephone', 'VARCHAR(30)')
+    _add_col('personnel', 'lieu', 'VARCHAR(100)')
+    _add_col('personnel', 'date_arrivee', 'VARCHAR(10)')
+    _add_col('personnel', 'date_depart', 'VARCHAR(10)')
+    # unites
+    _add_col('unites', 'description', 'VARCHAR(300)')
+    _add_col('unites', 'emplacement', 'VARCHAR(200)')
+
+
+@app.errorhandler(500)
+def handle_500(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Erreur serveur interne'}), 500
+    return str(e), 500
 
 
 # ══════════════════════════════════════════════════════
