@@ -135,6 +135,7 @@ function renderEmployesCles(list) {
       <td><span style="background:${contratColor}22;color:${contratColor};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700">${esc(e.type_contrat||'—')}</span></td>
       <td style="font-size:12px;color:#5C52CC">${esc(e.poste||'—')}</td>
       <td style="font-size:12px">${esc(e.date_arrivee||'—')}</td>
+      <td style="font-size:12px;color:${e.date_depart?'#DC2626':'#9CA3AF'}">${esc(e.date_depart||'—')}</td>
       <td>${clesBadges}</td>
       <td>
         <div class="row-actions">

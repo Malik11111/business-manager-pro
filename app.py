@@ -630,6 +630,15 @@ def api_import_personnel_excel():
                     added_lieux += 1
 
         db.session.commit()
+
+        # ── Auto-sync vers Clés ──
+        for p in Personnel.query.filter_by(etab_id=etab.id).all():
+            if not EmployeCle.query.filter_by(etab_id=etab.id, nom=p.nom, prenom=p.prenom).first():
+                db.session.add(EmployeCle(etab_id=etab.id, nom=p.nom, prenom=p.prenom,
+                    type_contrat=p.type_contrat or 'CDI', poste=p.poste or '',
+                    date_arrivee=p.date_arrivee or '', date_depart=p.date_depart or ''))
+        db.session.commit()
+
         return jsonify({'ok': True, 'added': added_pers, 'added_lieux': added_lieux})
     except Exception as e:
         return jsonify({'error': str(e)}), 400

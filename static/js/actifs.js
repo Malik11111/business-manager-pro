@@ -55,6 +55,7 @@ function renderPersonnelTable(filtered) {
     <td>${esc(p.service || '—')}</td>
     <td>${esc(p.telephone || '—')}</td>
     <td>${esc(p.date_arrivee || '—')}</td>
+    <td>${esc(p.date_depart || '—')}</td>
     <td><div class="row-actions">
       <button class="btn-sm btn-sm-blue" onclick="editPersonnel(${p.id})" title="Modifier">✏️</button>
       <button class="btn-sm btn-sm-red" onclick="deletePersonnel(${p.id})" title="Supprimer">🗑️</button>
