@@ -582,13 +582,14 @@ def api_import_personnel_excel():
             nom = str(row[0]).strip()
             if not nom:
                 continue
-            prenom      = str(row[1] or '').strip()
-            poste       = str(row[2] or '').strip()
-            service     = str(row[3] or '').strip()
-            type_contrat= str(row[4] or '').strip()
-            telephone   = str(row[5] or '').strip()
-            date_arr    = str(row[6] or '').strip()
-            date_dep    = str(row[7] or '').strip()
+            r = tuple(row) + (None,) * 8  # pad pour eviter index out of range
+            prenom      = str(r[1] or '').strip()
+            poste       = str(r[2] or '').strip()
+            service     = str(r[3] or '').strip()
+            type_contrat= str(r[4] or '').strip()
+            telephone   = str(r[5] or '').strip()
+            date_arr    = str(r[6] or '').strip()
+            date_dep    = str(r[7] or '').strip()
             existing = Personnel.query.filter_by(etab_id=etab.id, nom=nom, prenom=prenom).first()
             if existing:
                 existing.poste = poste or existing.poste
