@@ -1,6 +1,100 @@
 /* budget.js — Budget Annuel (Travaux & Achats) */
 
 let _budget = { lignes: [], annee: new Date().getFullYear(), annees: [] };
+let _sbData = null; // résultat Gemini en attente de confirmation
+
+// ── Scan Document Gemini ──────────────────────────────
+
+function openBudgetScanDialog() {
+  _sbData = null;
+  document.getElementById('sb-progress-wrap').style.display = 'none';
+  document.getElementById('sb-result').style.display = 'none';
+  document.getElementById('sb-confirm-btn').style.display = 'none';
+  document.getElementById('sb-file-input').value = '';
+  document.getElementById('scan-budget-overlay').style.display = 'flex';
+}
+
+function closeBudgetScanDialog() {
+  document.getElementById('scan-budget-overlay').style.display = 'none';
+  _sbData = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('sb-drop-zone');
+  if (!dz) return;
+  dz.addEventListener('click', () => document.getElementById('sb-file-input').click());
+  dz.addEventListener('dragover', e => e.preventDefault());
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) lancerBudgetScan(file);
+  });
+});
+
+function onSbFileSelected(input) {
+  const file = input.files[0];
+  if (file) lancerBudgetScan(file);
+  input.value = '';
+}
+
+async function lancerBudgetScan(file) {
+  const bar   = document.getElementById('sb-progress-bar');
+  const lbl   = document.getElementById('sb-progress-label');
+  const wrap  = document.getElementById('sb-progress-wrap');
+  const res   = document.getElementById('sb-result');
+  const btn   = document.getElementById('sb-confirm-btn');
+  res.style.display = 'none';
+  btn.style.display = 'none';
+  wrap.style.display = 'block';
+  bar.style.width = '20%'; lbl.textContent = 'Envoi du fichier...';
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    bar.style.width = '55%'; lbl.textContent = 'Analyse Gemini en cours...';
+    const r = await fetch('/api/budget/scan-document', { method: 'POST', body: form });
+    bar.style.width = '90%'; lbl.textContent = 'Traitement...';
+    const data = await r.json();
+    if (!r.ok) { showToast(data.error || 'Erreur', 'error'); wrap.style.display = 'none'; return; }
+    bar.style.width = '100%'; lbl.textContent = 'Analyse terminée !';
+    setTimeout(() => wrap.style.display = 'none', 600);
+
+    _sbData = data;
+
+    // Labels lisibles
+    const typDoc = { facture: '🧾 Facture', devis_signe: '✅ Devis signé', devis_en_cours: '📝 Devis en cours' };
+    const rea = data.realisation || '—';
+    document.getElementById('sb-result-text').innerHTML =
+      `<b>Type document :</b> ${typDoc[data.type_document] || data.type_document || '—'}<br>` +
+      `<b>Réalisation :</b> ${rea}<br>` +
+      `<b>Type :</b> ${data.type_ligne || '—'}<br>` +
+      `<b>Description :</b> ${data.description || '—'}<br>` +
+      `<b>Secteur :</b> ${data.secteur || '—'}<br>` +
+      `<b>Entreprise :</b> ${data.entreprise || '—'}<br>` +
+      `<b>Montant TTC :</b> ${data.montant_ttc ? data.montant_ttc.toLocaleString('fr-FR') + ' €' : '—'}`;
+
+    res.style.display = 'block';
+    btn.style.display = 'inline-block';
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+    wrap.style.display = 'none';
+  }
+}
+
+function confirmBudgetScan() {
+  if (!_sbData) return;
+  closeBudgetScanDialog();
+  // Pré-remplir le modal avec les données Gemini
+  openBudgetModal({
+    description: _sbData.description || '',
+    secteur:     _sbData.secteur     || '',
+    type_ligne:  _sbData.type_ligne  || 'Achat',
+    realisation: _sbData.realisation || 'En attente',
+    entreprise:  _sbData.entreprise  || '',
+    montant_ttc: _sbData.montant_ttc || 0,
+    notes:       _sbData.notes       || '',
+  });
+}
 
 // Couleurs par statut (reprend les couleurs Excel)
 const BUDGET_COLORS = {

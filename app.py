@@ -845,6 +845,105 @@ def api_delete_budget(lid):
     return jsonify({'ok': True})
 
 
+@app.route('/api/budget/scan-document', methods=['POST'])
+@login_required
+def api_budget_scan_document():
+    """Gemini analyse un devis ou une facture et retourne les champs budget."""
+    import os as _os, tempfile as _tmp, json as _json, re as _re, urllib.request, base64 as _b64
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'Aucun fichier envoyé'}), 400
+    f = request.files['file']
+    fname = f.filename.lower()
+    if not any(fname.endswith(x) for x in ('.pdf', '.jpg', '.jpeg', '.png')):
+        return jsonify({'error': 'Format accepté : PDF, JPG, PNG'}), 400
+
+    api_key = app.config.get('GEMINI_API_KEY') or request.form.get('api_key', '').strip()
+    if not api_key:
+        return jsonify({'error': 'Clé API Gemini requise'}), 400
+
+    suffix = '.' + fname.rsplit('.', 1)[-1]
+    with _tmp.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        f.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        prompt = (
+            "Analyse ce document (facture, devis ou bon de commande) et retourne uniquement ce JSON strict sans markdown :\n"
+            '{"type_document": "facture|devis_signe|devis_en_cours", '
+            '"description": "objet ou désignation principale en 4-8 mots", '
+            '"secteur": "lieu ou service concerné si mentionné, sinon vide", '
+            '"type_ligne": "Travaux|Achat", '
+            '"entreprise": "nom de l\'entreprise ou fournisseur", '
+            '"montant_ttc": 0, '
+            '"notes": "résumé en 1-2 phrases"}\n\n'
+            "Règles strictes :\n"
+            "- type_document = 'facture' si c'est une facture payée ou un bon de livraison\n"
+            "- type_document = 'devis_signe' si le devis porte une signature, un tampon 'BON POUR ACCORD', 'Accepté', 'Signé' ou date de validation\n"
+            "- type_document = 'devis_en_cours' si c'est un devis sans signature ni validation\n"
+            "- type_ligne = 'Travaux' si installation, rénovation, construction, pose, peinture, plomberie, électricité\n"
+            "- type_ligne = 'Achat' si achat de matériel, mobilier, équipement, fournitures\n"
+            "- montant_ttc = montant total TTC (si HT uniquement, multiplier par 1.20)\n"
+            "- Si valeur absente : chaîne vide ou 0"
+        )
+
+        if suffix == '.pdf':
+            texte = _extraire_texte_pdf(tmp_path)
+            if texte:
+                body = _json.dumps({
+                    "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                }).encode("utf-8")
+            else:
+                pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
+                body = _json.dumps({
+                    "contents": [{"parts": [
+                        {"text": prompt + "\n\n[Analyse le document visible dans ce PDF scanné]"},
+                        {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
+                    ]}],
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+                }).encode("utf-8")
+        else:
+            with open(tmp_path, 'rb') as img_f:
+                img_data = _b64.b64encode(img_f.read()).decode('utf-8')
+            mime = 'image/jpeg' if suffix in ('.jpg', '.jpeg') else 'image/png'
+            body = _json.dumps({
+                "contents": [{"parts": [
+                    {"text": prompt},
+                    {"inline_data": {"mime_type": mime, "data": img_data}}
+                ]}],
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 1024}
+            }).encode("utf-8")
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+        req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            result = _json.loads(r.read().decode("utf-8"))
+        texte_rep = result["candidates"][0]["content"]["parts"][0]["text"].strip()
+        texte_rep = _re.sub(r"```json\s*", "", texte_rep)
+        texte_rep = _re.sub(r"```\s*", "", texte_rep)
+        data = _parse_gemini_json(texte_rep)
+
+        # Convertir type_document → realisation
+        td = data.get('type_document', '')
+        if 'facture' in td:
+            data['realisation'] = 'Fait'
+        elif 'signe' in td or 'signé' in td:
+            data['realisation'] = 'Devis signé'
+        else:
+            data['realisation'] = 'Devis en cours'
+
+        return jsonify(data), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+    finally:
+        try:
+            _os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
 # ══════════════════════════════════════════════════════
 #  API ACTIFS — Unites
 # ══════════════════════════════════════════════════════
