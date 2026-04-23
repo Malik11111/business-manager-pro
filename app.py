@@ -487,6 +487,67 @@ def api_export_personnel_excel():
                      as_attachment=True, download_name='personnel.xlsx')
 
 
+@app.route('/api/config/template', methods=['GET'])
+@login_required
+def api_config_template():
+    """Génère un fichier Excel modèle avec 3 lieux et 3 personnel."""
+    import io
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        return jsonify({'error': 'openpyxl non installé.'}), 500
+
+    wb = openpyxl.Workbook()
+
+    # ── Feuille Personnel ──
+    ws_pers = wb.active
+    ws_pers.title = 'Personnel'
+    pers_headers = ['Nom', 'Prénom', 'Poste', 'Service', 'Type contrat', 'Téléphone', 'Date entrée', 'Date sortie']
+    pers_widths  = [18, 18, 22, 20, 18, 16, 14, 14]
+    fill_p = PatternFill('solid', fgColor='1E3A8A')
+    font_h = Font(bold=True, color='FFFFFF', size=11)
+    for ci, (h, w) in enumerate(zip(pers_headers, pers_widths), 1):
+        c = ws_pers.cell(row=1, column=ci, value=h)
+        c.fill = fill_p; c.font = font_h
+        c.alignment = Alignment(horizontal='center')
+        ws_pers.column_dimensions[c.column_letter].width = w
+    pers_rows = [
+        ('DUPONT',  'Marie',  'Éducatrice',   'Unité A', 'CDI',  '06 11 22 33 44', '2020-09-01', ''),
+        ('MARTIN',  'Paul',   'Infirmier',    'Soins',   'CDI',  '06 55 66 77 88', '2019-03-15', ''),
+        ('PETIT',   'Lucas',  'Agent d\'entretien', 'Technique', 'CDD', '06 99 00 11 22', '2024-01-10', '2025-01-09'),
+    ]
+    for ri, row in enumerate(pers_rows, 2):
+        for ci, val in enumerate(row, 1):
+            ws_pers.cell(row=ri, column=ci, value=val)
+
+    # ── Feuille Lieux ──
+    ws_lieux = wb.create_sheet('Lieux')
+    lieux_headers = ['Nom', 'Description', 'Emplacement']
+    lieux_widths  = [28, 35, 25]
+    fill_l = PatternFill('solid', fgColor='166534')
+    for ci, (h, w) in enumerate(zip(lieux_headers, lieux_widths), 1):
+        c = ws_lieux.cell(row=1, column=ci, value=h)
+        c.fill = fill_l; c.font = font_h
+        c.alignment = Alignment(horizontal='center')
+        ws_lieux.column_dimensions[c.column_letter].width = w
+    lieux_rows = [
+        ('Les Choucas',  'Unité de vie principale',   'Bâtiment A – RDC'),
+        ('Infirmerie',   'Salle de soins',             'Bâtiment B – 1er étage'),
+        ('Cuisine',      'Cuisine collective',         'Bâtiment A – Sous-sol'),
+    ]
+    for ri, row in enumerate(lieux_rows, 2):
+        for ci, val in enumerate(row, 1):
+            ws_lieux.cell(row=ri, column=ci, value=val)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='modele_config.xlsx')
+
+
 @app.route('/api/personnel/import-excel', methods=['POST'])
 @login_required
 def api_import_personnel_excel():
