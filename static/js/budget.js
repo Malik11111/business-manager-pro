@@ -4,11 +4,7 @@ let _budget = { lignes: [], annee: new Date().getFullYear(), annees: [] };
 // ── Scan Document Gemini ──────────────────────────────
 
 function openBudgetScanDialog() {
-  document.getElementById('sb-step-upload').style.display = 'block';
-  document.getElementById('sb-step-preview').style.display = 'none';
-  document.getElementById('sb-progress-wrap').style.display = 'none';
-  document.getElementById('sb-file-input').value = '';
-  document.getElementById('scan-budget-overlay').style.display = 'flex';
+  document.getElementById('sb-file-input').click();
 }
 
 function closeBudgetScanDialog() {
@@ -20,17 +16,6 @@ function sbRetourUpload() {
   document.getElementById('sb-step-preview').style.display = 'none';
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const dz = document.getElementById('sb-drop-zone');
-  if (!dz) return;
-  dz.addEventListener('click', () => document.getElementById('sb-file-input').click());
-  dz.addEventListener('dragover', e => e.preventDefault());
-  dz.addEventListener('drop', e => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) { _showSbLoading(); lancerBudgetScan(file); }
-  });
-});
 
 function onSbFileSelected(input) {
   const file = input.files[0];
@@ -41,7 +26,8 @@ function onSbFileSelected(input) {
 }
 
 function _showSbLoading() {
-  document.getElementById('sb-progress-wrap').style.display = 'block';
+  document.getElementById('sb-step-upload').style.display = 'block';
+  document.getElementById('sb-step-preview').style.display = 'none';
   document.getElementById('sb-progress-bar').style.width = '10%';
   document.getElementById('sb-progress-label').textContent = 'Chargement...';
   document.getElementById('scan-budget-overlay').style.display = 'flex';
@@ -62,7 +48,7 @@ async function lancerBudgetScan(file) {
   try {
     const form = new FormData();
     form.append('file', file);
-    bar.style.width = '55%'; lbl.textContent = 'Analyse Gemini en cours...';
+    bar.style.width = '55%'; lbl.textContent = 'Analyse en cours...';
     const r = await fetch('/api/budget/scan-document', { method: 'POST', body: form });
     bar.style.width = '90%'; lbl.textContent = 'Traitement...';
     const data = await r.json();

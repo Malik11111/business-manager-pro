@@ -847,6 +847,49 @@ td {
   box-shadow: 0 0 0 3px rgba(245,158,11,.12);
 }
 
+/* ── Barre de progression scan (style app Python) ──────── */
+.scan-progress-track {
+  position: relative;
+  height: 28px;
+  border-radius: 14px;
+  background: #F3E5F5;
+  overflow: hidden;
+}
+.scan-progress-fill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0%;
+  background: linear-gradient(90deg, #9C27B0, #E91E63, #FFC107);
+  border-radius: 14px;
+  transition: width .45s ease;
+}
+.scan-progress-shine {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 38%;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.38) 50%,
+    rgba(255,255,255,0) 100%);
+  border-radius: 14px;
+  animation: scan-shine 1.6s ease-in-out infinite;
+}
+@keyframes scan-shine {
+  0%   { left: -42%; }
+  100% { left: 142%; }
+}
+.scan-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7B1FA2;
+  letter-spacing: .3px;
+}
+
 /* ── Btn Paramètres (header) ───────────────────────────── */
 .btn-params {
   background: linear-gradient(135deg,rgba(91,33,182,.18),rgba(245,158,11,.15)) !important;

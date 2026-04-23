@@ -327,7 +327,7 @@
           <span id="budget-annee-label" style="font-weight:700;font-size:16px;min-width:50px;text-align:center;">—</span>
           <button onclick="budgetNextYear()" style="padding:5px 10px;border:1px solid #CBD5E1;border-radius:6px;background:#fff;cursor:pointer;font-size:16px;">▶</button>
           <button class="btn btn-green"  onclick="openBudgetModal()" style="margin-left:8px;">+ Ajouter</button>
-          <button class="btn btn-gemini" onclick="openBudgetScanDialog()">📄 Scanner document</button>
+          <button class="btn btn-gemini" onclick="document.getElementById('sb-file-input').click()">📄 Scanner document</button>
           <button class="btn btn-blue"   onclick="exportBudgetCSV()" title="Exporter CSV">⬇ CSV</button>
         </div>
         <!-- KPIs -->
@@ -718,10 +718,11 @@
 
       <!-- Barre de progression -->
       <div id="pdf-progress-wrap" style="display:none;padding:10px 0 6px;">
-        <div style="background:#EDE9FF;border-radius:8px;overflow:hidden;height:8px;">
-          <div id="pdf-progress-bar" style="height:100%;background:linear-gradient(90deg,#5C52CC,#9D95E8);width:0%;transition:width .4s;border-radius:8px;"></div>
+        <div class="scan-progress-track">
+          <div class="scan-progress-fill" id="pdf-progress-bar"></div>
+          <div class="scan-progress-shine"></div>
+          <span class="scan-progress-label" id="pdf-progress-label">Analyse...</span>
         </div>
-        <div id="pdf-progress-label" style="font-size:12px;color:#5C52CC;margin-top:4px;"></div>
       </div>
 
       <!-- Onglets -->
@@ -1207,29 +1208,26 @@
   </div>
 </div>
 
+<!-- Input fichier budget scan (hors overlay, déclenché directement) -->
+<input type="file" id="sb-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSbFileSelected(this)">
+
 <!-- ══════════════════════════════════════════════════════
-     SCAN DOCUMENT — Budget Annuel (overlay Gemini)
+     SCAN DOCUMENT — Budget Annuel (overlay : chargement + preview)
 ══════════════════════════════════════════════════════ -->
 <div id="scan-budget-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;width:580px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
 
-    <!-- Étape 1 : upload -->
+    <!-- Étape 1 : chargement -->
     <div id="sb-step-upload">
-      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un document budget</h2>
-      <p style="color:#6B6B8A;font-size:13px;margin:0 0 18px;">Facture, devis signé ou devis en cours — Gemini détecte le type et pré-remplit le formulaire.</p>
-      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:28px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="sb-drop-zone">
-        <div style="font-size:36px;">📄</div>
-        <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez un document ici</div>
-        <div style="font-size:11px;color:#B0B0C0;">PDF, JPG, PNG acceptés</div>
-        <input type="file" id="sb-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSbFileSelected(this)">
-      </label>
-      <div id="sb-progress-wrap" style="display:none;margin-top:14px;">
-        <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
-          <div id="sb-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+      <h2 style="margin:0 0 16px;color:#1A1A2E;font-size:18px;">📄 Analyse du document...</h2>
+      <div id="sb-progress-wrap" style="margin-bottom:18px;">
+        <div class="scan-progress-track">
+          <div class="scan-progress-fill" id="sb-progress-bar"></div>
+          <div class="scan-progress-shine"></div>
+          <span class="scan-progress-label" id="sb-progress-label">Analyse...</span>
         </div>
-        <div id="sb-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
       </div>
-      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button onclick="closeBudgetScanDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
       </div>
     </div>
@@ -1684,10 +1682,11 @@
       <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">📄 Scanner un contrat</h2>
       <p id="scan-loading-label" style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">Analyse en cours…</p>
       <div id="scan-progress-wrap" style="margin-top:4px;">
-        <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
-          <div id="scan-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+        <div class="scan-progress-track">
+          <div class="scan-progress-fill" id="scan-progress-bar"></div>
+          <div class="scan-progress-shine"></div>
+          <span class="scan-progress-label" id="scan-progress-label">Analyse...</span>
         </div>
-        <div id="scan-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
       </div>
       <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
         <button onclick="closeScanContratDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
@@ -1803,26 +1802,6 @@ function closeScanContratDialog() {
   _scanPdfFile = null;
 }
 
-document.getElementById('scan-drop-zone').addEventListener('dragover', e => {
-  e.preventDefault();
-  e.currentTarget.style.background = '#EDE9FF';
-});
-document.getElementById('scan-drop-zone').addEventListener('dragleave', e => {
-  e.currentTarget.style.background = '#F8F7FF';
-});
-document.getElementById('scan-drop-zone').addEventListener('drop', e => {
-  e.preventDefault();
-  e.currentTarget.style.background = '#F8F7FF';
-  const file = e.dataTransfer.files[0];
-  if (file && file.name.toLowerCase().endsWith('.pdf')) {
-    _scanPdfFile = file;
-    document.getElementById('scan-filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' Ko)';
-    document.getElementById('scan-analyse-btn').disabled = false;
-    document.getElementById('scan-analyse-btn').style.opacity = '1';
-  } else {
-    showToast('Seuls les fichiers PDF sont acceptés', 'error');
-  }
-});
 
 function onScanPdfSelected(input) {
   const file = input.files[0];
@@ -1933,29 +1912,24 @@ async function enregistrerContratScanne() {
 }
 </script>
 
+<!-- Input fichier facture (hors overlay, déclenché directement) -->
+<input type="file" id="sf-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSfFileSelected(this)">
+
 <!-- ══ DIALOG SCAN FACTURE ══════════════════════════════════ -->
 <div id="scan-facture-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:3000;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:14px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:28px 32px;">
 
     <div id="sf-step-upload">
-      <h2 style="margin:0 0 6px;color:#1A1A2E;font-size:18px;">🧾 Scanner une facture d'investissement</h2>
-      <p style="color:#6B6B8A;font-size:13px;margin:0 0 20px;">PDF, JPG ou PNG — les informations de la facture sont extraites automatiquement.</p>
-      <label style="display:block;border:2px dashed #C5C0F0;border-radius:10px;padding:32px;text-align:center;cursor:pointer;color:#5C52CC;background:#F8F7FF;" id="sf-drop-zone">
-        <div style="font-size:36px;">🧾</div>
-        <div style="font-weight:600;margin:8px 0 4px;">Cliquez ou glissez une facture ici</div>
-        <div style="font-size:11px;color:#B0B0C0;margin-bottom:4px;">PDF, JPG, PNG acceptés</div>
-        <div id="sf-filename" style="font-size:12px;color:#9CA3AF;">Aucun fichier sélectionné</div>
-        <input type="file" id="sf-file-input" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="onSfFileSelected(this)">
-      </label>
-      <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;">
-        <button onclick="closeScanFactureDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
-        <button id="sf-analyse-btn" onclick="lancerScanFacture()" disabled style="padding:9px 20px;border:none;border-radius:8px;background:linear-gradient(135deg,#5C52CC,#7C6AE8);color:#fff;font-weight:600;cursor:pointer;opacity:.5;">🔍 Analyser</button>
-      </div>
-      <div id="sf-progress-wrap" style="display:none;margin-top:14px;">
-        <div style="background:#EEE;border-radius:6px;height:8px;overflow:hidden;">
-          <div id="sf-progress-bar" style="background:linear-gradient(90deg,#5C52CC,#9D50BB);height:100%;width:0%;transition:width .4s;"></div>
+      <h2 style="margin:0 0 16px;color:#1A1A2E;font-size:18px;">🧾 Analyse de la facture...</h2>
+      <div id="sf-progress-wrap" style="margin-bottom:18px;">
+        <div class="scan-progress-track">
+          <div class="scan-progress-fill" id="sf-progress-bar"></div>
+          <div class="scan-progress-shine"></div>
+          <span class="scan-progress-label" id="sf-progress-label">Analyse...</span>
         </div>
-        <div id="sf-progress-label" style="font-size:12px;color:#6B6B8A;margin-top:6px;text-align:center;"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeScanFactureDialog()" style="padding:9px 20px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555;">Annuler</button>
       </div>
     </div>
 
@@ -2000,33 +1974,16 @@ function openScanFactureDialog() {
   document.getElementById('sf-file-input').click();
 }
 function _showSfOverlayLoading() {
-  // Prépare l'overlay en mode "chargement" (sans réinitialiser _sfFile)
   document.getElementById('sf-step-upload').style.display = 'block';
   document.getElementById('sf-step-preview').style.display = 'none';
-  document.getElementById('sf-progress-wrap').style.display = 'block';
   document.getElementById('sf-progress-bar').style.width = '10%';
   document.getElementById('sf-progress-label').textContent = 'Chargement...';
-  document.getElementById('sf-analyse-btn').disabled = true;
-  document.getElementById('sf-analyse-btn').style.opacity = '.5';
   document.getElementById('scan-facture-overlay').style.display = 'flex';
 }
 function closeScanFactureDialog() {
   document.getElementById('scan-facture-overlay').style.display = 'none';
   _sfFile = null;
 }
-document.getElementById('sf-drop-zone').addEventListener('click', () => document.getElementById('sf-file-input').click());
-document.getElementById('sf-drop-zone').addEventListener('dragover', e => e.preventDefault());
-document.getElementById('sf-drop-zone').addEventListener('drop', e => {
-  e.preventDefault();
-  const file = e.dataTransfer.files[0];
-  if (file) {
-    const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
-    if (!ok) { showToast('Format accepté : PDF, JPG, PNG', 'error'); return; }
-    _sfFile = file;
-    _showSfOverlayLoading();
-    lancerScanFacture();
-  }
-});
 function onSfFileSelected(input) {
   const file = input.files[0];
   if (!file) return;
@@ -2037,23 +1994,10 @@ function onSfFileSelected(input) {
   _showSfOverlayLoading(); // affiche overlay (ne touche pas à _sfFile)
   lancerScanFacture();     // _sfFile est bien défini ici
 }
-function _setSfFile(file) {
-  // Conservé pour le drag&drop depuis l'overlay
-  const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.name);
-  if (!ok) { showToast('Format accepté : PDF, JPG, PNG', 'error'); return; }
-  _sfFile = file;
-  document.getElementById('sf-filename').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' Ko)';
-  document.getElementById('sf-analyse-btn').disabled = false;
-  document.getElementById('sf-analyse-btn').style.opacity = '1';
-}
 async function lancerScanFacture() {
   if (!_sfFile) return;
-  const btn = document.getElementById('sf-analyse-btn');
-  btn.disabled = true; btn.style.opacity = '.6';
-  const wrap = document.getElementById('sf-progress-wrap');
   const bar = document.getElementById('sf-progress-bar');
   const lbl = document.getElementById('sf-progress-label');
-  wrap.style.display = 'block';
   bar.style.width = '20%'; lbl.textContent = 'Envoi du fichier...';
   try {
     const formData = new FormData();
@@ -2062,9 +2006,8 @@ async function lancerScanFacture() {
     const res = await fetch('/api/materiels/scan-facture', { method: 'POST', body: formData });
     bar.style.width = '90%'; lbl.textContent = 'Traitement...';
     const data = await res.json();
-    if (!res.ok) { showToast(data.error || 'Erreur', 'error'); wrap.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1'; return; }
+    if (!res.ok) { showToast(data.error || 'Erreur', 'error'); closeScanFactureDialog(); return; }
     bar.style.width = '100%'; lbl.textContent = 'Extraction terminée !';
-    setTimeout(() => { wrap.style.display = 'none'; }, 800);
 
     document.getElementById('sf-nom').value = data.nom || '';
     document.getElementById('sf-reference').value = data.reference || data.numero_serie || '';
@@ -2088,14 +2031,12 @@ async function lancerScanFacture() {
     document.getElementById('sf-step-preview').style.display = 'block';
   } catch (e) {
     showToast('Erreur : ' + e.message, 'error');
-    wrap.style.display = 'none'; btn.disabled = false; btn.style.opacity = '1';
+    closeScanFactureDialog();
   }
 }
 function sfRetourUpload() {
-  document.getElementById('sf-step-upload').style.display = 'block';
-  document.getElementById('sf-step-preview').style.display = 'none';
-  document.getElementById('sf-analyse-btn').disabled = false;
-  document.getElementById('sf-analyse-btn').style.opacity = '1';
+  closeScanFactureDialog();
+  setTimeout(() => document.getElementById('sf-file-input').click(), 100);
 }
 async function enregistrerFactureScannee() {
   const nom = document.getElementById('sf-nom').value.trim();
