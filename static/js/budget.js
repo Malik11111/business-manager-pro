@@ -42,23 +42,37 @@ async function lancerBudgetScan(file) {
   const bar = document.getElementById('sb-progress-bar');
   const lbl = document.getElementById('sb-progress-label');
 
-  let pct = 0;
+  let cur = 0, target = 5;
   bar.style.width = '0%'; lbl.textContent = 'Analyse 0%';
-  const timer = setInterval(() => {
-    if (pct < 90) { pct++; bar.style.width = pct + '%'; lbl.textContent = 'Analyse ' + pct + '%'; }
-  }, 35);
+
+  const anim = setInterval(() => {
+    const diff = target - cur;
+    if (diff > 0.05) {
+      cur = Math.min(target, cur + Math.max(0.12, diff * 0.035));
+      bar.style.width = cur + '%';
+      lbl.textContent = 'Analyse ' + Math.round(cur) + '%';
+    }
+  }, 40);
+
+  const crawl = setInterval(() => {
+    if (target < 90) target = Math.min(90, target + 1.8);
+  }, 80);
 
   try {
     const form = new FormData();
     form.append('file', file);
     const r = await fetch('/api/budget/scan-document', { method: 'POST', body: form });
-    clearInterval(timer);
+
+    clearInterval(crawl);
+    target = 100;
+    await new Promise(res => setTimeout(res, 600));
+    clearInterval(anim);
     bar.style.width = '100%'; lbl.textContent = 'Analyse 100%';
+
     const data = await r.json();
     if (!r.ok) { showToast(data.error || 'Erreur', 'error'); closeBudgetScanDialog(); return; }
-    await new Promise(res => setTimeout(res, 500));
+    await new Promise(res => setTimeout(res, 400));
 
-    // Remplir les champs éditables
     document.getElementById('sb-desc').value        = data.description || '';
     document.getElementById('sb-secteur').value     = data.secteur     || '';
     document.getElementById('sb-type').value        = data.type_ligne  || 'Achat';
@@ -70,7 +84,7 @@ async function lancerBudgetScan(file) {
     document.getElementById('sb-step-upload').style.display  = 'none';
     document.getElementById('sb-step-preview').style.display = 'block';
   } catch (e) {
-    clearInterval(timer);
+    clearInterval(crawl); clearInterval(anim);
     showToast('Erreur : ' + e.message, 'error');
     closeBudgetScanDialog();
   }
