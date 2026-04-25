@@ -2146,45 +2146,245 @@ def delete_analyse(aid):
 @app.route('/api/analyse-pdf/export-excel', methods=['GET'])
 @login_required
 def export_analyses_excel():
+    """Export de toutes les analyses — une ligne par analyse."""
     import io, json as _json
     from openpyxl import Workbook
-    from openpyxl.styles import Font, PatternFill
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     etab = _get_etab()
     analyses = AnalysePDF.query.filter_by(etab_id=etab.id).order_by(AnalysePDF.created_at.desc()).all()
     wb = Workbook()
     ws = wb.active
-    ws.title = "Analyses PDF"
-    headers = ['Date Analyse', 'Nom Fichier', 'Société', 'Client', 'Site', 'Matériel', 'État',
-               'Total', 'Critique', 'Élevé', 'Moyen', 'Faible',
-               'N°', 'Niveau', 'Classification', 'Description', 'Action Corrective', 'Référence', 'Statut']
-    ws.append(headers)
-    for cell in ws[1]:
-        cell.font = Font(bold=True, color='FFFFFF')
-        cell.fill = PatternFill('solid', fgColor='1E3A8A')
-    for a in analyses:
-        try:
-            data = _json.loads(a.data_json or '{}')
-        except Exception:
-            data = {}
-        problemes = data.get('problemes', [])
-        base = [a.date_analyse, a.nom_fichier, a.societe, a.client, a.site,
-                a.materiel, a.etat, a.total_problemes,
-                a.nb_critique, a.nb_eleve, a.nb_moyen, a.nb_faible]
-        if not problemes:
-            ws.append(base + ['', '', '', '', '', '', ''])
-        else:
-            for p in problemes:
-                ws.append(base + [
-                    p.get('num', ''), p.get('niveau_risque', ''),
-                    p.get('classification', ''), p.get('description', ''),
-                    p.get('action_corrective', ''), p.get('reference_reglementaire', ''),
-                    p.get('statut', '')
-                ])
+    ws.title = "Historique"
+    BL = PatternFill('solid', fgColor='1F4E78')
+    BD = Border(left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin'))
+    headers = ['Date Analyse', 'Nom Fichier', 'Société', 'Client', 'Site',
+               'Total', 'Critique', 'Élevé', 'Moyen', 'Faible']
+    for c, h in enumerate(headers, 1):
+        cel = ws.cell(row=1, column=c, value=h)
+        cel.fill = BL
+        cel.font = Font(bold=True, color='FFFFFF', size=11)
+        cel.alignment = Alignment(horizontal='center')
+        cel.border = BD
+    for r, a in enumerate(analyses, 2):
+        for c, val in enumerate([a.date_analyse, a.nom_fichier, a.societe, a.client, a.site,
+                                  a.total_problemes, a.nb_critique, a.nb_eleve, a.nb_moyen, a.nb_faible], 1):
+            cel = ws.cell(row=r, column=c, value=val)
+            cel.border = BD
+            cel.font = Font(size=11)
+    for col, w in zip('ABCDEFGHIJ', [14, 35, 20, 20, 20, 8, 10, 8, 8, 8]):
+        ws.column_dimensions[col].width = w
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
     from flask import send_file
-    return send_file(buf, as_attachment=True, download_name='analyses_pdf.xlsx',
+    return send_file(buf, as_attachment=True, download_name='historique_analyses.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/api/analyse-pdf/<int:aid>/export-excel', methods=['GET'])
+@login_required
+def export_analyse_excel_detail(aid):
+    """Génère le rapport Excel complet 3 feuilles pour une analyse (identique app Python)."""
+    import io, json as _json
+    from openpyxl import Workbook
+    from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+    from openpyxl.chart import PieChart, Reference
+    from openpyxl.chart.series import DataPoint
+    from flask import send_file
+    etab = _get_etab()
+    a = AnalysePDF.query.filter_by(id=aid, etab_id=etab.id).first_or_404()
+    try:
+        data = _json.loads(a.data_json or '{}')
+    except Exception:
+        data = {}
+    meta = data.get('metadata', {})
+    stats = data.get('statistiques', {})
+    problemes = data.get('problemes', [])
+    resume = data.get('resume_executif', a.resume_executif or '')
+
+    BL = PatternFill('solid', fgColor='1F4E78')
+    BLANC = PatternFill('solid', fgColor='FFFFFF')
+    BD = Border(left=Side(style='thin'), right=Side(style='thin'),
+                top=Side(style='thin'), bottom=Side(style='thin'))
+    couleurs = {
+        'CRITIQUE': (PatternFill('solid', fgColor='FF0000'), Font(bold=True, color='FFFFFF', size=11)),
+        'ÉLEVÉ':    (PatternFill('solid', fgColor='FFA500'), Font(bold=True, color='FFFFFF', size=11)),
+        'ELEVE':    (PatternFill('solid', fgColor='FFA500'), Font(bold=True, color='FFFFFF', size=11)),
+        'MOYEN':    (PatternFill('solid', fgColor='FFFF00'), Font(bold=True, color='000000', size=11)),
+        'FAIBLE':   (PatternFill('solid', fgColor='90EE90'), Font(bold=True, color='000000', size=11)),
+        'MINIMAL':  (PatternFill('solid', fgColor='D3D3D3'), Font(bold=True, color='000000', size=11)),
+    }
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = (meta.get('societe') or a.societe or 'RAPPORT')[:31]
+
+    # ── FEUILLE 1 : DÉTAIL ──
+    r = 1
+    ws.merge_cells(f'A{r}:G{r}')
+    ws[f'A{r}'] = 'RAPPORT D\'ANALYSE DE SÉCURITÉ'
+    ws[f'A{r}'].font = Font(bold=True, size=14, color='1F4E78')
+    ws[f'A{r}'].alignment = Alignment(horizontal='center')
+    r += 1
+    for cle, val in [
+        ('Client', meta.get('client') or a.client),
+        ('Site', meta.get('site') or a.site),
+        ("Date d'intervention", meta.get('date_intervention') or a.date_analyse),
+        ('Société', meta.get('societe') or a.societe),
+        ('Matériel inspecté', meta.get('materiel') or a.materiel),
+        ('État du matériel', meta.get('etat') or a.etat),
+    ]:
+        if val:
+            ws[f'A{r}'] = f'{cle} :'
+            ws[f'A{r}'].font = Font(bold=True, size=11)
+            ws.merge_cells(f'B{r}:G{r}')
+            ws[f'B{r}'] = val
+            ws[f'B{r}'].font = Font(size=11)
+            r += 1
+    r += 1
+    for c, h in enumerate(['N°', 'Classification', 'Description', 'Action Corrective',
+                            'Niveau de Risque', 'Statut', 'Réf. Réglementaire'], 1):
+        cel = ws.cell(row=r, column=c, value=h)
+        cel.fill = BL
+        cel.font = Font(bold=True, color='FFFFFF', size=12)
+        cel.alignment = Alignment(horizontal='center', vertical='center')
+        cel.border = BD
+    ws.freeze_panes = f'A{r+1}'
+    r += 1
+    for pb in problemes:
+        risque = pb.get('niveau_risque', 'MINIMAL').upper()
+        fill_r, font_r = couleurs.get(risque, (PatternFill('solid', fgColor='D3D3D3'), Font(bold=True, size=11)))
+        for c, val in enumerate([pb.get('num', ''), pb.get('classification', ''), pb.get('description', ''),
+                                  pb.get('action_corrective', ''), pb.get('niveau_risque', ''),
+                                  pb.get('statut', ''), pb.get('reference_reglementaire', '')], 1):
+            cel = ws.cell(row=r, column=c, value=val)
+            cel.border = BD
+            cel.alignment = Alignment(vertical='top', wrap_text=(c in [3, 4, 7]),
+                                      horizontal='center' if c in [1, 5, 6] else 'left')
+            cel.fill = fill_r if c == 5 else BLANC
+            cel.font = font_r if c == 5 else Font(size=11)
+        r += 1
+    for col, w in zip('ABCDEFG', [6, 20, 45, 35, 16, 14, 25]):
+        ws.column_dimensions[col].width = w
+    for row in ws.iter_rows(min_row=r - len(problemes), max_row=r - 1):
+        ws.row_dimensions[row[0].row].height = 40
+    r += 1
+    ws[f'A{r}'] = 'STATISTIQUES'
+    ws[f'A{r}'].font = Font(bold=True, size=12, color='1F4E78')
+    r += 1
+    for label, val in [('Total', stats.get('total', a.total_problemes or 0)),
+                        ('CRITIQUE', stats.get('critique', a.nb_critique or 0)),
+                        ('ÉLEVÉ', stats.get('eleve', a.nb_eleve or 0)),
+                        ('MOYEN', stats.get('moyen', a.nb_moyen or 0)),
+                        ('FAIBLE', stats.get('faible', a.nb_faible or 0)),
+                        ('MINIMAL', stats.get('minimal', 0))]:
+        ws[f'A{r}'] = label
+        ws[f'A{r}'].font = Font(bold=True, size=11)
+        ws[f'B{r}'] = val
+        ws[f'B{r}'].font = Font(size=11)
+        r += 1
+
+    # ── FEUILLE 2 : TABLEAU DE BORD ──
+    ws2 = wb.create_sheet(title='TABLEAU DE BORD')
+    ws2.merge_cells('A1:G1')
+    ws2['A1'] = 'TABLEAU DE BORD - SYNTHESE INSPECTION SECURITE'
+    ws2['A1'].font = Font(bold=True, size=16, color='FFFFFF')
+    ws2['A1'].fill = PatternFill('solid', fgColor='1F4E78')
+    ws2['A1'].alignment = Alignment(horizontal='center', vertical='center')
+    ws2.row_dimensions[1].height = 40
+    r2 = 3
+    total = max(stats.get('total', a.total_problemes or 0), 1)
+    niveaux_data = [
+        ('CRITIQUE', stats.get('critique', a.nb_critique or 0), 'FF0000'),
+        ('ELEVE',    stats.get('eleve',    a.nb_eleve    or 0), 'FFA500'),
+        ('MOYEN',    stats.get('moyen',    a.nb_moyen    or 0), 'FFFF00'),
+        ('FAIBLE',   stats.get('faible',   a.nb_faible   or 0), '90EE90'),
+        ('MINIMAL',  stats.get('minimal',  0),                  'D3D3D3'),
+    ]
+    for c, h in enumerate(['Niveau', 'Nombre', 'Pourcentage'], 1):
+        cel = ws2.cell(row=r2, column=c, value=h)
+        cel.fill = BL
+        cel.font = Font(bold=True, color='FFFFFF', size=11)
+        cel.alignment = Alignment(horizontal='center')
+        cel.border = BD
+    r2 += 1
+    debut_stats = r2
+    for niveau, nb, couleur in niveaux_data:
+        pct = round(nb / total * 100, 1)
+        ws2.cell(row=r2, column=1, value=niveau).fill = PatternFill('solid', fgColor=couleur)
+        ws2.cell(row=r2, column=1).font = Font(bold=True, size=11)
+        ws2.cell(row=r2, column=1).border = BD
+        ws2.cell(row=r2, column=1).alignment = Alignment(horizontal='center')
+        ws2.cell(row=r2, column=2, value=nb).font = Font(bold=True, size=14)
+        ws2.cell(row=r2, column=2).alignment = Alignment(horizontal='center')
+        ws2.cell(row=r2, column=2).border = BD
+        ws2.cell(row=r2, column=3, value=f'{pct}%').alignment = Alignment(horizontal='center')
+        ws2.cell(row=r2, column=3).border = BD
+        r2 += 1
+    if stats.get('total', a.total_problemes or 0) > 0:
+        pie = PieChart()
+        pie.title = 'Repartition par niveau'
+        pie.style = 10
+        pie.width = 14
+        pie.height = 10
+        labels = Reference(ws2, min_col=1, min_row=debut_stats, max_row=debut_stats + 4)
+        values = Reference(ws2, min_col=2, min_row=debut_stats, max_row=debut_stats + 4)
+        pie.add_data(values, titles_from_data=False)
+        pie.set_categories(labels)
+        for idx, col_hex in enumerate(['FF0000', 'FFA500', 'FFFF00', '90EE90', 'D3D3D3']):
+            pt = DataPoint(idx=idx)
+            pt.graphicalProperties.solidFill = col_hex
+            pie.series[0].data_points.append(pt)
+        ws2.add_chart(pie, f'E{debut_stats}')
+    for col, w in zip('ABCDEFG', [18, 14, 14, 35, 14, 14, 5]):
+        ws2.column_dimensions[col].width = w
+
+    # ── FEUILLE 3 : RÉSUMÉ EXÉCUTIF ──
+    if resume:
+        ws3 = wb.create_sheet(title='RÉSUMÉ EXÉCUTIF')
+        ws3.merge_cells('A1:F1')
+        ws3['A1'] = 'RÉSUMÉ EXÉCUTIF — INSPECTION SÉCURITÉ'
+        ws3['A1'].font = Font(bold=True, size=16, color='FFFFFF')
+        ws3['A1'].fill = PatternFill('solid', fgColor='1F4E78')
+        ws3['A1'].alignment = Alignment(horizontal='center', vertical='center')
+        ws3.row_dimensions[1].height = 45
+        ws3.merge_cells('A3:F3')
+        ws3['A3'] = f"Site : {meta.get('site', a.site)}  |  Client : {meta.get('client', a.client)}  |  Date : {meta.get('date_intervention', a.date_analyse)}"
+        ws3['A3'].font = Font(size=11, color='555555')
+        ws3['A3'].alignment = Alignment(horizontal='center')
+        ws3.merge_cells('A5:F5')
+        ws3['A5'] = 'SYNTHÈSE POUR LA DIRECTION'
+        ws3['A5'].font = Font(bold=True, size=13, color='1F4E78')
+        ws3.merge_cells('A7:F15')
+        ws3['A7'] = resume
+        ws3['A7'].font = Font(size=12)
+        ws3['A7'].alignment = Alignment(wrap_text=True, vertical='top')
+        ws3.row_dimensions[7].height = 180
+        r3 = 17
+        for label, val in [
+            ('Actions urgentes (CRITIQUE)', stats.get('critique', a.nb_critique or 0)),
+            ('Actions à planifier (ÉLEVÉ)',  stats.get('eleve',    a.nb_eleve    or 0)),
+            ('Points à surveiller (MOYEN)',  stats.get('moyen',    a.nb_moyen    or 0)),
+            ('Total des remarques',          stats.get('total',    a.total_problemes or 0)),
+        ]:
+            ws3[f'A{r3}'] = label
+            ws3[f'A{r3}'].font = Font(size=11)
+            ws3[f'A{r3}'].border = BD
+            ws3[f'B{r3}'] = val
+            ws3[f'B{r3}'].font = Font(bold=True, size=14)
+            ws3[f'B{r3}'].alignment = Alignment(horizontal='center')
+            ws3[f'B{r3}'].border = BD
+            r3 += 1
+        for col, w in zip('ABCDEF', [45, 15, 10, 10, 10, 10]):
+            ws3.column_dimensions[col].width = w
+
+    wb.active = wb.sheetnames.index('TABLEAU DE BORD')
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    nom = f"Rapport_{a.date_analyse}_{a.nom_fichier[:25]}.xlsx".replace('/', '-').replace(' ', '_')
+    return send_file(buf, as_attachment=True, download_name=nom,
                      mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 

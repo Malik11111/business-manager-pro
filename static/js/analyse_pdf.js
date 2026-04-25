@@ -195,11 +195,16 @@ function renderHistorique(analyses) {
     <td>${esc(a.date_analyse || '—')}</td>
     <td>
       <div class="row-actions">
-        <button class="btn-sm btn-sm-blue" onclick="voirDetailAnalyse(${a.id})">👁️</button>
-        <button class="btn-sm btn-sm-red"  onclick="supprimerAnalyse(${a.id})">🗑️</button>
+        <button class="btn-sm btn-sm-blue" onclick="voirDetailAnalyse(${a.id})" title="Voir le détail">👁️</button>
+        <button class="btn-sm" style="background:#166534;color:#fff;border:none;border-radius:4px;padding:3px 7px;cursor:pointer;font-size:12px;" onclick="downloadAnalyseExcel(${a.id})" title="Télécharger rapport Excel complet">⬇️</button>
+        <button class="btn-sm btn-sm-red"  onclick="supprimerAnalyse(${a.id})" title="Supprimer">🗑️</button>
       </div>
     </td>
   </tr>`).join('');
+}
+
+function downloadAnalyseExcel(id) {
+  window.location.href = `/api/analyse-pdf/${id}/export-excel`;
 }
 
 function exportAnalysesExcel() {
