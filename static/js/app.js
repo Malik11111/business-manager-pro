@@ -15,7 +15,7 @@ const MODULES = [
   { id: 'pharmacie',    icon: '💊', label: 'Pharmacie',    ready: true },
 ];
 
-let _activeModule = 'prestataires';
+let _activeModule = 'parametres';
 
 /* ── Demarrage ──────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await buildEtabSelector();
   bindEvents();
   updateHeaderForRole();
-  navigateTo('prestataires');
+  navigateTo('parametres');
 });
 
 /* ── Affichage conditionnel selon le role ───────────────── */
