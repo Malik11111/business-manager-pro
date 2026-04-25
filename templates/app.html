@@ -331,8 +331,24 @@
           <div class="kpi-card orange" id="bkpi-encours" style="flex:1;min-width:120px"><div class="kpi-label">En cours / Devis</div><div class="kpi-value" id="bkpi-encours-v">—</div></div>
           <div class="kpi-card"        id="bkpi-travaux" style="flex:1;min-width:120px;border-left-color:#EF4444;"><div class="kpi-label">Travaux / Achats</div><div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><span class="kpi-value" id="bkpi-travaux-v" style="color:#7F1D1D;">—</span><span class="kpi-value" id="bkpi-achats-v" style="color:#14532D;">—</span></div></div>
         </div>
+        <!-- Budget Prévisionnel -->
+        <div style="padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#F8FAFC;border-top:1px solid #E0E0E0;border-bottom:1px solid #E0E0E0;">
+          <label style="font-weight:700;font-size:13px;white-space:nowrap;color:#374151;">💰 Budget prévisionnel :</label>
+          <input id="budget-prev-input" type="number" min="0" placeholder="ex: 100 000" style="width:130px;padding:5px 9px;border:1px solid #CBD5E1;border-radius:6px;font-size:13px;background:#fff" oninput="renderBudgetPrevisionnel()" onchange="saveBudgetPrevisionnel()">
+          <span style="font-size:13px;color:#555;margin-left:-6px">€</span>
+          <div id="budget-prev-result" style="flex:1;display:none;gap:16px;align-items:center;flex-wrap:wrap;">
+            <span id="budget-prev-engage" style="font-size:13px;color:#374151;white-space:nowrap"></span>
+            <span id="budget-prev-reste" style="font-size:13px;font-weight:700;padding:5px 14px;border-radius:8px;white-space:nowrap"></span>
+            <div style="flex:1;min-width:140px;max-width:280px;">
+              <div style="height:10px;background:#E5E7EB;border-radius:5px;overflow:hidden">
+                <div id="budget-prev-bar-fill" style="height:100%;border-radius:5px;width:0%;transition:width 0.4s ease"></div>
+              </div>
+              <div id="budget-prev-pct" style="font-size:11px;color:#6B7280;margin-top:2px;text-align:right"></div>
+            </div>
+          </div>
+        </div>
         <!-- Filtres -->
-        <div style="padding:0 14px 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <div style="padding:0 14px 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-top:6px;">
           <input id="budget-search" class="filter-input" placeholder="🔍 Rechercher…" style="min-width:180px" oninput="renderBudget()">
           <select id="budget-filter-type"        class="filter-select" onchange="renderBudget()"><option value="">Tous les types</option><option>Travaux</option><option>Achat</option></select>
           <select id="budget-filter-realisation" class="filter-select" onchange="renderBudget()"><option value="">Toutes les réalisations</option><option>Fait</option><option>Devis signé</option><option>Devis en cours</option><option>En attente</option></select>

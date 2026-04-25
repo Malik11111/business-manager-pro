@@ -157,7 +157,55 @@ async function loadBudget() {
     document.getElementById('budget-annee-label').textContent = _budget.annee;
     renderBudget();
     renderBudgetKPIs();
+    loadBudgetPrevisionnel();
   } catch (e) { showToast(e.message, 'error'); }
+}
+
+function saveBudgetPrevisionnel() {
+  const val = parseFloat(document.getElementById('budget-prev-input')?.value) || 0;
+  localStorage.setItem(`budget_prev_${_budget.annee}`, val > 0 ? val : '');
+}
+
+function loadBudgetPrevisionnel() {
+  const saved = localStorage.getItem(`budget_prev_${_budget.annee}`);
+  const inp = document.getElementById('budget-prev-input');
+  if (inp) inp.value = saved || '';
+  renderBudgetPrevisionnel();
+}
+
+function renderBudgetPrevisionnel() {
+  const prev = parseFloat(document.getElementById('budget-prev-input')?.value) || 0;
+  const total = _budget.lignes.reduce((s, l) => s + (l.montant_ttc || 0), 0);
+  const result = document.getElementById('budget-prev-result');
+  if (!result) return;
+
+  if (prev <= 0) { result.style.display = 'none'; return; }
+  result.style.display = 'flex';
+
+  const reste = prev - total;
+  const pct = Math.min(100, (total / prev) * 100);
+  const over = total > prev;
+  const fmt = v => Math.abs(v).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+  document.getElementById('budget-prev-engage').textContent =
+    `Engagé : ${fmt(total)} sur ${fmt(prev)}`;
+
+  const resteEl = document.getElementById('budget-prev-reste');
+  if (over) {
+    resteEl.textContent = `⚠️ Dépassement : ${fmt(Math.abs(reste))}`;
+    resteEl.style.background = '#FEE2E2';
+    resteEl.style.color = '#991B1B';
+  } else {
+    resteEl.textContent = `✅ Reste : ${fmt(reste)}`;
+    resteEl.style.background = '#DCFCE7';
+    resteEl.style.color = '#166534';
+  }
+
+  const fill = document.getElementById('budget-prev-bar-fill');
+  fill.style.width = pct + '%';
+  fill.style.background = over ? '#EF4444' : pct > 80 ? '#F59E0B' : '#22C55E';
+
+  document.getElementById('budget-prev-pct').textContent = Math.round(pct) + '% utilisé';
 }
 
 function budgetPrevYear() {
@@ -182,6 +230,7 @@ function renderBudgetKPIs() {
   document.getElementById('bkpi-encours-v').textContent = fmt(encours);
   document.getElementById('bkpi-travaux-v').textContent = `T: ${fmt(travaux)}`;
   document.getElementById('bkpi-achats-v').textContent  = `/ A: ${fmt(achats)}`;
+  renderBudgetPrevisionnel();
 }
 
 function renderBudget() {
