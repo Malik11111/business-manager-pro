@@ -407,6 +407,130 @@ function switchParamsTab(tab) {
   document.querySelectorAll('.params-panel').forEach(p => p.classList.add('hidden'));
   document.getElementById(`ptab-${tab}`).classList.add('active');
   document.getElementById(`params-panel-${tab}`).classList.remove('hidden');
+  if (tab === 'graphes') renderParamsGraphes();
+}
+
+/* ── GRAPHIQUES PARAMÈTRES ──────────────────────────────── */
+let _chartContrats = null;
+
+const _CONTRAT_PALETTE = [
+  { label: 'CDI',             color: '#6366F1', glow: 'rgba(99,102,241,0.4)'  },
+  { label: 'CDD',             color: '#EC4899', glow: 'rgba(236,72,153,0.4)'  },
+  { label: 'Intérim',         color: '#F59E0B', glow: 'rgba(245,158,11,0.4)'  },
+  { label: 'Stage',           color: '#10B981', glow: 'rgba(16,185,129,0.4)'  },
+  { label: 'Apprentissage',   color: '#3B82F6', glow: 'rgba(59,130,246,0.4)'  },
+  { label: 'Bénévolat',       color: '#8B5CF6', glow: 'rgba(139,92,246,0.4)'  },
+  { label: 'Intervenant ext', color: '#14B8A6', glow: 'rgba(20,184,166,0.4)'  },
+  { label: 'Autre',           color: '#94A3B8', glow: 'rgba(148,163,184,0.4)' },
+];
+
+function renderParamsGraphes() {
+  const personnel = _paramsPersonnel || [];
+  const total = personnel.length;
+
+  // Compter par type de contrat
+  const counts = {};
+  personnel.forEach(p => {
+    const k = p.type_contrat?.trim() || 'Autre';
+    counts[k] = (counts[k] || 0) + 1;
+  });
+
+  // Ordonner selon la palette + regrouper les inconnus dans "Autre"
+  const knownLabels = _CONTRAT_PALETTE.map(c => c.label);
+  Object.keys(counts).forEach(k => {
+    if (!knownLabels.includes(k)) { counts['Autre'] = (counts['Autre'] || 0) + counts[k]; delete counts[k]; }
+  });
+  const entries = _CONTRAT_PALETTE.filter(c => counts[c.label] > 0).map(c => ({ ...c, count: counts[c.label] }));
+
+  // ── KPIs ──
+  const kpiEl = document.getElementById('params-graph-kpis');
+  if (kpiEl) {
+    kpiEl.innerHTML = [{ label: 'Total personnel', value: total, color: '#1E293B', bg: '#F1F5F9' }]
+      .concat(entries.map(e => ({ label: e.label, value: e.count, color: e.color, bg: e.color + '18' })))
+      .map(k => `<div style="padding:10px 16px;border-radius:10px;background:${k.bg};min-width:90px;text-align:center;border:1.5px solid ${k.color}22">
+        <div style="font-size:22px;font-weight:800;color:${k.color}">${k.value}</div>
+        <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px">${k.label}</div>
+      </div>`).join('');
+  }
+
+  // ── Légende ──
+  const legendEl = document.getElementById('params-graph-legend');
+  if (legendEl) {
+    legendEl.innerHTML = entries.map(e => {
+      const pct = total > 0 ? Math.round(e.count / total * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:14px;height:14px;border-radius:4px;background:${e.color};flex-shrink:0;box-shadow:0 2px 6px ${e.glow}"></div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:#1E293B;margin-bottom:3px">
+            <span>${e.label}</span>
+            <span style="color:${e.color}">${e.count} <span style="font-size:11px;color:#94A3B8">(${pct}%)</span></span>
+          </div>
+          <div style="height:6px;background:#F1F5F9;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${e.color},${e.color}99);border-radius:3px;transition:width 0.6s ease"></div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Chart.js doughnut ──
+  const ctx = document.getElementById('chart-params-contrats');
+  if (!ctx) return;
+  if (_chartContrats) { _chartContrats.destroy(); _chartContrats = null; }
+  if (entries.length === 0) { ctx.getContext('2d').clearRect(0,0,300,300); return; }
+
+  _chartContrats = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(e => e.label),
+      datasets: [{
+        data: entries.map(e => e.count),
+        backgroundColor: entries.map(e => e.color),
+        borderColor: '#ffffff',
+        borderWidth: 3,
+        hoverBorderWidth: 4,
+        borderRadius: 6,
+        hoverOffset: 14,
+      }]
+    },
+    options: {
+      responsive: false,
+      cutout: '52%',
+      animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.92)',
+          titleColor: '#F8FAFC',
+          bodyColor: '#CBD5E1',
+          padding: 12,
+          cornerRadius: 10,
+          callbacks: {
+            label: ctx => {
+              const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+              return `  ${ctx.parsed} personne${ctx.parsed > 1 ? 's' : ''} — ${pct}%`;
+            }
+          }
+        }
+      }
+    },
+    plugins: [{
+      id: 'centerText',
+      afterDraw(chart) {
+        const { ctx, chartArea: { width, height, left, top } } = chart;
+        ctx.save();
+        ctx.font = 'bold 28px Inter, Arial, sans-serif';
+        ctx.fillStyle = '#1E293B';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(total, left + width / 2, top + height / 2 - 10);
+        ctx.font = '12px Inter, Arial, sans-serif';
+        ctx.fillStyle = '#64748B';
+        ctx.fillText('AGENTS', left + width / 2, top + height / 2 + 14);
+        ctx.restore();
+      }
+    }]
+  });
 }
 
 /* ── PERSONNEL ──────────────────────────────────────────── */
