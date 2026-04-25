@@ -187,19 +187,12 @@ function renderHistorique(analyses) {
   const tbody = document.getElementById('historique-tbody');
   if (!tbody) return;
   if (!analyses.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Aucune analyse dans l\'historique.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Aucune analyse dans l\'historique.</td></tr>';
     return;
   }
   tbody.innerHTML = analyses.map(a => `<tr>
+    <td style="font-size:12px;font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(a.nom_fichier)}">${esc(a.nom_fichier || '—')}</td>
     <td>${esc(a.date_analyse || '—')}</td>
-    <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(a.nom_fichier)}">${esc(a.nom_fichier || '—')}</td>
-    <td>${esc(a.societe || '—')}</td>
-    <td>${esc(a.site || '—')}</td>
-    <td style="font-weight:700;color:#5C52CC">${a.total_problemes || 0}</td>
-    <td style="font-weight:700;color:#C62828">${a.nb_critique || 0}</td>
-    <td style="font-weight:700;color:#EF6C00">${a.nb_eleve || 0}</td>
-    <td style="font-weight:700;color:#F57F17">${a.nb_moyen || 0}</td>
-    <td style="font-size:11px;color:#6B6B8A;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(a.resume_executif)}">${esc((a.resume_executif || '').slice(0, 80))}${a.resume_executif?.length > 80 ? '…' : ''}</td>
     <td>
       <div class="row-actions">
         <button class="btn-sm btn-sm-blue" onclick="voirDetailAnalyse(${a.id})">👁️</button>
@@ -207,6 +200,10 @@ function renderHistorique(analyses) {
       </div>
     </td>
   </tr>`).join('');
+}
+
+function exportAnalysesExcel() {
+  window.location.href = '/api/analyse-pdf/export-excel';
 }
 
 async function voirDetailAnalyse(id) {

@@ -2143,6 +2143,51 @@ def delete_analyse(aid):
     return jsonify({'ok': True})
 
 
+@app.route('/api/analyse-pdf/export-excel', methods=['GET'])
+@login_required
+def export_analyses_excel():
+    import io, json as _json
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+    etab = _get_etab()
+    analyses = AnalysePDF.query.filter_by(etab_id=etab.id).order_by(AnalysePDF.created_at.desc()).all()
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Analyses PDF"
+    headers = ['Date Analyse', 'Nom Fichier', 'Société', 'Client', 'Site', 'Matériel', 'État',
+               'Total', 'Critique', 'Élevé', 'Moyen', 'Faible',
+               'N°', 'Niveau', 'Classification', 'Description', 'Action Corrective', 'Référence', 'Statut']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color='FFFFFF')
+        cell.fill = PatternFill('solid', fgColor='1E3A8A')
+    for a in analyses:
+        try:
+            data = _json.loads(a.data_json or '{}')
+        except Exception:
+            data = {}
+        problemes = data.get('problemes', [])
+        base = [a.date_analyse, a.nom_fichier, a.societe, a.client, a.site,
+                a.materiel, a.etat, a.total_problemes,
+                a.nb_critique, a.nb_eleve, a.nb_moyen, a.nb_faible]
+        if not problemes:
+            ws.append(base + ['', '', '', '', '', '', ''])
+        else:
+            for p in problemes:
+                ws.append(base + [
+                    p.get('num', ''), p.get('niveau_risque', ''),
+                    p.get('classification', ''), p.get('description', ''),
+                    p.get('action_corrective', ''), p.get('reference_reglementaire', ''),
+                    p.get('statut', '')
+                ])
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, as_attachment=True, download_name='analyses_pdf.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
 # ══════════════════════════════════════════════════════
 #  PARC AUTO
 # ══════════════════════════════════════════════════════

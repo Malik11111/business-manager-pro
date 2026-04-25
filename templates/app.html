@@ -714,6 +714,7 @@
           <span id="pdf-filename" style="font-size:13px;color:#6B6B8A;align-self:center;"></span>
         </div>
         <button id="pdf-analyse-btn" class="btn btn-gemini" onclick="lancerAnalysePDF()" disabled>🔍 Analyser</button>
+        <button class="btn" onclick="exportAnalysesExcel()" style="background:#1E3A8A;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">⬇ Export Excel</button>
       </div>
 
       <!-- Barre de progression -->
@@ -780,9 +781,7 @@
         <div class="table-wrapper">
           <table id="historique-table">
             <thead><tr>
-              <th>DATE</th><th>FICHIER</th><th>SOCIÉTÉ</th><th>SITE</th>
-              <th>TOTAL</th><th>CRITIQUE</th><th>ÉLEVÉ</th><th>MOYEN</th>
-              <th>RÉSUMÉ</th><th>ACTIONS</th>
+              <th>FICHIER PDF</th><th>DATE D'ANALYSE</th><th>ACTIONS</th>
             </tr></thead>
             <tbody id="historique-tbody"></tbody>
           </table>
