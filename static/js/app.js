@@ -494,6 +494,16 @@ function renderParamsGraphes() {
       cutout: '55%',
       animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
       layout: { padding: 28 },
+      onClick: (evt, elements) => {
+        if (elements.length > 0) {
+          const label = entries[elements[0].index]?.label;
+          const color = entries[elements[0].index]?.color;
+          if (label) _showContratDetail(label, color);
+        }
+      },
+      onHover: (evt, elements) => {
+        evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+      },
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -742,6 +752,36 @@ async function deleteParamsLieu(id, name) {
     showToast('Supprimé.', 'warning');
     await loadParamsLieux();
   } catch (e) { showToast(e.message, 'error'); }
+}
+
+function _showContratDetail(typeContrat, color) {
+  const liste = (_paramsPersonnel || []).filter(p => {
+    const k = p.type_contrat?.trim() || 'Autre';
+    return k === typeContrat;
+  }).sort((a, b) => (a.nom || '').localeCompare(b.nom || ''));
+
+  const detail  = document.getElementById('params-graph-detail');
+  const header  = document.getElementById('params-graph-detail-header');
+  const title   = document.getElementById('params-graph-detail-title');
+  const tbody   = document.getElementById('params-graph-detail-tbody');
+  if (!detail) return;
+
+  title.textContent = `${typeContrat} — ${liste.length} agent${liste.length > 1 ? 's' : ''}`;
+  header.style.background = color;
+
+  tbody.innerHTML = liste.length === 0
+    ? '<tr class="empty-row"><td colspan="6">Aucun agent.</td></tr>'
+    : liste.map(p => `<tr>
+        <td><strong>${esc(p.nom || '—')}</strong></td>
+        <td>${esc(p.prenom || '—')}</td>
+        <td><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${color}22;color:${color};font-weight:600">${esc(p.poste || '—')}</span></td>
+        <td>${esc(p.service || '—')}</td>
+        <td>${esc(p.telephone || '—')}</td>
+        <td>${esc(p.date_arrivee || '—')}</td>
+      </tr>`).join('');
+
+  detail.style.display = 'block';
+  detail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 /* ── Demo data ──────────────────────────────────────────── */

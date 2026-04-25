@@ -117,13 +117,29 @@
         <!-- KPIs -->
         <div id="params-graph-kpis" style="display:flex;gap:10px;padding:16px 16px 8px;flex-wrap:wrap;"></div>
         <!-- Contenu principal -->
-        <div style="display:flex;gap:32px;padding:8px 24px 28px;align-items:center;flex-wrap:wrap;justify-content:center;">
+        <div style="display:flex;gap:32px;padding:8px 24px 20px;align-items:center;flex-wrap:wrap;justify-content:center;">
           <!-- Camembert -->
           <div style="position:relative;flex-shrink:0;">
-            <canvas id="chart-params-contrats" width="460" height="460"></canvas>
+            <canvas id="chart-params-contrats" width="460" height="460" style="cursor:pointer"></canvas>
+            <div style="text-align:center;font-size:12px;color:#94A3B8;margin-top:4px">Cliquer sur un segment pour voir la liste</div>
           </div>
           <!-- Légende -->
           <div id="params-graph-legend" style="flex:1;min-width:220px;max-width:380px;display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+        <!-- Panneau détail au clic -->
+        <div id="params-graph-detail" style="display:none;margin:0 24px 24px;border-radius:12px;overflow:hidden;border:1px solid #E0E0E0;">
+          <div id="params-graph-detail-header" style="padding:12px 18px;display:flex;align-items:center;justify-content:space-between;">
+            <span id="params-graph-detail-title" style="font-weight:700;font-size:15px;color:#fff"></span>
+            <button onclick="document.getElementById('params-graph-detail').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px">✕ Fermer</button>
+          </div>
+          <div class="table-wrapper" style="max-height:280px;">
+            <table style="font-size:13px;">
+              <thead><tr>
+                <th>NOM</th><th>PRÉNOM</th><th>POSTE</th><th>SERVICE</th><th>TÉL.</th><th>ENTRÉE</th>
+              </tr></thead>
+              <tbody id="params-graph-detail-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div><!-- /view-parametres -->
