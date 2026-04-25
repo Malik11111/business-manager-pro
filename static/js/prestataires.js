@@ -476,7 +476,7 @@ function renderCharts() {
         onClick: (evt, elements) => {
           if (elements.length > 0) {
             const p = top8[elements[0].index];
-            if (p) editPrestataire(p.id);
+            if (p) _showPrestaireDetail(p.nom);
           }
         }
       }
@@ -532,6 +532,89 @@ function _showServiceDetail(service) {
 
 function backToPieChart() {
   renderCharts();
+}
+
+function _showPrestaireDetail(nom) {
+  const contrats = _presta.filter(p => p.nom === nom);
+  if (!contrats.length) return;
+
+  const titleEl = document.getElementById('chart-bar-title');
+  const backBtn = document.getElementById('chart-bar-back');
+  const canvas  = document.getElementById('chart-bar');
+  const detail  = document.getElementById('chart-bar-detail');
+  if (titleEl) titleEl.textContent = `📋 Fiche : ${nom}`;
+  if (backBtn) backBtn.style.display = 'inline-flex';
+  if (canvas)  canvas.style.display = 'none';
+  if (!detail) return;
+  detail.style.display = 'block';
+
+  const totalAll   = _presta.reduce((s, p) => s + (p.montant || 0), 0);
+  const montantTot = contrats.reduce((s, p) => s + (p.montant || 0), 0);
+  const pct        = totalAll ? (montantTot * 100 / totalAll).toFixed(1) : '0.0';
+  const nb         = contrats.length;
+  const color      = _palette[_presta.findIndex(p => p.nom === nom) % _palette.length] || '#1565C0';
+
+  function fmtM(v) {
+    if (v >= 1e6) return (v/1e6).toFixed(1) + 'M €';
+    if (v >= 1e3) return (v/1e3).toFixed(0) + 'k €';
+    return v + ' €';
+  }
+  function statusHtml(dateFin) {
+    if (!dateFin) return '—';
+    const j = Math.round((new Date(dateFin) - new Date()) / 86400000);
+    if (j < 0)   return `<span style="color:#C62828;font-weight:700">⛔ Expiré (${Math.abs(j)}j)</span>`;
+    if (j <= 30) return `<span style="color:#E53935;font-weight:700">🔴 ${j}j</span>`;
+    if (j <= 90) return `<span style="color:#F57F17;font-weight:700">🟡 ${j}j</span>`;
+    return `<span style="color:#2E7D32;font-weight:700">✅ ${j}j</span>`;
+  }
+
+  const lignes = [...contrats]
+    .sort((a, b) => (b.date_fin || '') > (a.date_fin || '') ? 1 : -1)
+    .map((p, i) => `<tr style="background:${i%2===0?'#F5F5F5':'#fff'}">
+      <td style="padding:6px 12px">${esc(p.service||'—')}</td>
+      <td style="padding:6px 12px">${p.date_debut||'—'}</td>
+      <td style="padding:6px 12px">${p.date_fin||'—'}</td>
+      <td style="padding:6px 12px">${statusHtml(p.date_fin)}</td>
+    </tr>`).join('');
+
+  detail.innerHTML = `
+    <div style="padding:14px">
+      <div style="font-size:18px;font-weight:700;color:${color};text-align:center;padding:12px;margin-bottom:10px;border-bottom:3px solid ${color}">${esc(nom)}</div>
+      <table style="font-size:13px;width:100%;border-spacing:0;margin-bottom:12px">
+        <tr style="background:#E3F2FD">
+          <td style="padding:10px 14px;font-weight:700">💰 Budget</td>
+          <td style="padding:10px 14px;font-size:17px;font-weight:700;color:#1565C0">${fmtM(montantTot)}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px;font-weight:700">📊 Part du budget</td>
+          <td style="padding:10px 14px;font-weight:700;font-size:15px">${pct}%</td>
+        </tr>
+        <tr style="background:#F5F5F5">
+          <td style="padding:10px 14px;font-weight:700">📋 Contrats</td>
+          <td style="padding:10px 14px">${nb} contrat${nb>1?'s':''}</td>
+        </tr>
+      </table>
+      <table style="font-size:12px;border-collapse:collapse;width:100%">
+        <tr style="background:${color};color:#fff">
+          <td style="padding:8px 12px;font-weight:700">Service</td>
+          <td style="padding:8px 12px;font-weight:700">Début</td>
+          <td style="padding:8px 12px;font-weight:700">Fin</td>
+          <td style="padding:8px 12px;font-weight:700">Statut</td>
+        </tr>
+        ${lignes}
+      </table>
+    </div>`;
+}
+
+function backToBarChart() {
+  const backBtn = document.getElementById('chart-bar-back');
+  const canvas  = document.getElementById('chart-bar');
+  const detail  = document.getElementById('chart-bar-detail');
+  if (backBtn) backBtn.style.display = 'none';
+  if (canvas)  canvas.style.display = 'block';
+  if (detail)  detail.style.display = 'none';
+  const titleEl = document.getElementById('chart-bar-title');
+  if (titleEl) titleEl.textContent = '🏆 Top 8 entreprises — clic pour la fiche';
 }
 
 /* ══════════════════════════════════════════════════════

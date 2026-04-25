@@ -147,9 +147,13 @@
             </div>
           </div>
           <div class="chart-box">
-            <h4>🏆 Top 8 entreprises — montant annuel</h4>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <button id="chart-bar-back" onclick="backToBarChart()" style="display:none;padding:3px 10px;border:1px solid #C62828;border-radius:6px;background:#FFEBEE;color:#C62828;font-size:12px;font-weight:600;cursor:pointer;">← Retour</button>
+              <h4 id="chart-bar-title" style="margin:0;">🏆 Top 8 entreprises — clic pour la fiche</h4>
+            </div>
             <div style="flex:1;min-height:0;position:relative">
               <canvas id="chart-bar"></canvas>
+              <div id="chart-bar-detail" style="display:none;position:absolute;inset:0;overflow-y:auto;background:#fff;border-radius:8px;"></div>
             </div>
           </div>
         </div>
