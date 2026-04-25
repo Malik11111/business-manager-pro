@@ -122,19 +122,13 @@
           <div id="params-graph-kpis" style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center;"></div>
         </div>
         <!-- Corps -->
-        <div style="display:flex;gap:36px;padding:32px 28px;align-items:center;flex-wrap:wrap;justify-content:center;">
+        <div style="display:flex;gap:40px;padding:32px 28px;align-items:center;flex-wrap:wrap;justify-content:center;">
           <!-- Zone chart avec glow -->
-          <div style="position:relative;display:flex;align-items:center;justify-content:center;">
-            <!-- Glow blob derrière -->
-            <div id="params-graph-glow" style="position:absolute;width:260px;height:260px;border-radius:50%;filter:blur(50px);opacity:0.35;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-60%);"></div>
-            <!-- Ombre 3D au sol -->
-            <div style="position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);width:220px;height:22px;background:radial-gradient(ellipse,rgba(0,0,0,0.5) 0%,transparent 70%);border-radius:50%;"></div>
-            <!-- Perspective 3D -->
-            <div style="perspective:520px;perspective-origin:50% -10%;">
-              <div style="transform:rotateX(42deg);filter:drop-shadow(0 14px 28px rgba(0,0,0,0.6));">
-                <canvas id="chart-params-contrats" width="290" height="290"></canvas>
-              </div>
-            </div>
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <!-- Glow blob derrière le chart -->
+            <div id="params-graph-glow" style="position:absolute;width:320px;height:320px;border-radius:50%;filter:blur(60px);opacity:0.3;pointer-events:none;"></div>
+            <!-- Canvas propre sans déformation -->
+            <canvas id="chart-params-contrats" width="300" height="300" style="position:relative;z-index:1;filter:drop-shadow(0 0 24px rgba(129,140,248,0.3));"></canvas>
           </div>
           <!-- Légende cards -->
           <div id="params-graph-legend" style="flex:1;min-width:240px;max-width:420px;display:flex;flex-direction:column;gap:10px;"></div>

@@ -452,10 +452,10 @@ function renderParamsGraphes() {
       </div>`).join('');
   }
 
-  // ── Glow dynamique (couleur dominante) ──
+  // ── Glow dynamique centré ──
   const glowEl = document.getElementById('params-graph-glow');
   if (glowEl && entries.length > 0) {
-    glowEl.style.background = `radial-gradient(circle, ${entries[0].glow} 0%, ${entries[1]?.glow || 'transparent'} 60%, transparent 100%)`;
+    glowEl.style.background = `radial-gradient(circle, ${entries[0].glow} 0%, ${entries[1]?.glow || 'transparent'} 55%, transparent 80%)`;
   }
 
   // ── Légende cards sombres ──
@@ -503,8 +503,8 @@ function renderParamsGraphes() {
     },
     options: {
       responsive: false,
-      cutout: '58%',
-      animation: { animateRotate: true, animateScale: true, duration: 1100, easing: 'easeOutQuart' },
+      cutout: '62%',
+      animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutQuart' },
       plugins: {
         legend: { display: false },
         tooltip: {
