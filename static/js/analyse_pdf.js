@@ -41,6 +41,53 @@ function onPdfSelected(input) {
   if (btn) btn.disabled = false;
 }
 
+/* ── Barre de progression (smooth) ─────────────────── */
+const _pb = { current: 0, target: 0, anim: null, crawl: null };
+
+function _pbTick() {
+  const bar = document.getElementById('pdf-progress-bar');
+  const lbl = document.getElementById('pdf-progress-label');
+  if (!bar) return;
+  const diff = _pb.target - _pb.current;
+  if (diff > 0.05) {
+    const step = Math.max(0.12, diff * 0.035);
+    _pb.current = Math.min(_pb.target, _pb.current + step);
+    bar.style.width = _pb.current + '%';
+    if (lbl) lbl.textContent = 'Analyse ' + Math.round(_pb.current) + '%';
+  }
+}
+
+function setProgress(pct, label) {
+  const wrap = document.getElementById('pdf-progress-wrap');
+  if (!wrap) return;
+  if (pct <= 0) {
+    clearInterval(_pb.anim); _pb.anim = null;
+    clearInterval(_pb.crawl); _pb.crawl = null;
+    _pb.current = 0; _pb.target = 0;
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  _pb.target = pct;
+  if (label) {
+    const lbl = document.getElementById('pdf-progress-label');
+    if (lbl) lbl.textContent = label;
+  }
+  if (!_pb.anim) _pb.anim = setInterval(_pbTick, 40);
+}
+
+function _pbCrawlStart(maxPct) {
+  clearInterval(_pb.crawl);
+  _pb.crawl = setInterval(() => {
+    if (_pb.target < maxPct) _pb.target = Math.min(maxPct, _pb.target + 0.35);
+  }, 320);
+}
+
+function _pbCrawlStop() {
+  clearInterval(_pb.crawl);
+  _pb.crawl = null;
+}
+
 /* ── Lancer l'analyse ──────────────────────────────── */
 async function lancerAnalysePDF() {
   if (!_pdfFile) { showToast('Sélectionnez un PDF', 'error'); return; }
@@ -49,28 +96,31 @@ async function lancerAnalysePDF() {
   const serverHasKey = keyWrap && keyWrap.style.display === 'none';
   if (!apiKey && !serverHasKey) { showToast('Clé API requise', 'error'); return; }
 
-  // Sauvegarder la clé si saisie
   if (apiKey) localStorage.setItem('gemini_api_key', apiKey);
 
-  // UI loading
-  setProgress(10, 'Envoi du PDF...');
   document.getElementById('pdf-analyse-btn').disabled = true;
   document.getElementById('pdf-empty-state').style.display = 'none';
   document.getElementById('pdf-result').style.display = 'none';
 
+  setProgress(12, 'Envoi du PDF...');
+
   try {
-    setProgress(30, 'Extraction du texte...');
     const formData = new FormData();
     formData.append('file', _pdfFile);
     if (apiKey) formData.append('api_key', apiKey);
 
-    setProgress(60, 'Analyse en cours...');
-    const res = await fetch('/api/analyse-pdf/upload', {
-      method: 'POST',
-      body: formData
-    });
+    await new Promise(r => setTimeout(r, 500));
+    setProgress(25, 'Extraction du texte...');
+    await new Promise(r => setTimeout(r, 700));
+    setProgress(38, 'Analyse en cours...');
 
-    setProgress(90, 'Traitement des résultats...');
+    _pbCrawlStart(88);
+    const res = await fetch('/api/analyse-pdf/upload', { method: 'POST', body: formData });
+    _pbCrawlStop();
+
+    setProgress(95, 'Traitement des résultats...');
+    await new Promise(r => setTimeout(r, 600));
+
     const data = await res.json();
 
     if (!res.ok) {
@@ -81,31 +131,21 @@ async function lancerAnalysePDF() {
     }
 
     setProgress(100, 'Analyse terminée !');
-    setTimeout(() => setProgress(0, ''), 1500);
+    await new Promise(r => setTimeout(r, 1200));
+    setProgress(0, '');
 
     afficherResultat(data);
     await loadHistoriqueAnalyses();
     showToast(`Analyse terminée — ${data.total_problemes} problème(s) détecté(s)`, 'success');
 
   } catch (e) {
+    _pbCrawlStop();
     showToast('Erreur : ' + e.message, 'error');
     setProgress(0, '');
     document.getElementById('pdf-empty-state').style.display = 'flex';
   } finally {
     document.getElementById('pdf-analyse-btn').disabled = false;
   }
-}
-
-/* ── Barre de progression ──────────────────────────── */
-function setProgress(pct, label) {
-  const wrap = document.getElementById('pdf-progress-wrap');
-  const bar  = document.getElementById('pdf-progress-bar');
-  const lbl  = document.getElementById('pdf-progress-label');
-  if (!wrap) return;
-  if (pct <= 0) { wrap.style.display = 'none'; return; }
-  wrap.style.display = 'block';
-  if (bar) bar.style.width = pct + '%';
-  if (lbl) lbl.textContent = 'Analyse ' + pct + '%';
 }
 
 /* ── Afficher les résultats ────────────────────────── */
