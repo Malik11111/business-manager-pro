@@ -439,22 +439,6 @@ function updatePPI() {
       }
     }
   });
-
-  const ppiTbody = document.getElementById('ppi-detail-tbody');
-  if (ppiTbody) {
-    const details = _actifs.materiel.map(m => ({ ...m, amort: calcAmortissement(m) }))
-      .filter(m => { if (m.amort.dateFin === '—') return false; const fy = parseInt(m.amort.dateFin.slice(0, 4)); return fy >= yearStart && fy < yearStart + period; })
-      .sort((a, b) => a.amort.dateFin.localeCompare(b.amort.dateFin));
-    if (details.length === 0) {
-      ppiTbody.innerHTML = '<tr class="empty-row"><td colspan="6">Aucun renouvellement prevu.</td></tr>';
-    } else {
-      ppiTbody.innerHTML = details.map(m => `<tr>
-        <td>${esc(m.nom)}</td><td><span class="badge badge-blue">${esc(m.type_materiel || '—')}</span></td>
-        <td>${formatDateFR(m.date_achat)}</td><td style="text-align:right;font-weight:600">${formatEUR(m.cout || 0)}</td>
-        <td>${m.duree_amortissement || 5} ans</td><td><span class="badge badge-orange">${formatDateFR(m.amort.dateFin)}</span></td>
-      </tr>`).join('');
-    }
-  }
 }
 
 function _showPPIYearDetail(annee) {
