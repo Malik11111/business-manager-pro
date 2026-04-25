@@ -363,22 +363,36 @@ let _ppiChart = null;
 function updatePPI() {
   const yearStart = parseInt(document.getElementById('ppi-year')?.value) || new Date().getFullYear();
   const period = document.querySelector('input[name="ppi-period"]:checked')?.value === '5' ? 5 : 10;
-  const byYear = {};
+  const budget = parseInt(document.getElementById('ppi-budget')?.value) || 0;
+
+  const byYearPPI = {}, byYearNew = {};
   let total = 0, count = 0;
   _actifs.materiel.forEach(m => {
     const a = calcAmortissement(m);
-    if (a.dateFin === '—') return;
-    const fy = parseInt(a.dateFin.slice(0, 4));
-    if (fy >= yearStart && fy < yearStart + period) {
-      if (!byYear[fy]) byYear[fy] = 0;
-      byYear[fy] += m.cout || 0;
-      total += m.cout || 0;
-      count++;
+    if (a.dateFin !== '—') {
+      const fy = parseInt(a.dateFin.slice(0, 4));
+      if (fy >= yearStart && fy < yearStart + period) {
+        byYearPPI[fy] = (byYearPPI[fy] || 0) + (m.cout || 0);
+        total += m.cout || 0;
+        count++;
+      }
+    }
+    if (m.date_achat) {
+      const ay = parseInt(m.date_achat.slice(0, 4));
+      if (ay >= yearStart && ay < yearStart + period) {
+        byYearNew[ay] = (byYearNew[ay] || 0) + (m.cout || 0);
+      }
     }
   });
-  const labels = [], data = [];
-  for (let y = yearStart; y < yearStart + period; y++) { labels.push(String(y)); data.push(byYear[y] || 0); }
-  const maxYear = Object.keys(byYear).length > 0 ? Object.entries(byYear).sort((a, b) => b[1] - a[1])[0] : null;
+
+  const labels = [], dataPPI = [], dataNew = [];
+  for (let y = yearStart; y < yearStart + period; y++) {
+    labels.push(String(y));
+    dataPPI.push(byYearPPI[y] || 0);
+    dataNew.push(byYearNew[y] || 0);
+  }
+
+  const maxYear = Object.keys(byYearPPI).length > 0 ? Object.entries(byYearPPI).sort((a, b) => b[1] - a[1])[0] : null;
   const el = id => document.getElementById(id);
   if (el('ppi-kpi-total')) el('ppi-kpi-total').querySelector('.kpi-value').textContent = formatEUR(total);
   if (el('ppi-kpi-count')) el('ppi-kpi-count').querySelector('.kpi-value').textContent = count;
@@ -387,12 +401,31 @@ function updatePPI() {
 
   const ctx = document.getElementById('chart-ppi')?.getContext('2d');
   if (!ctx) return;
-  const palette = ['#1565C0','#C62828','#2E7D32','#E65100','#6A1B9A','#00838F','#AD1457','#F9A825','#37474F','#558B2F'];
   if (_ppiChart) _ppiChart.destroy();
+
+  const datasets = [
+    { label: 'Renouvellements (fin amort.)', data: dataPPI, backgroundColor: '#1565C0', borderRadius: 4, stack: 'ppi' },
+    { label: 'Nouveaux achats',              data: dataNew, backgroundColor: '#2E7D32', borderRadius: 4, stack: 'ppi' }
+  ];
+  if (budget > 0) {
+    datasets.push({ type: 'line', label: 'Budget annuel', data: labels.map(() => budget),
+      borderColor: '#C62828', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false });
+  }
+
   _ppiChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ data, backgroundColor: labels.map((_, i) => palette[i % palette.length]), borderRadius: 6 }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } } } }
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label} : ${formatEUR(ctx.raw)}` } }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, beginAtZero: true, ticks: { callback: v => formatEUR(v) } }
+      }
+    }
   });
 
   const ppiTbody = document.getElementById('ppi-detail-tbody');
