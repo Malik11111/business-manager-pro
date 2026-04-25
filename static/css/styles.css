@@ -600,37 +600,37 @@ td {
 /* ── KPI Cards ─────────────────────────────────────────── */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
 }
 
 .kpi-card {
   background: #FFFFFF;
-  border-radius: 8px;
+  border-radius: 6px;
   border-left: 4px solid #F59E0B;
   border-top: 1px solid #E2E8F0;
   border-right: 1px solid #E2E8F0;
   border-bottom: 1px solid #E2E8F0;
-  padding: 10px 12px;
+  padding: 5px 10px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  box-shadow: 0 1px 4px rgba(15,23,42,.07);
+  gap: 1px;
+  box-shadow: 0 1px 3px rgba(15,23,42,.06);
 }
 .kpi-card .kpi-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   color: #64748B;
   text-transform: uppercase;
   letter-spacing: .4px;
 }
 .kpi-card .kpi-value {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 800;
   color: #92400E;
 }
-.kpi-card .kpi-sub { font-size: 10px; color: #94A3B8; }
+.kpi-card .kpi-sub { font-size: 9px; color: #94A3B8; }
 .kpi-card.green  { border-left-color: #16A34A; }
 .kpi-card.green  .kpi-value { color: #14532D; }
 .kpi-card.orange { border-left-color: #F59E0B; }

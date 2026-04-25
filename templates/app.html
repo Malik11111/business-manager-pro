@@ -331,14 +331,14 @@
           <button class="btn btn-blue"   onclick="exportBudgetCSV()" title="Exporter CSV">⬇ CSV</button>
         </div>
         <!-- KPIs -->
-        <div style="display:flex;gap:12px;padding:12px 14px;flex-wrap:wrap;">
-          <div class="kpi-card blue"   id="bkpi-total"   style="flex:1;min-width:140px"><div class="kpi-label">Total engagé</div><div class="kpi-value" id="bkpi-total-v">—</div></div>
-          <div class="kpi-card green"  id="bkpi-fait"    style="flex:1;min-width:140px"><div class="kpi-label">Réalisé (Fait)</div><div class="kpi-value" id="bkpi-fait-v">—</div></div>
-          <div class="kpi-card orange" id="bkpi-encours" style="flex:1;min-width:140px"><div class="kpi-label">En cours / Devis</div><div class="kpi-value" id="bkpi-encours-v">—</div></div>
-          <div class="kpi-card red"    id="bkpi-travaux" style="flex:1;min-width:140px"><div class="kpi-label">Travaux / Achats</div><div class="kpi-value" id="bkpi-travaux-v">—</div></div>
+        <div style="display:flex;gap:8px;padding:8px 14px;flex-wrap:wrap;">
+          <div class="kpi-card blue"   id="bkpi-total"   style="flex:1;min-width:120px"><div class="kpi-label">Total engagé</div><div class="kpi-value" id="bkpi-total-v">—</div></div>
+          <div class="kpi-card green"  id="bkpi-fait"    style="flex:1;min-width:120px"><div class="kpi-label">Réalisé (Fait)</div><div class="kpi-value" id="bkpi-fait-v">—</div></div>
+          <div class="kpi-card orange" id="bkpi-encours" style="flex:1;min-width:120px"><div class="kpi-label">En cours / Devis</div><div class="kpi-value" id="bkpi-encours-v">—</div></div>
+          <div class="kpi-card"        id="bkpi-travaux" style="flex:1;min-width:120px;border-left-color:#EF4444;"><div class="kpi-label">Travaux / Achats</div><div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;"><span class="kpi-value" id="bkpi-travaux-v" style="color:#7F1D1D;">—</span><span class="kpi-value" id="bkpi-achats-v" style="color:#14532D;">—</span></div></div>
         </div>
         <!-- Filtres -->
-        <div style="padding:0 14px 10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <div style="padding:0 14px 6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
           <input id="budget-search" class="filter-input" placeholder="🔍 Rechercher…" style="min-width:180px" oninput="renderBudget()">
           <select id="budget-filter-type"        class="filter-select" onchange="renderBudget()"><option value="">Tous les types</option><option>Travaux</option><option>Achat</option></select>
           <select id="budget-filter-realisation" class="filter-select" onchange="renderBudget()"><option value="">Toutes les réalisations</option><option>Fait</option><option>Devis signé</option><option>Devis en cours</option><option>En attente</option></select>

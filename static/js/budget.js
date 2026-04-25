@@ -166,7 +166,8 @@ function renderBudgetKPIs() {
   document.getElementById('bkpi-total-v').textContent   = fmt(total);
   document.getElementById('bkpi-fait-v').textContent    = fmt(fait);
   document.getElementById('bkpi-encours-v').textContent = fmt(encours);
-  document.getElementById('bkpi-travaux-v').textContent = `T: ${fmt(travaux)} / A: ${fmt(achats)}`;
+  document.getElementById('bkpi-travaux-v').textContent = `T: ${fmt(travaux)}`;
+  document.getElementById('bkpi-achats-v').textContent  = `/ A: ${fmt(achats)}`;
 }
 
 function renderBudget() {
