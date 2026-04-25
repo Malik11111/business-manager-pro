@@ -53,6 +53,65 @@
   <main id="main-content">
 
     <!-- ════════════════════════════════════════════════
+         VUE : PARAMÈTRES
+    ════════════════════════════════════════════════ -->
+    <div id="view-parametres" class="module-view hidden">
+      <!-- Toolbar -->
+      <div class="module-toolbar">
+        <h2 style="margin:0;font-size:16px;font-weight:700;color:#1E293B">⚙️ Paramètres</h2>
+        <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap;">
+          <a href="/api/config/template" class="btn btn-purple" download>⬇ Modèle Excel</a>
+          <a href="/api/personnel/export-excel" class="btn btn-blue" download>⬇ Export Excel</a>
+          <label class="btn btn-orange" style="cursor:pointer;margin:0">⬆ Importer Excel
+            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importPersonnelExcel(this)">
+          </label>
+        </div>
+      </div>
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn params-tab active" id="ptab-personnel" onclick="switchParamsTab('personnel')">👥 Personnel</button>
+        <button class="tab-btn params-tab"        id="ptab-lieux"     onclick="switchParamsTab('lieux')">📍 Lieux</button>
+      </div>
+
+      <!-- ── Panel Personnel ── -->
+      <div id="params-panel-personnel" class="params-panel">
+        <div style="padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #E0E0E0;background:#FAFAFA;">
+          <input id="params-pers-search" class="filter-input" placeholder="🔍 Rechercher…" style="min-width:200px" oninput="renderParamsPersonnel()">
+          <div id="params-pers-count" style="font-size:12px;color:#6B7280"></div>
+          <button class="btn btn-green" onclick="openParamsPersonnelModal()" style="margin-left:auto">+ Ajouter</button>
+          <button class="btn btn-red" onclick="deleteAllPersonnel()" style="font-size:12px">🗑 Tout supprimer</button>
+        </div>
+        <div class="table-wrapper">
+          <table style="font-size:13px;" class="data-table">
+            <thead><tr>
+              <th>NOM</th><th>PRÉNOM</th><th>POSTE</th><th>SERVICE</th>
+              <th>CONTRAT</th><th>TÉL.</th><th>ENTRÉE</th><th>SORTIE</th><th style="width:70px">ACTIONS</th>
+            </tr></thead>
+            <tbody id="params-pers-tbody"><tr class="empty-row"><td colspan="9">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Panel Lieux ── -->
+      <div id="params-panel-lieux" class="params-panel hidden">
+        <div style="padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #E0E0E0;background:#FAFAFA;">
+          <input id="params-lieux-search" class="filter-input" placeholder="🔍 Rechercher…" style="min-width:200px" oninput="renderParamsLieux()">
+          <div id="params-lieux-count" style="font-size:12px;color:#6B7280"></div>
+          <button class="btn btn-green" onclick="openParamsLieuModal()" style="margin-left:auto">+ Ajouter</button>
+          <button class="btn btn-red" onclick="deleteAllLieux()" style="font-size:12px">🗑 Tout supprimer</button>
+        </div>
+        <div class="table-wrapper">
+          <table style="font-size:13px;" class="data-table">
+            <thead><tr>
+              <th>NOM DU LIEU</th><th>DESCRIPTION</th><th>EMPLACEMENT</th><th style="width:70px">ACTIONS</th>
+            </tr></thead>
+            <tbody id="params-lieux-tbody"><tr class="empty-row"><td colspan="4">Chargement…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /view-parametres -->
+
+    <!-- ════════════════════════════════════════════════
          VUE : PRESTATAIRES
     ════════════════════════════════════════════════ -->
     <div id="view-prestataires" class="module-view hidden">
@@ -1538,73 +1597,6 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════
-     MODAL PARAMÈTRES — Personnel & Lieux (référentiel central)
-══════════════════════════════════════════════════════ -->
-<div id="modal-params" class="modal-overlay hidden" style="z-index:2000">
-  <div class="modal" style="max-width:860px;width:95%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;padding:0">
-    <div class="modal-header" style="flex-shrink:0">
-      <h3>⚙️ Paramètres — Référentiel central</h3>
-      <button class="modal-close" onclick="closeParams()">✕</button>
-    </div>
-
-    <!-- Tabs -->
-    <div style="display:flex;gap:4px;padding:12px 20px 0;border-bottom:1px solid #E5E7EB;background:#F8FAFC;flex-shrink:0">
-      <button class="params-tab active" id="ptab-personnel" onclick="switchParamsTab('personnel')">👤 Personnel</button>
-      <button class="params-tab" id="ptab-lieux" onclick="switchParamsTab('lieux')">📍 Lieux / Unités</button>
-    </div>
-
-    <div style="flex:1;overflow-y:auto;padding:16px 20px">
-
-      <!-- ── ONGLET PERSONNEL ── -->
-      <div id="params-panel-personnel" class="params-panel">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <input id="params-pers-search" class="filter-input" placeholder="Rechercher…" style="flex:1;min-width:160px" oninput="renderParamsPersonnel()">
-          <button class="btn-table green" onclick="openParamsPersonnelModal()">+ Ajouter</button>
-          <a href="/api/config/template" class="btn-table" download style="text-decoration:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600;background:#7C3AED;color:#fff;border:none">⬇ Modèle</a>
-          <a href="/api/personnel/export-excel" class="btn-table blue" download style="text-decoration:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600;border:1px solid #1E40AF;color:#1E40AF">⬇ Excel</a>
-          <label class="btn-table" style="cursor:pointer;background:#F59E0B;color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600" title="Importer depuis Excel">
-            ⬆ Importer
-            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importPersonnelExcel(this)">
-          </label>
-          <button class="btn-table" style="background:#DC2626;color:#fff;border:none" onclick="deleteAllPersonnel()" title="Supprimer tout le personnel">🗑 Tout supprimer</button>
-        </div>
-        <div id="params-pers-count" style="font-size:12px;color:#6B7280;margin-bottom:8px"></div>
-        <table class="data-table" style="font-size:12px">
-          <thead>
-            <tr>
-              <th>Nom</th><th>Prénom</th><th>Poste</th><th>Service</th>
-              <th>Contrat</th><th>Tél.</th><th>Entrée</th><th>Sortie</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="params-pers-tbody"></tbody>
-        </table>
-      </div>
-
-      <!-- ── ONGLET LIEUX ── -->
-      <div id="params-panel-lieux" class="params-panel hidden">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-          <input id="params-lieux-search" class="filter-input" placeholder="Rechercher…" style="flex:1;min-width:160px" oninput="renderParamsLieux()">
-          <button class="btn-table green" onclick="openParamsLieuModal()">+ Ajouter</button>
-          <label class="btn-table" style="cursor:pointer;background:#F59E0B;color:#fff;border:none;padding:5px 10px;border-radius:5px;font-size:12px;font-weight:600" title="Importer depuis Excel">
-            ⬆ Importer
-            <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importLieuxExcel(this)">
-          </label>
-          <button class="btn-table" style="background:#DC2626;color:#fff;border:none" onclick="deleteAllLieux()" title="Supprimer tous les lieux">🗑 Tout supprimer</button>
-        </div>
-        <div id="params-lieux-count" style="font-size:12px;color:#6B7280;margin-bottom:8px"></div>
-        <table class="data-table" style="font-size:12px">
-          <thead>
-            <tr>
-              <th>Nom</th><th>Description</th><th>Emplacement</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="params-lieux-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Sous-modal Ajout/Edit Personnel -->
 <div id="modal-params-pers" class="modal-overlay hidden" style="z-index:2100">

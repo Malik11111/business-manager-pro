@@ -5,6 +5,7 @@
 
 /* ── Modules disponibles ────────────────────────────────── */
 const MODULES = [
+  { id: 'parametres',   icon: '⚙️', label: 'Paramètres',  ready: true },
   { id: 'prestataires', icon: '🤝', label: 'Prestataires', ready: true },
   { id: 'actifs',       icon: '🏢', label: 'Actifs',       ready: true },
   { id: 'cles',         icon: '🔑', label: 'Clés',         ready: true },
@@ -74,7 +75,9 @@ function navigateTo(moduleId) {
   const view = document.getElementById(`view-${moduleId}`);
   if (view) {
     view.classList.remove('hidden');
-    if (moduleId === 'prestataires') {
+    if (moduleId === 'parametres') {
+      initParametres();
+    } else if (moduleId === 'prestataires') {
       initPrestataires();
     } else if (moduleId === 'actifs') {
       initActifs();
@@ -385,16 +388,17 @@ async function addEtabForUser(uid) {
 let _paramsPersonnel = [];
 let _paramsLieux     = [];
 
-/* ── Ouverture / fermeture ──────────────────────────────── */
-async function openParams() {
-  document.getElementById('modal-params').classList.remove('hidden');
+/* ── Init depuis la sidebar ─────────────────────────────── */
+async function initParametres() {
   switchParamsTab('personnel');
   await Promise.all([loadParamsPersonnel(), loadParamsLieux()]);
 }
 
+async function openParams() {
+  navigateTo('parametres');
+}
+
 function closeParams() {
-  document.getElementById('modal-params').classList.add('hidden');
-  // Rafraîchir les modules actifs si besoin
   if (_activeModule === 'actifs') initActifs();
 }
 
