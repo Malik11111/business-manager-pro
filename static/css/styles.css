@@ -32,7 +32,7 @@
   --sidebar-text:       #C4A882;   /* beige doré doux       */
   --sidebar-active-text:#FDE68A;   /* jaune or chaud        */
   --sidebar-section:    rgba(251,191,36,.35); /* or semi-transparent */
-  --sidebar-width:      160px;
+  --sidebar-width:      175px;
 
   /* ── APP LIGHT ────────────────────────────────────────── */
   --app-bg:       #F1F5F9;   /* gris bleu très clair    */
@@ -71,51 +71,24 @@ body {
   overflow: hidden;
 }
 
-/* ── Header ────────────────────────────────────────────── */
-#app-header {
-  height: 48px;
-  background: var(--header-bg);
-  border-bottom: 1px solid #1E293B;
+/* ── Sidebar brand ─────────────────────────────────────── */
+#sidebar-brand {
+  padding: 14px 12px 12px;
   display: flex;
   align-items: center;
-  padding: 0 14px;
-  gap: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
   flex-shrink: 0;
-  z-index: 100;
 }
-
-#app-header .brand {
-  font-weight: 700;
-  font-size: 14px;
+#sidebar-brand-text {
+  font-weight: 800;
+  font-size: 13px;
   color: #FDE68A;
-  display: flex;
-  align-items: center;
-  gap: 7px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
-#app-header .brand svg { flex-shrink: 0; }
-
-.header-spacer { flex: 1; }
-
-.etab-selector { display: flex; align-items: center; gap: 5px; }
-.etab-selector label {
-  font-size: 11px;
-  color: #94A3B8;
-  white-space: nowrap;
-}
-.etab-selector select {
-  padding: 3px 8px;
-  border: 1px solid #334155;
-  border-radius: 4px;
-  background: #1E293B;
-  font-weight: 600;
-  font-size: 11px;
-  color: #E2E8F0;
-  cursor: pointer;
-  outline: none;
-}
-.etab-selector select:hover { border-color: #F59E0B; }
 
 .btn-icon {
   width: 26px; height: 26px;
@@ -167,7 +140,7 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 10px 0;
+  padding: 0;
   overflow-y: auto;
   border-right: 1px solid rgba(251,146,60,.15);
 }

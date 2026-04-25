@@ -31,12 +31,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 function updateHeaderForRole() {
   const adminBtn = document.getElementById('btn-admin-panel');
   if (adminBtn) adminBtn.classList.toggle('hidden', !isAdmin());
-  const roleTag = document.getElementById('user-role-tag');
-  if (roleTag) {
-    const role = getCurrentUserRole();
-    roleTag.textContent = role === 'superadmin' ? 'Super Admin' : role === 'admin' ? 'Admin' : '';
-    roleTag.classList.toggle('hidden', role === 'user');
-  }
+  // Établissement sidebar : admin voit le sélecteur, user voit juste le nom
+  const adminBlock = document.getElementById('sidebar-etab-admin');
+  const userBlock  = document.getElementById('sidebar-etab-user');
+  if (adminBlock) adminBlock.style.display = isAdmin() ? 'block' : 'none';
+  if (userBlock)  userBlock.style.display  = isAdmin() ? 'none'  : 'block';
+  // Logout label : masquer le texte sur petite sidebar
+  const logoutLabel = document.getElementById('sidebar-logout-label');
+  if (logoutLabel) logoutLabel.style.display = '';
 }
 
 /* ── Sidebar ────────────────────────────────────────────── */
@@ -52,15 +54,6 @@ function buildSidebar() {
       ${!m.ready ? '<span class="soon">bientot</span>' : ''}
     </div>
   `).join('');
-  // Ajouter Admin si le role est admin+
-  if (isAdmin()) {
-    nav.innerHTML += `
-      <div class="sidebar-section" style="margin-top:16px">Administration</div>
-      <div class="sidebar-item" id="nav-admin" onclick="navigateTo('admin')" title="Administration">
-        <span class="icon">👑</span>
-        <span>Admin</span>
-      </div>`;
-  }
 }
 
 function navigateTo(moduleId) {
@@ -111,9 +104,14 @@ async function buildEtabSelector() {
   if (!sel) return;
   try {
     const data = await getEtablissements();
-    sel.innerHTML = data.list.map(e =>
-      `<option value="${e.id}"${data.current && e.id === data.current.id ? ' selected' : ''}>${esc(e.name)}</option>`
-    ).join('');
+    if (sel) {
+      sel.innerHTML = data.list.map(e =>
+        `<option value="${e.id}"${data.current && e.id === data.current.id ? ' selected' : ''}>${esc(e.name)}</option>`
+      ).join('');
+    }
+    // Affiche le nom pour l'utilisateur non-admin
+    const nameEl = document.getElementById('sidebar-etab-name');
+    if (nameEl && data.current) nameEl.textContent = data.current.name;
   } catch (err) {
     console.error('Erreur chargement etablissements:', err);
   }
