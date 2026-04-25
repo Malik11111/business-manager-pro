@@ -5,6 +5,7 @@
 
 let _pdfFile = null;
 let _analyseInited = false;
+let _lastAnalyseId = null;
 
 /* ── Init ──────────────────────────────────────────── */
 async function initAnalysePDF() {
@@ -134,6 +135,7 @@ async function lancerAnalysePDF() {
     await new Promise(r => setTimeout(r, 1200));
     setProgress(0, '');
 
+    _lastAnalyseId = data.id;
     afficherResultat(data);
     await loadHistoriqueAnalyses();
     showToast(`Analyse terminée — ${data.total_problemes} problème(s) détecté(s)`, 'success');
@@ -248,7 +250,8 @@ function downloadAnalyseExcel(id) {
 }
 
 function exportAnalysesExcel() {
-  window.location.href = '/api/analyse-pdf/export-excel';
+  if (!_lastAnalyseId) { showToast('Analysez d\'abord un PDF', 'error'); return; }
+  window.location.href = `/api/analyse-pdf/${_lastAnalyseId}/export-excel`;
 }
 
 async function voirDetailAnalyse(id) {
