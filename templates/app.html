@@ -112,27 +112,32 @@
       </div>
 
       <!-- ── Panel Graphiques ── -->
-      <div id="params-panel-graphes" class="params-panel hidden">
-        <!-- KPIs -->
-        <div id="params-graph-kpis" style="display:flex;gap:10px;padding:16px 16px 8px;flex-wrap:wrap;"></div>
-        <!-- Contenu principal -->
-        <div style="display:flex;gap:32px;padding:8px 24px 28px;align-items:flex-start;flex-wrap:wrap;justify-content:center;">
-          <!-- Camembert 3D -->
-          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
-            <h3 style="margin:0;font-size:14px;font-weight:700;color:#1E293B;text-align:center;letter-spacing:0.5px;">RÉPARTITION PAR TYPE DE CONTRAT</h3>
-            <!-- Ombre 3D sous le chart -->
-            <div style="position:relative;">
-              <div style="position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);width:75%;height:18px;background:radial-gradient(ellipse,rgba(0,0,0,0.25) 0%,transparent 70%);border-radius:50%;"></div>
-              <!-- Wrapper perspective 3D -->
-              <div style="perspective:600px;perspective-origin:50% 10%;">
-                <div style="transform:rotateX(28deg);filter:drop-shadow(0 8px 16px rgba(0,0,0,0.28));width:300px;height:300px;">
-                  <canvas id="chart-params-contrats" width="300" height="300"></canvas>
-                </div>
+      <div id="params-panel-graphes" class="params-panel hidden" style="background:linear-gradient(160deg,#0F172A 0%,#1E293B 60%,#1a1f35 100%);min-height:500px;">
+        <!-- Header sombre avec KPIs -->
+        <div style="padding:24px 28px 20px;display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.07);">
+          <div>
+            <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#64748B;font-weight:600;margin-bottom:4px">Analyse RH</div>
+            <h2 style="margin:0;color:#F8FAFC;font-size:20px;font-weight:800;letter-spacing:-0.3px">Répartition par contrat</h2>
+          </div>
+          <div id="params-graph-kpis" style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center;"></div>
+        </div>
+        <!-- Corps -->
+        <div style="display:flex;gap:36px;padding:32px 28px;align-items:center;flex-wrap:wrap;justify-content:center;">
+          <!-- Zone chart avec glow -->
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+            <!-- Glow blob derrière -->
+            <div id="params-graph-glow" style="position:absolute;width:260px;height:260px;border-radius:50%;filter:blur(50px);opacity:0.35;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-60%);"></div>
+            <!-- Ombre 3D au sol -->
+            <div style="position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);width:220px;height:22px;background:radial-gradient(ellipse,rgba(0,0,0,0.5) 0%,transparent 70%);border-radius:50%;"></div>
+            <!-- Perspective 3D -->
+            <div style="perspective:520px;perspective-origin:50% -10%;">
+              <div style="transform:rotateX(42deg);filter:drop-shadow(0 14px 28px rgba(0,0,0,0.6));">
+                <canvas id="chart-params-contrats" width="290" height="290"></canvas>
               </div>
             </div>
           </div>
-          <!-- Légende détaillée -->
-          <div id="params-graph-legend" style="flex:1;min-width:220px;max-width:380px;display:flex;flex-direction:column;gap:10px;padding-top:36px;"></div>
+          <!-- Légende cards -->
+          <div id="params-graph-legend" style="flex:1;min-width:240px;max-width:420px;display:flex;flex-direction:column;gap:10px;"></div>
         </div>
       </div>
     </div><!-- /view-parametres -->
