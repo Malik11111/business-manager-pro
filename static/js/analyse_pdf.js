@@ -80,8 +80,8 @@ function setProgress(pct, label) {
 function _pbCrawlStart(maxPct) {
   clearInterval(_pb.crawl);
   _pb.crawl = setInterval(() => {
-    if (_pb.target < maxPct) _pb.target = Math.min(maxPct, _pb.target + 0.35);
-  }, 320);
+    if (_pb.target < maxPct) _pb.target = Math.min(maxPct, _pb.target + 1.8);
+  }, 80);
 }
 
 function _pbCrawlStop() {
@@ -103,19 +103,14 @@ async function lancerAnalysePDF() {
   document.getElementById('pdf-empty-state').style.display = 'none';
   document.getElementById('pdf-result').style.display = 'none';
 
-  setProgress(12, 'Envoi du PDF...');
+  setProgress(5, 'Envoi du PDF...');
 
   try {
     const formData = new FormData();
     formData.append('file', _pdfFile);
     if (apiKey) formData.append('api_key', apiKey);
 
-    await new Promise(r => setTimeout(r, 500));
-    setProgress(25, 'Extraction du texte...');
-    await new Promise(r => setTimeout(r, 700));
-    setProgress(38, 'Analyse en cours...');
-
-    _pbCrawlStart(88);
+    _pbCrawlStart(90);
     const res = await fetch('/api/analyse-pdf/upload', { method: 'POST', body: formData });
     _pbCrawlStop();
 
