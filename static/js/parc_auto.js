@@ -614,18 +614,18 @@ async function onScanVehiculeSelected(input) {
   const bar     = document.getElementById('scan-vehicule-bar');
   const lbl     = document.getElementById('scan-vehicule-label');
   overlay.style.display = 'flex';
-  bar.style.width = '15%';
+  let vPct = 5; bar.style.width = vPct + '%';
   lbl.textContent = 'Envoi du document…';
+  const vCrawl = setInterval(() => { if (vPct < 90) { vPct = Math.min(90, vPct + 1.8); bar.style.width = vPct + '%'; } }, 80);
 
   try {
     const formData = new FormData();
     formData.append('file', file);
-    bar.style.width = '45%';
-    lbl.textContent = 'Lecture du document en cours…';
 
     const res = await fetch('/api/vehicules/scan-document', { method: 'POST', body: formData });
-    bar.style.width = '85%';
+    clearInterval(vCrawl); bar.style.width = '95%';
     lbl.textContent = 'Extraction des informations…';
+    await new Promise(r => setTimeout(r, 400));
 
     const data = await res.json();
     if (!res.ok) {
@@ -664,6 +664,7 @@ async function onScanVehiculeSelected(input) {
     }
 
   } catch (e) {
+    clearInterval(vCrawl);
     overlay.style.display = 'none';
     showToast('Erreur : ' + e.message, 'error');
   }

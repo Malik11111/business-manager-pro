@@ -518,18 +518,18 @@ async function onScanFicheClsSelected(input) {
   const lbl     = document.getElementById('scan-vehicule-label');
   document.querySelector('#scan-vehicule-overlay h2').textContent = 'Lecture de la fiche clés';
   overlay.style.display = 'flex';
-  bar.style.width = '15%';
+  let cPct = 5; bar.style.width = cPct + '%';
   lbl.textContent = 'Envoi du document…';
+  const cCrawl = setInterval(() => { if (cPct < 90) { cPct = Math.min(90, cPct + 1.8); bar.style.width = cPct + '%'; } }, 80);
 
   try {
     const formData = new FormData();
     formData.append('file', file);
-    bar.style.width = '50%';
-    lbl.textContent = 'Analyse de la fiche en cours…';
 
     const res = await fetch('/api/cles/scan-fiche', { method: 'POST', body: formData });
-    bar.style.width = '90%';
+    clearInterval(cCrawl); bar.style.width = '95%';
     lbl.textContent = 'Extraction des informations…';
+    await new Promise(r => setTimeout(r, 400));
     const data = await res.json();
 
     if (!res.ok) {
@@ -546,6 +546,7 @@ async function onScanFicheClsSelected(input) {
     _afficherPreviewScanCles(data);
 
   } catch (e) {
+    clearInterval(cCrawl);
     overlay.style.display = 'none';
     showToast('Erreur : ' + e.message, 'error');
   }

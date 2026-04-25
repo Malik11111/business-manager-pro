@@ -423,18 +423,18 @@ async function onScanFicheStockSelected(input) {
   const lbl     = document.getElementById('scan-vehicule-label');
   document.querySelector('#scan-vehicule-overlay h2').textContent = 'Lecture de la fiche stock';
   overlay.style.display = 'flex';
-  bar.style.width = '15%';
+  let sPct = 5; bar.style.width = sPct + '%';
   lbl.textContent = 'Envoi du document…';
+  const sCrawl = setInterval(() => { if (sPct < 90) { sPct = Math.min(90, sPct + 1.8); bar.style.width = sPct + '%'; } }, 80);
 
   try {
     const formData = new FormData();
     formData.append('file', file);
-    bar.style.width = '50%';
-    lbl.textContent = 'Analyse de la fiche en cours…';
 
     const res = await fetch('/api/stock/scan-fiche', { method: 'POST', body: formData });
-    bar.style.width = '90%';
+    clearInterval(sCrawl); bar.style.width = '95%';
     lbl.textContent = 'Extraction des produits…';
+    await new Promise(r => setTimeout(r, 400));
     const data = await res.json();
 
     if (!res.ok) {
@@ -451,6 +451,7 @@ async function onScanFicheStockSelected(input) {
     _afficherPreviewScanStock(data);
 
   } catch (e) {
+    clearInterval(sCrawl);
     overlay.style.display = 'none';
     showToast('Erreur : ' + e.message, 'error');
   }
