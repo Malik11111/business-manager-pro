@@ -412,6 +412,12 @@ function updatePPI() {
       borderColor: '#C62828', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false });
   }
 
+  // Stocker les données par année pour le clic
+  const _ppiByYear = {};
+  for (let i = 0; i < labels.length; i++) {
+    _ppiByYear[labels[i]] = { ppi: dataPPI[i], new: dataNew[i] };
+  }
+
   _ppiChart = new Chart(ctx, {
     type: 'bar',
     data: { labels, datasets },
@@ -424,6 +430,12 @@ function updatePPI() {
       scales: {
         x: { stacked: true },
         y: { stacked: true, beginAtZero: true, ticks: { callback: v => formatEUR(v) } }
+      },
+      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'; },
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const annee = labels[elements[0].index];
+        _showPPIYearDetail(annee);
       }
     }
   });
@@ -442,6 +454,94 @@ function updatePPI() {
         <td>${m.duree_amortissement || 5} ans</td><td><span class="badge badge-orange">${formatDateFR(m.amort.dateFin)}</span></td>
       </tr>`).join('');
     }
+  }
+}
+
+function _showPPIYearDetail(annee) {
+  const yearStart = parseInt(document.getElementById('ppi-year')?.value) || new Date().getFullYear();
+  const period    = document.querySelector('input[name="ppi-period"]:checked')?.value === '5' ? 5 : 10;
+
+  const renouvellements = _actifs.materiel
+    .map(m => ({ ...m, amort: calcAmortissement(m) }))
+    .filter(m => m.amort.dateFin !== '—' && m.amort.dateFin.slice(0,4) === String(annee))
+    .sort((a, b) => a.amort.dateFin.localeCompare(b.amort.dateFin));
+
+  const nouveaux = _actifs.materiel
+    .filter(m => m.date_achat && m.date_achat.slice(0,4) === String(annee))
+    .sort((a, b) => (a.date_achat||'').localeCompare(b.date_achat||''));
+
+  const totalR = renouvellements.reduce((s, m) => s + (m.cout||0), 0);
+  const totalN = nouveaux.reduce((s, m) => s + (m.cout||0), 0);
+  const grand  = totalR + totalN;
+
+  const rowsR = renouvellements.map((m, i) => `<tr style="background:${i%2===0?'#F5F9FF':'#fff'}">
+    <td style="padding:6px 10px">${esc(m.nom)}</td>
+    <td style="padding:6px 10px"><span class="badge badge-blue">${esc(m.type_materiel||'—')}</span></td>
+    <td style="padding:6px 10px">${formatDateFR(m.date_achat)}</td>
+    <td style="padding:6px 10px;text-align:right;font-weight:600">${formatEUR(m.cout||0)}</td>
+    <td style="padding:6px 10px"><span class="badge badge-orange">${formatDateFR(m.amort.dateFin)}</span></td>
+  </tr>`).join('');
+
+  const rowsN = nouveaux.map((m, i) => `<tr style="background:${i%2===0?'#F5FFF5':'#fff'}">
+    <td style="padding:6px 10px">${esc(m.nom)}</td>
+    <td style="padding:6px 10px"><span class="badge badge-blue">${esc(m.type_materiel||'—')}</span></td>
+    <td style="padding:6px 10px">${formatDateFR(m.date_achat)}</td>
+    <td style="padding:6px 10px;text-align:right;font-weight:600">${formatEUR(m.cout||0)}</td>
+    <td style="padding:6px 10px">—</td>
+  </tr>`).join('');
+
+  const emptyR = `<tr><td colspan="5" style="padding:12px;color:#bbb;text-align:center">Aucun renouvellement cette année</td></tr>`;
+  const emptyN = `<tr><td colspan="5" style="padding:12px;color:#bbb;text-align:center">Aucun nouvel achat cette année</td></tr>`;
+
+  const body = `
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+      <span style="font-size:15px;font-weight:700;color:#1F4E78">📅 Investissements <b>${annee}</b></span>
+      <span style="font-size:13px;color:#1565C0;font-weight:600">🔵 Renouvellements : ${formatEUR(totalR)}</span>
+      <span style="font-size:13px;color:#2E7D32;font-weight:600">🟢 Nouveaux achats : ${formatEUR(totalN)}</span>
+      <span style="font-size:13px;font-weight:700">💰 Total : ${formatEUR(grand)}</span>
+    </div>
+    <div style="font-weight:700;font-size:13px;color:#1565C0;padding:6px 10px;background:#E3F2FD;border-radius:4px;margin-bottom:4px">🔵 Renouvellements fin amortissement (${renouvellements.length})</div>
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#1565C0;color:#fff">
+          <th style="padding:7px 10px;text-align:left">Équipement</th><th style="padding:7px 10px;text-align:left">Type</th>
+          <th style="padding:7px 10px;text-align:left">Date achat</th><th style="padding:7px 10px;text-align:right">Coût</th>
+          <th style="padding:7px 10px;text-align:left">Fin amort.</th>
+        </tr></thead>
+        <tbody>${rowsR || emptyR}</tbody>
+      </table>
+    </div>
+    <div style="font-weight:700;font-size:13px;color:#2E7D32;padding:6px 10px;background:#E8F5E9;border-radius:4px;margin-bottom:4px">🟢 Nouveaux achats (${nouveaux.length})</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:#2E7D32;color:#fff">
+          <th style="padding:7px 10px;text-align:left">Équipement</th><th style="padding:7px 10px;text-align:left">Type</th>
+          <th style="padding:7px 10px;text-align:left">Date achat</th><th style="padding:7px 10px;text-align:right">Coût</th>
+          <th style="padding:7px 10px;text-align:left">Fin amort.</th>
+        </tr></thead>
+        <tbody>${rowsN || emptyN}</tbody>
+      </table>
+    </div>`;
+
+  // Réutiliser la modale générique si disponible, sinon créer une alerte
+  const modal = document.getElementById('modal-ppi-detail');
+  if (modal) {
+    document.getElementById('modal-ppi-body').innerHTML = body;
+    modal.classList.remove('hidden');
+  } else {
+    // Afficher dans un div sous le graphe
+    let panel = document.getElementById('ppi-year-detail-panel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'ppi-year-detail-panel';
+      panel.style.cssText = 'background:#fff;border:1px solid #E0E0E0;border-radius:8px;padding:16px;margin-top:12px;';
+      const chartBox = document.getElementById('chart-ppi')?.closest('.chart-box');
+      if (chartBox) chartBox.parentNode.insertBefore(panel, chartBox.nextSibling);
+    }
+    panel.style.display = 'block';
+    panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <span></span><button onclick="document.getElementById('ppi-year-detail-panel').style.display='none'" style="border:none;background:#EEE;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:13px">✕ Fermer</button>
+    </div>${body}`;
   }
 }
 
