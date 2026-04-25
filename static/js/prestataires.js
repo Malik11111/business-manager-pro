@@ -396,6 +396,7 @@ function setKpi(id, value, sub, cls = '') {
 /* ── Charts ────────────────────────────────────────── */
 let _chartPie = null;
 let _chartBar = null;
+const _palette = ['#1565C0','#2E7D32','#C62828','#EF6C00','#7B1FA2','#00838F','#AD1457','#558B2F','#4527A0','#37474F'];
 
 function renderCharts() {
   const byService = {};
@@ -404,17 +405,37 @@ function renderCharts() {
     byService[p.service].count++;
     byService[p.service].budget += p.montant || 0;
   });
-  const labels = Object.keys(byService);
+  const labels = Object.keys(byService).sort((a, b) => byService[b].budget - byService[a].budget);
   const budgets = labels.map(s => byService[s].budget);
-  const palette = ['#1565C0','#2E7D32','#C62828','#EF6C00','#7B1FA2','#00838F','#AD1457','#558B2F','#4527A0','#37474F'];
+
+  // Réinitialiser le titre et le bouton retour
+  const titleEl = document.getElementById('chart-pie-title');
+  const backBtn = document.getElementById('chart-pie-back');
+  if (titleEl) titleEl.textContent = '💼 Budget par type de service — clic pour détail';
+  if (backBtn) backBtn.style.display = 'none';
 
   const pieCtx = document.getElementById('chart-pie')?.getContext('2d');
   if (pieCtx) {
     if (_chartPie) _chartPie.destroy();
     _chartPie = new Chart(pieCtx, {
       type: 'doughnut',
-      data: { labels, datasets: [{ data: budgets, backgroundColor: labels.map((_, i) => palette[i % palette.length]), borderWidth: 2, borderColor: '#fff' }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { font: { size: 12 }, boxWidth: 14 } } } }
+      data: { labels, datasets: [{ data: budgets, backgroundColor: labels.map((_, i) => _palette[i % _palette.length]), borderWidth: 2, borderColor: '#fff' }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 12 }, boxWidth: 14 } },
+          tooltip: { callbacks: { label: ctx => `${ctx.label} : ${formatEUR(ctx.raw)}` } }
+        },
+        onClick: (evt, elements) => {
+          if (elements.length > 0) {
+            const svc = labels[elements[0].index];
+            _showServiceDetail(svc);
+          }
+        },
+        onHover: (evt, elements) => {
+          evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+        }
+      }
     });
   }
 
@@ -424,10 +445,60 @@ function renderCharts() {
     if (_chartBar) _chartBar.destroy();
     _chartBar = new Chart(barCtx, {
       type: 'bar',
-      data: { labels: top8.map(p => p.nom.length > 18 ? p.nom.slice(0,16)+'…' : p.nom), datasets: [{ data: top8.map(p => p.montant || 0), backgroundColor: top8.map((_, i) => palette[i % palette.length]), borderRadius: 6 }] },
+      data: { labels: top8.map(p => p.nom.length > 18 ? p.nom.slice(0,16)+'…' : p.nom), datasets: [{ data: top8.map(p => p.montant || 0), backgroundColor: top8.map((_, i) => _palette[i % _palette.length]), borderRadius: 6 }] },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } } } }
     });
   }
+}
+
+function _showServiceDetail(service) {
+  const items = _presta
+    .filter(p => p.service === service && (p.montant || 0) > 0)
+    .sort((a, b) => (b.montant || 0) - (a.montant || 0));
+
+  const titleEl = document.getElementById('chart-pie-title');
+  const backBtn = document.getElementById('chart-pie-back');
+  if (titleEl) titleEl.textContent = `🏢 ${service} — prestataires`;
+  if (backBtn) backBtn.style.display = 'inline-flex';
+
+  const pieCtx = document.getElementById('chart-pie')?.getContext('2d');
+  if (!pieCtx) return;
+  if (_chartPie) _chartPie.destroy();
+
+  const total = items.reduce((s, p) => s + (p.montant || 0), 0);
+
+  if (!items.length) {
+    _chartPie = new Chart(pieCtx, {
+      type: 'bar', data: { labels: ['Aucun prestataire'], datasets: [{ data: [0] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  _chartPie = new Chart(pieCtx, {
+    type: 'bar',
+    data: {
+      labels: items.map(p => p.nom.length > 22 ? p.nom.slice(0, 20) + '…' : p.nom),
+      datasets: [{
+        data: items.map(p => p.montant || 0),
+        backgroundColor: items.map((_, i) => _palette[i % _palette.length]),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${formatEUR(ctx.raw)} — ${(ctx.raw / total * 100).toFixed(1)}%` } }
+      },
+      scales: { x: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } } }
+    }
+  });
+}
+
+function backToPieChart() {
+  renderCharts();
 }
 
 /* ══════════════════════════════════════════════════════
