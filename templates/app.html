@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/static/css/styles.css">
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
 
@@ -112,26 +113,17 @@
       </div>
 
       <!-- ── Panel Graphiques ── -->
-      <div id="params-panel-graphes" class="params-panel hidden" style="background:linear-gradient(160deg,#0F172A 0%,#1E293B 60%,#1a1f35 100%);min-height:500px;">
-        <!-- Header sombre avec KPIs -->
-        <div style="padding:24px 28px 20px;display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.07);">
-          <div>
-            <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#64748B;font-weight:600;margin-bottom:4px">Analyse RH</div>
-            <h2 style="margin:0;color:#F8FAFC;font-size:20px;font-weight:800;letter-spacing:-0.3px">Répartition par contrat</h2>
+      <div id="params-panel-graphes" class="params-panel hidden">
+        <!-- KPIs -->
+        <div id="params-graph-kpis" style="display:flex;gap:10px;padding:16px 16px 8px;flex-wrap:wrap;"></div>
+        <!-- Contenu principal -->
+        <div style="display:flex;gap:32px;padding:8px 24px 28px;align-items:center;flex-wrap:wrap;justify-content:center;">
+          <!-- Camembert -->
+          <div style="position:relative;flex-shrink:0;">
+            <canvas id="chart-params-contrats" width="320" height="320"></canvas>
           </div>
-          <div id="params-graph-kpis" style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;align-items:center;"></div>
-        </div>
-        <!-- Corps -->
-        <div style="display:flex;gap:40px;padding:32px 28px;align-items:center;flex-wrap:wrap;justify-content:center;">
-          <!-- Zone chart avec glow -->
-          <div style="position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <!-- Glow blob derrière le chart -->
-            <div id="params-graph-glow" style="position:absolute;width:320px;height:320px;border-radius:50%;filter:blur(60px);opacity:0.3;pointer-events:none;"></div>
-            <!-- Canvas propre sans déformation -->
-            <canvas id="chart-params-contrats" width="300" height="300" style="position:relative;z-index:1;filter:drop-shadow(0 0 24px rgba(129,140,248,0.3));"></canvas>
-          </div>
-          <!-- Légende cards -->
-          <div id="params-graph-legend" style="flex:1;min-width:240px;max-width:420px;display:flex;flex-direction:column;gap:10px;"></div>
+          <!-- Légende -->
+          <div id="params-graph-legend" style="flex:1;min-width:220px;max-width:380px;display:flex;flex-direction:column;gap:10px;"></div>
         </div>
       </div>
     </div><!-- /view-parametres -->

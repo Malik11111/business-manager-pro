@@ -414,14 +414,14 @@ function switchParamsTab(tab) {
 let _chartContrats = null;
 
 const _CONTRAT_PALETTE = [
-  { label: 'CDI',             color: '#818CF8', dark: '#4F46E5', glow: 'rgba(129,140,248,0.6)'  },
-  { label: 'CDD',             color: '#F472B6', dark: '#DB2777', glow: 'rgba(244,114,182,0.6)'  },
-  { label: 'Intérim',         color: '#FBBF24', dark: '#D97706', glow: 'rgba(251,191,36,0.6)'   },
-  { label: 'Stage',           color: '#34D399', dark: '#059669', glow: 'rgba(52,211,153,0.6)'   },
-  { label: 'Apprentissage',   color: '#60A5FA', dark: '#2563EB', glow: 'rgba(96,165,250,0.6)'   },
-  { label: 'Bénévolat',       color: '#C084FC', dark: '#9333EA', glow: 'rgba(192,132,252,0.6)'  },
-  { label: 'Intervenant ext', color: '#2DD4BF', dark: '#0D9488', glow: 'rgba(45,212,191,0.6)'   },
-  { label: 'Autre',           color: '#94A3B8', dark: '#475569', glow: 'rgba(148,163,184,0.4)'  },
+  { label: 'CDI',             color: '#6366F1', glow: 'rgba(99,102,241,0.4)'  },
+  { label: 'CDD',             color: '#EC4899', glow: 'rgba(236,72,153,0.4)'  },
+  { label: 'Intérim',         color: '#F59E0B', glow: 'rgba(245,158,11,0.4)'  },
+  { label: 'Stage',           color: '#10B981', glow: 'rgba(16,185,129,0.4)'  },
+  { label: 'Apprentissage',   color: '#3B82F6', glow: 'rgba(59,130,246,0.4)'  },
+  { label: 'Bénévolat',       color: '#8B5CF6', glow: 'rgba(139,92,246,0.4)'  },
+  { label: 'Intervenant ext', color: '#14B8A6', glow: 'rgba(20,184,166,0.4)'  },
+  { label: 'Autre',           color: '#94A3B8', glow: 'rgba(148,163,184,0.4)' },
 ];
 
 function renderParamsGraphes() {
@@ -439,43 +439,32 @@ function renderParamsGraphes() {
   });
   const entries = _CONTRAT_PALETTE.filter(c => counts[c.label] > 0).map(c => ({ ...c, count: counts[c.label] }));
 
-  // ── KPIs dans le header sombre ──
+  // ── KPIs ──
   const kpiEl = document.getElementById('params-graph-kpis');
   if (kpiEl) {
-    kpiEl.innerHTML = `<div style="padding:10px 18px;border-radius:12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);text-align:center;backdrop-filter:blur(8px)">
-        <div style="font-size:26px;font-weight:900;color:#F8FAFC;line-height:1">${total}</div>
-        <div style="font-size:10px;color:#64748B;font-weight:600;letter-spacing:1px;margin-top:2px">TOTAL</div>
-      </div>` +
-      entries.map(e => `<div style="padding:10px 18px;border-radius:12px;background:${e.dark}33;border:1px solid ${e.color}55;text-align:center;backdrop-filter:blur(8px)">
-        <div style="font-size:26px;font-weight:900;color:${e.color};line-height:1">${e.count}</div>
-        <div style="font-size:10px;color:${e.color}99;font-weight:600;letter-spacing:1px;margin-top:2px">${e.label.toUpperCase()}</div>
+    kpiEl.innerHTML = [{ label: 'Total personnel', value: total, color: '#1E293B', bg: '#F1F5F9' }]
+      .concat(entries.map(e => ({ label: e.label, value: e.count, color: e.color, bg: e.color + '18' })))
+      .map(k => `<div style="padding:10px 16px;border-radius:10px;background:${k.bg};min-width:80px;text-align:center;border:1.5px solid ${k.color}33">
+        <div style="font-size:22px;font-weight:800;color:${k.color}">${k.value}</div>
+        <div style="font-size:11px;color:#64748B;font-weight:600;margin-top:2px">${k.label}</div>
       </div>`).join('');
   }
 
-  // ── Glow dynamique centré ──
-  const glowEl = document.getElementById('params-graph-glow');
-  if (glowEl && entries.length > 0) {
-    glowEl.style.background = `radial-gradient(circle, ${entries[0].glow} 0%, ${entries[1]?.glow || 'transparent'} 55%, transparent 80%)`;
-  }
-
-  // ── Légende cards sombres ──
+  // ── Légende ──
   const legendEl = document.getElementById('params-graph-legend');
   if (legendEl) {
     legendEl.innerHTML = entries.map(e => {
       const pct = total > 0 ? Math.round(e.count / total * 100) : 0;
-      return `<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${e.color};border-radius:12px;padding:12px 16px;backdrop-filter:blur(8px);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <div style="width:10px;height:10px;border-radius:3px;background:${e.color};box-shadow:0 0 8px ${e.glow};flex-shrink:0"></div>
-            <span style="font-weight:700;font-size:13px;color:#E2E8F0">${e.label}</span>
+      return `<div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:14px;height:14px;border-radius:4px;background:${e.color};flex-shrink:0;box-shadow:0 2px 6px ${e.glow}"></div>
+        <div style="flex:1">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:#1E293B;margin-bottom:3px">
+            <span>${e.label}</span>
+            <span style="color:${e.color}">${e.count} <span style="font-size:11px;color:#94A3B8">(${pct}%)</span></span>
           </div>
-          <div style="text-align:right">
-            <span style="font-size:20px;font-weight:900;color:${e.color}">${e.count}</span>
-            <span style="font-size:11px;color:#475569;margin-left:4px">${pct}%</span>
+          <div style="height:6px;background:#F1F5F9;border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${e.color},${e.color}99);border-radius:3px;transition:width 0.6s ease"></div>
           </div>
-        </div>
-        <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,${e.color},${e.dark});border-radius:3px;box-shadow:0 0 6px ${e.glow};transition:width 0.8s ease"></div>
         </div>
       </div>`;
     }).join('');
@@ -494,51 +483,61 @@ function renderParamsGraphes() {
       datasets: [{
         data: entries.map(e => e.count),
         backgroundColor: entries.map(e => e.color),
-        borderColor: '#0F172A',
-        borderWidth: 4,
-        hoverBorderWidth: 0,
-        borderRadius: 8,
-        hoverOffset: 18,
+        borderColor: '#ffffff',
+        borderWidth: 3,
+        borderRadius: 6,
+        hoverOffset: 16,
       }]
     },
     options: {
       responsive: false,
-      cutout: '62%',
-      animation: { animateRotate: true, animateScale: true, duration: 1000, easing: 'easeOutQuart' },
+      cutout: '55%',
+      animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
+      layout: { padding: 28 },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: 'rgba(15,23,42,0.95)',
+          backgroundColor: 'rgba(15,23,42,0.9)',
           titleColor: '#F8FAFC',
-          bodyColor: '#94A3B8',
-          borderColor: 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          padding: 14,
-          cornerRadius: 12,
+          bodyColor: '#CBD5E1',
+          padding: 12,
+          cornerRadius: 10,
           callbacks: {
-            title: ctx => ctx[0].label,
             label: ctx => {
               const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
-              return `  ${ctx.parsed} agent${ctx.parsed > 1 ? 's' : ''} · ${pct}%`;
+              return `  ${ctx.parsed} agent${ctx.parsed > 1 ? 's' : ''} — ${pct}%`;
             }
           }
+        },
+        datalabels: {
+          display: ctx => (ctx.dataset.data[ctx.dataIndex] / total) >= 0.04,
+          color: '#fff',
+          font: { weight: '700', size: 12 },
+          textAlign: 'center',
+          anchor: 'center',
+          align: 'center',
+          formatter: (value, ctx) => {
+            const pct = Math.round(value / total * 100);
+            return `${ctx.chart.data.labels[ctx.dataIndex]}\n${pct}%`;
+          },
+          textShadowColor: 'rgba(0,0,0,0.4)',
+          textShadowBlur: 4,
         }
       }
     },
-    plugins: [{
+    plugins: [ChartDataLabels, {
       id: 'centerText',
       afterDraw(chart) {
         const { ctx: c, chartArea: { width, height, left, top } } = chart;
         const cx = left + width / 2, cy = top + height / 2;
         c.save();
-        c.font = '800 32px Inter,Arial,sans-serif';
-        c.fillStyle = '#F8FAFC';
+        c.font = '800 30px Arial,sans-serif';
+        c.fillStyle = '#1E293B';
         c.textAlign = 'center';
         c.textBaseline = 'middle';
-        c.fillText(total, cx, cy - 11);
-        c.font = '600 10px Inter,Arial,sans-serif';
-        c.fillStyle = '#475569';
-        c.letterSpacing = '2px';
+        c.fillText(total, cx, cy - 10);
+        c.font = '600 11px Arial,sans-serif';
+        c.fillStyle = '#94A3B8';
         c.fillText('AGENTS', cx, cy + 14);
         c.restore();
       }
