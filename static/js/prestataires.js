@@ -445,8 +445,41 @@ function renderCharts() {
     if (_chartBar) _chartBar.destroy();
     _chartBar = new Chart(barCtx, {
       type: 'bar',
-      data: { labels: top8.map(p => p.nom.length > 18 ? p.nom.slice(0,16)+'…' : p.nom), datasets: [{ data: top8.map(p => p.montant || 0), backgroundColor: top8.map((_, i) => _palette[i % _palette.length]), borderRadius: 6 }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } } } }
+      data: {
+        labels: top8.map(p => p.nom.length > 18 ? p.nom.slice(0,16)+'…' : p.nom),
+        datasets: [{
+          data: top8.map(p => p.montant || 0),
+          backgroundColor: top8.map((_, i) => _palette[i % _palette.length]),
+          borderRadius: 6,
+          hoverBorderWidth: 2,
+          hoverBorderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: ctx => top8[ctx[0].dataIndex]?.nom || ctx[0].label,
+              label: ctx => `  ${formatEUR(ctx.raw)}`
+            },
+            titleFont: { weight: 'bold', size: 13 },
+            bodyFont: { size: 13 },
+            padding: 10
+          }
+        },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } } },
+        onHover: (evt, elements) => {
+          evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+        },
+        onClick: (evt, elements) => {
+          if (elements.length > 0) {
+            const p = top8[elements[0].index];
+            if (p) editPrestataire(p.id);
+          }
+        }
+      }
     });
   }
 }
