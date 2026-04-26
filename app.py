@@ -2961,6 +2961,7 @@ def api_stock_update_produit(pid):
     p.nom = data.get('nom', p.nom)
     p.categorie = data.get('categorie', p.categorie)
     p.unite = data.get('unite', p.unite)
+    p.quantite = float(data.get('quantite', p.quantite))
     p.seuil_alerte = float(data.get('seuil_alerte', p.seuil_alerte))
     p.emplacement = data.get('emplacement', p.emplacement)
     db.session.commit()
