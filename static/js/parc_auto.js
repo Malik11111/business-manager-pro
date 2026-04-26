@@ -126,16 +126,16 @@ function moisBadge(mois, dateStr) {
 
 function docsDots(v) {
   const types = [
-    { key: 'carte_grise',    label: 'Carte Grise' },
+    { key: 'carte_grise',    label: 'CG' },
     { key: 'ct',             label: 'CT' },
-    { key: 'assurance',      label: 'Assurance' },
-    { key: 'carte_mobilite', label: 'Carte Mobilité' },
+    { key: 'assurance',      label: 'ASS' },
+    { key: 'carte_mobilite', label: 'MOB' },
   ];
   const docs = v.docs || {};
-  return `<div style="display:flex;gap:4px;align-items:center;" onclick="goToDocsVehicule(${v.id})" title="Voir les documents" style="cursor:pointer">` +
+  return `<div style="display:flex;gap:4px;align-items:center;cursor:pointer;" onclick="goToDocsVehicule(${v.id})">` +
     types.map(t => {
       const ok = docs[t.key];
-      return `<span title="${t.label}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${ok ? '#22C55E' : '#FCA5A5'};border:1px solid ${ok ? '#16A34A' : '#EF4444'};cursor:pointer;"></span>`;
+      return `<span title="${t.label}" style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;background:${ok ? '#DCFCE7' : '#FEE2E2'};color:${ok ? '#16A34A' : '#EF4444'};border:1px solid ${ok ? '#86EFAC' : '#FCA5A5'};">${t.label}</span>`;
     }).join('') +
   `</div>`;
 }
