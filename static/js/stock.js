@@ -14,10 +14,93 @@ async function initStock() {
   await loadStockProduits();
   await loadStockKPIs();
   loadStockCategories();
-  // Charger les lieux depuis le référentiel
+  await loadStockLieux();
+}
+
+async function loadStockLieux() {
+  try { _stockLieux = await api('/api/unites'); } catch(e) { _stockLieux = []; }
+}
+
+/* ── Gestion des départements/lieux ───────────────── */
+function openGererDepartements() {
+  _renderGererDepts();
+}
+
+function _renderGererDepts() {
+  const liste = _stockLieux.length
+    ? _stockLieux.map(l => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
+          <span style="flex:1;font-size:13px;font-weight:500;">${esc(l.nom)}</span>
+          <span style="font-size:11px;color:#9CA3AF;flex:1;">${esc(l.emplacement||'')}</span>
+          <button class="btn-sm btn-sm-red" onclick="deleteDept(${l.id})">🗑️</button>
+        </div>`).join('')
+    : '<div style="color:#9CA3AF;font-size:13px;padding:10px 0;">Aucun département enregistré.</div>';
+
+  openModal('📍 Gérer les départements / lieux', `
+    <div style="display:grid;gap:12px;padding:4px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+        <div>
+          <label class="modal-label">Nom du département *</label>
+          <input id="dept-nom" class="modal-input" placeholder="Ex: Cuisine, Salle A, Bureau 2...">
+        </div>
+        <div>
+          <label class="modal-label">Bâtiment / Emplacement</label>
+          <input id="dept-empl" class="modal-input" placeholder="Optionnel">
+        </div>
+        <button class="btn btn-green" style="height:38px;align-self:end;" onclick="addDept()">➕ Ajouter</button>
+      </div>
+      <div style="max-height:280px;overflow-y:auto;">
+        ${liste}
+      </div>
+    </div>
+  `, async () => { await loadStockLieux(); });
+}
+
+async function addDept() {
+  const nom = document.getElementById('dept-nom')?.value.trim();
+  if (!nom) { showToast('Nom requis', 'error'); return; }
+  const empl = document.getElementById('dept-empl')?.value.trim() || '';
   try {
-    _stockLieux = await api('/api/unites');
-  } catch(e) { _stockLieux = []; }
+    await api('/api/unites', 'POST', { nom, emplacement: empl, description: '' });
+    await loadStockLieux();
+    document.getElementById('dept-nom').value = '';
+    document.getElementById('dept-empl').value = '';
+    // Rafraîchir la liste dans le modal
+    const body = document.getElementById('generic-modal-body');
+    if (body) {
+      const liste = _stockLieux.length
+        ? _stockLieux.map(l => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
+              <span style="flex:1;font-size:13px;font-weight:500;">${esc(l.nom)}</span>
+              <span style="font-size:11px;color:#9CA3AF;flex:1;">${esc(l.emplacement||'')}</span>
+              <button class="btn-sm btn-sm-red" onclick="deleteDept(${l.id})">🗑️</button>
+            </div>`).join('')
+        : '<div style="color:#9CA3AF;font-size:13px;padding:10px 0;">Aucun département enregistré.</div>';
+      body.querySelector('div[style*="max-height"]').innerHTML = liste;
+    }
+    showToast(`"${nom}" ajouté`, 'success');
+  } catch(e) { showToast('Erreur ajout', 'error'); }
+}
+
+async function deleteDept(id) {
+  if (!confirm('Supprimer ce département ?')) return;
+  try {
+    await api(`/api/unites/${id}`, 'DELETE');
+    await loadStockLieux();
+    const body = document.getElementById('generic-modal-body');
+    if (body) {
+      const liste = _stockLieux.length
+        ? _stockLieux.map(l => `
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
+              <span style="flex:1;font-size:13px;font-weight:500;">${esc(l.nom)}</span>
+              <span style="font-size:11px;color:#9CA3AF;flex:1;">${esc(l.emplacement||'')}</span>
+              <button class="btn-sm btn-sm-red" onclick="deleteDept(${l.id})">🗑️</button>
+            </div>`).join('')
+        : '<div style="color:#9CA3AF;font-size:13px;padding:10px 0;">Aucun département enregistré.</div>';
+      body.querySelector('div[style*="max-height"]').innerHTML = liste;
+    }
+    showToast('Supprimé', 'success');
+  } catch(e) { showToast('Erreur suppression', 'error'); }
 }
 
 /* ══════════════════════════════════════════════════
