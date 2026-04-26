@@ -301,7 +301,7 @@ function renderAttribs(list) {
 
     // Lignes enfants — simples <tr> avec data-group, cachées par défaut
     g.cles.forEach(a => {
-      rows.push(`<tr class="attrib-child-row" data-group="${idx}" style="display:none;background:#FAFBFF;border-bottom:1px solid #EEF0F8">
+      rows.push(`<tr class="attrib-child-row" data-group="${idx}" style="display:none;background:#FAFBFF;border-bottom:1px solid #EEF0F8;border-left:3px solid #5C52CC">
         <td></td>
         <td style="padding-left:28px;font-size:13px;color:#374151;font-weight:500">🔑 ${esc(a.cle_nom)}</td>
         <td style="font-size:12px;color:#5C52CC">${esc(a.cle_numero||'—')}</td>
