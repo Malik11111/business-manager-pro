@@ -518,7 +518,7 @@ function renderParamsGraphes() {
           }
         },
         datalabels: {
-          display: ctx => (ctx.dataset.data[ctx.dataIndex] / total) >= 0.04,
+          display: ctx => (ctx.dataset.data[ctx.dataIndex] / total) >= 0.02,
           color: '#fff',
           font: { weight: '700', size: 12 },
           textAlign: 'center',
