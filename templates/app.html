@@ -92,11 +92,19 @@
 
       <!-- ── Panel Personnel ── -->
       <div id="params-panel-personnel" class="params-panel">
+        <!-- Ligne 1 : recherche + actions -->
         <div style="padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #E0E0E0;background:#FAFAFA;">
-          <input id="params-pers-search" class="filter-input" placeholder="🔍 Rechercher…" style="min-width:200px" oninput="renderParamsPersonnel()">
+          <input id="params-pers-search" class="filter-input" placeholder="🔍 Rechercher…" style="min-width:180px" oninput="renderParamsPersonnel()">
+          <select id="params-filter-service" class="filter-select" onchange="renderParamsPersonnel()" style="min-width:130px"><option value="">Tous les services</option></select>
+          <select id="params-filter-poste"   class="filter-select" onchange="renderParamsPersonnel()" style="min-width:130px"><option value="">Tous les postes</option></select>
           <div id="params-pers-count" style="font-size:12px;color:#6B7280"></div>
           <button class="btn btn-green" onclick="openParamsPersonnelModal()" style="margin-left:auto">+ Ajouter</button>
           <button class="btn btn-red" onclick="deleteAllPersonnel()" style="font-size:12px">🗑 Tout supprimer</button>
+        </div>
+        <!-- Ligne 2 : pills contrat -->
+        <div style="padding:6px 14px;display:flex;gap:5px;flex-wrap:wrap;align-items:center;border-bottom:1px solid #E0E0E0;background:#F1F5F9;">
+          <span style="font-size:11px;color:#6B7280;font-weight:600;margin-right:2px">Contrat :</span>
+          <div id="params-contrat-pills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
         </div>
         <div class="table-wrapper">
           <table style="font-size:13px;" class="data-table">

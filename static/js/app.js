@@ -557,39 +557,99 @@ function renderParamsGraphes() {
 async function loadParamsPersonnel() {
   try {
     _paramsPersonnel = await api('/api/personnel');
+    buildPersonnelFilters();
     renderParamsPersonnel();
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+let _persFilterContrat = '';
+
+function _contratStyle(type) {
+  const found = _CONTRAT_PALETTE.find(c => c.label === (type || '').trim());
+  if (found) return `background:${found.color}22;color:${found.color};border:1px solid ${found.color}55;`;
+  return 'background:#F1F5F9;color:#64748B;border:1px solid #E2E8F0;';
+}
+
+function buildPersonnelFilters() {
+  // Pills contrat
+  const pills = document.getElementById('params-contrat-pills');
+  if (pills) {
+    const types = ['Tous', ..._CONTRAT_PALETTE.map(c => c.label).filter(l => _paramsPersonnel.some(p => (p.type_contrat || 'Autre').trim() === l || (l === 'Autre' && !p.type_contrat?.trim())))];
+    pills.innerHTML = types.map(t => {
+      const isAll = t === 'Tous';
+      const active = (isAll && !_persFilterContrat) || t === _persFilterContrat;
+      const pal = _CONTRAT_PALETTE.find(c => c.label === t);
+      const bg   = active ? (pal ? pal.color : '#1E293B') : (pal ? pal.color + '18' : '#F1F5F9');
+      const col  = active ? '#fff' : (pal ? pal.color : '#64748B');
+      const bord = pal ? pal.color + '66' : '#E2E8F0';
+      return `<button onclick="_setPersContrat('${isAll ? '' : t}')" style="padding:3px 10px;border-radius:20px;border:1.5px solid ${bord};background:${bg};color:${col};font-size:11px;font-weight:700;cursor:pointer;transition:all .15s">${t}</button>`;
+    }).join('');
+  }
+  // Select service
+  const svcSel = document.getElementById('params-filter-service');
+  if (svcSel) {
+    const svcs = [...new Set(_paramsPersonnel.map(p => p.service?.trim()).filter(Boolean))].sort();
+    const cur = svcSel.value;
+    svcSel.innerHTML = '<option value="">Tous les services</option>' + svcs.map(s => `<option value="${esc(s)}"${s === cur ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  }
+  // Select poste
+  const pstSel = document.getElementById('params-filter-poste');
+  if (pstSel) {
+    const postes = [...new Set(_paramsPersonnel.map(p => p.poste?.trim()).filter(Boolean))].sort();
+    const cur = pstSel.value;
+    pstSel.innerHTML = '<option value="">Tous les postes</option>' + postes.map(s => `<option value="${esc(s)}"${s === cur ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  }
+}
+
+function _setPersContrat(val) {
+  _persFilterContrat = val;
+  buildPersonnelFilters();
+  renderParamsPersonnel();
+}
+
 function renderParamsPersonnel() {
-  const q = (document.getElementById('params-pers-search')?.value || '').toLowerCase();
-  const list = _paramsPersonnel.filter(p =>
-    !q || [p.nom, p.prenom, p.poste, p.service, p.type_contrat].some(v => (v || '').toLowerCase().includes(q))
-  );
+  const q       = (document.getElementById('params-pers-search')?.value || '').toLowerCase();
+  const fSvc    = document.getElementById('params-filter-service')?.value || '';
+  const fPoste  = document.getElementById('params-filter-poste')?.value || '';
+
+  const list = _paramsPersonnel.filter(p => {
+    if (q && ![p.nom, p.prenom, p.poste, p.service, p.type_contrat].some(v => (v || '').toLowerCase().includes(q))) return false;
+    if (fSvc   && (p.service?.trim() || '') !== fSvc)   return false;
+    if (fPoste && (p.poste?.trim()   || '') !== fPoste) return false;
+    if (_persFilterContrat) {
+      const k = p.type_contrat?.trim() || 'Autre';
+      if (k !== _persFilterContrat) return false;
+    }
+    return true;
+  });
+
   const count = document.getElementById('params-pers-count');
-  if (count) count.textContent = `${list.length} personne${list.length !== 1 ? 's' : ''}`;
+  if (count) count.textContent = `${list.length} / ${_paramsPersonnel.length} personne${_paramsPersonnel.length !== 1 ? 's' : ''}`;
+
   const tbody = document.getElementById('params-pers-tbody');
   if (!tbody) return;
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;padding:18px">Aucun personnel.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;padding:18px">Aucun résultat.</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map(p => `
-    <tr>
+  tbody.innerHTML = list.map(p => {
+    const contrat = p.type_contrat?.trim() || '—';
+    const cStyle  = contrat !== '—' ? _contratStyle(contrat) : 'background:#F1F5F9;color:#64748B;';
+    return `<tr>
       <td><strong>${esc(p.nom)}</strong></td>
       <td>${esc(p.prenom || '—')}</td>
-      <td>${esc(p.poste || '—')}</td>
-      <td>${esc(p.service || '—')}</td>
-      <td><span style="font-size:11px;padding:2px 6px;border-radius:10px;background:#EDE9FE;color:#5B21B6">${esc(p.type_contrat || '—')}</span></td>
+      <td style="font-size:12px">${esc(p.poste || '—')}</td>
+      <td style="font-size:12px">${esc(p.service || '—')}</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;${cStyle}">${esc(contrat)}</span></td>
       <td>${esc(p.telephone || '—')}</td>
       <td>${esc(p.date_arrivee || '—')}</td>
       <td>${esc(p.date_depart || '—')}</td>
       <td style="white-space:nowrap">
         <button class="btn-table blue" onclick="openParamsPersonnelModal(${p.id})">✏️</button>
-        <button class="btn-table red" onclick="deleteParamsPersonnel(${p.id},'${esc(p.nom)} ${esc(p.prenom || '')}')">🗑️</button>
+        <button class="btn-table red"  onclick="deleteParamsPersonnel(${p.id},'${esc(p.nom)} ${esc(p.prenom || '')}')">🗑️</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 function openParamsPersonnelModal(id) {
