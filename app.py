@@ -129,9 +129,9 @@ def dev_reset_by_email(email):
     try:
         u = User.query.filter_by(email=email).first()
         if not u: return f'Aucun utilisateur avec email {email}', 404
-        u.set_password('admin123')
+        u.set_password('Admin2026!')
         db.session.commit()
-        return f'<b>OK</b> — {u.email} ({u.role}) → mot de passe: <b>admin123</b>'
+        return f'<b>OK</b> — {u.email} ({u.role}) → mot de passe: <b>Admin2026!</b>'
     except Exception as e:
         db.session.rollback()
         return f'Erreur: {e}', 500
