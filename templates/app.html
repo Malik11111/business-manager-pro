@@ -320,12 +320,18 @@
 
       <!-- ── Onglet Personnel ─────────────────────── -->
       <div class="tab-content active" data-tab-group="actifs" data-tab-id="personnel">
-        <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
-          <input id="personnel-search" class="search-input" style="width:260px" type="text" placeholder="🔍 Nom, prénom, poste..." oninput="filterPersonnel()">
+        <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <input id="personnel-search" class="search-input" style="width:200px" type="text" placeholder="🔍 Nom, prénom..." oninput="filterPersonnel()">
+          <select id="actifs-filter-service" class="filter-select" onchange="filterPersonnel()" style="min-width:120px"><option value="">Tous services</option></select>
+          <select id="actifs-filter-poste"   class="filter-select" onchange="filterPersonnel()" style="min-width:120px"><option value="">Tous postes</option></select>
           <span id="personnel-count" style="font-size:12px;color:#16A085;font-weight:700">0 personne</span>
           <div style="flex:1"></div>
           <button class="btn btn-green" onclick="openPersonnelDialog()">➕ Ajouter</button>
           <button class="btn btn-blue" onclick="exportCSV(_actifs.personnel.map(p=>[p.nom,p.prenom,p.type_contrat,p.poste,p.lieu]),['nom','prenom','type_contrat','poste','lieu'],'personnel_'+today()+'.csv');showToast('Export CSV téléchargé.','success')">📤 Exporter</button>
+        </div>
+        <div style="padding:6px 12px;display:flex;gap:5px;flex-wrap:wrap;align-items:center;border-bottom:1px solid #E0E0E0;background:#F1F5F9;">
+          <span style="font-size:11px;color:#6B7280;font-weight:600;margin-right:2px">Contrat :</span>
+          <div id="actifs-contrat-pills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
         </div>
         <div class="table-wrapper">
           <table>
@@ -534,6 +540,14 @@
 
       <!-- Onglet Employés -->
       <div class="tab-content" data-tab-group="cles" data-tab-id="employes-tab">
+        <div style="padding:8px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E0E0E0;background:#FAFAFA;flex-wrap:wrap">
+          <input id="cles-emp-search" class="search-input" style="width:200px" type="text" placeholder="🔍 Nom, prénom, poste..." oninput="filterEmployesCles()">
+          <span id="cles-emp-count" style="font-size:12px;color:#16A085;font-weight:700">0 employé</span>
+        </div>
+        <div style="padding:6px 12px;display:flex;gap:5px;flex-wrap:wrap;align-items:center;border-bottom:1px solid #E0E0E0;background:#F1F5F9;">
+          <span style="font-size:11px;color:#6B7280;font-weight:600;margin-right:2px">Contrat :</span>
+          <div id="cles-emp-contrat-pills" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+        </div>
         <div class="table-wrapper">
           <table id="employes-cles-table">
             <thead><tr>

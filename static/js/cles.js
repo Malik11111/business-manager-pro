@@ -6,6 +6,7 @@
 let _clesList = [];
 let _employesList = [];
 let _attribsList = [];
+let _clesPersFilterContrat = '';
 
 /* ── Init ──────────────────────────────────────────── */
 async function initCles() {
@@ -113,26 +114,58 @@ async function deleteCle(id) {
 async function loadEmployesCles() {
   try {
     _employesList = await api('/api/cles/employes');
-    renderEmployesCles(_employesList);
+    buildClesEmployesFilters();
+    filterEmployesCles();
   } catch(e) {}
+}
+
+function buildClesEmployesFilters() {
+  const container = document.getElementById('cles-emp-contrat-pills');
+  if (!container) return;
+  const allPill = `<button onclick="_setClesPersContrat('')" style="padding:3px 10px;border-radius:12px;border:2px solid ${_clesPersFilterContrat===''?'#5C52CC':'#D1D5DB'};background:${_clesPersFilterContrat===''?'#5C52CC':'#fff'};color:${_clesPersFilterContrat===''?'#fff':'#374151'};font-size:11px;font-weight:600;cursor:pointer;">Tous</button>`;
+  const pills = (_CONTRAT_PALETTE || []).map(c => {
+    const active = _clesPersFilterContrat === c.label;
+    return `<button onclick="_setClesPersContrat('${c.label}')" style="padding:3px 10px;border-radius:12px;border:2px solid ${active?c.color:'#D1D5DB'};background:${active?c.color:'#fff'};color:${active?'#fff':'#374151'};font-size:11px;font-weight:600;cursor:pointer;${active?'box-shadow:0 0 6px '+c.color+'88;':''}">${c.label}</button>`;
+  });
+  container.innerHTML = allPill + pills.join('');
+}
+
+function _setClesPersContrat(val) {
+  _clesPersFilterContrat = val;
+  buildClesEmployesFilters();
+  filterEmployesCles();
+}
+
+function filterEmployesCles() {
+  const q = (document.getElementById('cles-emp-search')?.value || '').toLowerCase();
+  const list = _employesList.filter(e => {
+    if (_clesPersFilterContrat && e.type_contrat !== _clesPersFilterContrat) return false;
+    if (q && ![e.nom, e.prenom, e.poste, e.type_contrat].some(v => (v||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  renderEmployesCles(list);
 }
 
 function renderEmployesCles(list) {
   const tbody = document.getElementById('employes-cles-tbody');
   if (!tbody) return;
+  const countEl = document.getElementById('cles-emp-count');
+  if (countEl) countEl.textContent = `${list.length} employé${list.length > 1 ? 's' : ''}`;
   if (!list.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Aucun employé enregistré.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Aucun employé enregistré.</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(e => {
     const clesBadges = (e.cles||[]).map(c =>
       `<span style="background:#E8EAF6;color:#3949AB;border-radius:10px;padding:2px 8px;font-size:11px;margin:2px;display:inline-block;">🔑 ${esc(c.nom)}</span>`
     ).join('') || '<span style="color:#9CA3AF;font-size:11px">Aucune</span>';
-    const contratColor = {'CDI':'#2E7D32','CDD':'#EF6C00','Intérim':'#1565C0','Stage':'#6A1B9A'}[e.type_contrat]||'#607D8B';
+    const contratBadge = (typeof _contratStyle === 'function')
+      ? `<span style="${_contratStyle(e.type_contrat)}">${esc(e.type_contrat||'—')}</span>`
+      : `<span style="background:#E0E0E0;color:#374151;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700">${esc(e.type_contrat||'—')}</span>`;
     return `<tr>
       <td style="font-weight:700">${esc(e.nom)}</td>
       <td>${esc(e.prenom)}</td>
-      <td><span style="background:${contratColor}22;color:${contratColor};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:700">${esc(e.type_contrat||'—')}</span></td>
+      <td>${contratBadge}</td>
       <td style="font-size:12px;color:#5C52CC">${esc(e.poste||'—')}</td>
       <td style="font-size:12px">${esc(e.date_arrivee||'—')}</td>
       <td style="font-size:12px;color:${e.date_depart?'#DC2626':'#9CA3AF'}">${esc(e.date_depart||'—')}</td>

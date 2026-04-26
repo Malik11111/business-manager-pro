@@ -5,6 +5,7 @@
 
 /* ── Etat local ────────────────────────────────────── */
 let _actifs = { personnel: [], unites: [], materiel: [] };
+let _actifsPersFilterContrat = '';
 
 const TYPES_MATERIEL = [
   'Audiovisuel', 'Climatisation', 'Electromenager', 'Equipement',
@@ -27,11 +28,43 @@ async function initActifs() {
     _actifs = { personnel: [], unites: [], materiel: [] };
     console.error('Erreur chargement actifs:', e);
   }
+  buildActifsPersonnelFilters();
   renderPersonnelTable();
   renderUnitesTable();
   renderMaterielTable();
   renderSortirTable();
   updatePPI();
+}
+
+function buildActifsPersonnelFilters() {
+  // Peupler les selects service / poste
+  const services = [...new Set(_actifs.personnel.map(p => p.service).filter(Boolean))].sort();
+  const postes   = [...new Set(_actifs.personnel.map(p => p.poste).filter(Boolean))].sort();
+  const svcSel = document.getElementById('actifs-filter-service');
+  const pstSel = document.getElementById('actifs-filter-poste');
+  if (svcSel) {
+    const cur = svcSel.value;
+    svcSel.innerHTML = '<option value="">Tous services</option>' + services.map(s => `<option value="${esc(s)}"${s===cur?' selected':''}>${esc(s)}</option>`).join('');
+  }
+  if (pstSel) {
+    const cur = pstSel.value;
+    pstSel.innerHTML = '<option value="">Tous postes</option>' + postes.map(p => `<option value="${esc(p)}"${p===cur?' selected':''}>${esc(p)}</option>`).join('');
+  }
+  // Pills contrat
+  const container = document.getElementById('actifs-contrat-pills');
+  if (!container) return;
+  const allPill = `<button onclick="_setActifsPersContrat('')" style="padding:3px 10px;border-radius:12px;border:2px solid ${_actifsPersFilterContrat===''?'#5C52CC':'#D1D5DB'};background:${_actifsPersFilterContrat===''?'#5C52CC':'#fff'};color:${_actifsPersFilterContrat===''?'#fff':'#374151'};font-size:11px;font-weight:600;cursor:pointer;">Tous</button>`;
+  const pills = (_CONTRAT_PALETTE || []).map(c => {
+    const active = _actifsPersFilterContrat === c.label;
+    return `<button onclick="_setActifsPersContrat('${c.label}')" style="padding:3px 10px;border-radius:12px;border:2px solid ${active?c.color:'#D1D5DB'};background:${active?c.color:'#fff'};color:${active?'#fff':'#374151'};font-size:11px;font-weight:600;cursor:pointer;${active?'box-shadow:0 0 6px '+c.color+'88;':''}">${c.label}</button>`;
+  });
+  container.innerHTML = allPill + pills.join('');
+}
+
+function _setActifsPersContrat(val) {
+  _actifsPersFilterContrat = val;
+  buildActifsPersonnelFilters();
+  filterPersonnel();
 }
 
 /* ══════════════════════════════════════════════════════
@@ -41,16 +74,21 @@ function renderPersonnelTable(filtered) {
   const list = filtered ?? _actifs.personnel;
   const tbody = document.getElementById('personnel-tbody');
   if (!tbody) return;
-  document.getElementById('personnel-count').textContent = `${list.length} personne${list.length > 1 ? 's' : ''}`;
+  const countEl = document.getElementById('personnel-count');
+  if (countEl) countEl.textContent = `${list.length} personne${list.length > 1 ? 's' : ''}`;
   if (list.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Aucun personnel — gérez le dans ⚙️ Paramètres.</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Aucun personnel — gérez le dans ⚙️ Paramètres.</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map((p, i) => `<tr>
+  tbody.innerHTML = list.map((p, i) => {
+    const contratBadge = (typeof _contratStyle === 'function')
+      ? `<span style="${_contratStyle(p.type_contrat)}">${esc(p.type_contrat || '—')}</span>`
+      : `<span class="badge badge-blue">${esc(p.type_contrat || '—')}</span>`;
+    return `<tr>
     <td>${i + 1}</td>
     <td><strong>${esc(p.nom)}</strong></td>
     <td>${esc(p.prenom)}</td>
-    <td><span class="badge badge-blue">${esc(p.type_contrat || '—')}</span></td>
+    <td>${contratBadge}</td>
     <td>${esc(p.poste || '—')}</td>
     <td>${esc(p.service || '—')}</td>
     <td>${esc(p.telephone || '—')}</td>
@@ -60,14 +98,21 @@ function renderPersonnelTable(filtered) {
       <button class="btn-sm btn-sm-blue" onclick="editPersonnel(${p.id})" title="Modifier">✏️</button>
       <button class="btn-sm btn-sm-red" onclick="deletePersonnel(${p.id})" title="Supprimer">🗑️</button>
     </div></td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
 function filterPersonnel() {
-  const q = (document.getElementById('personnel-search')?.value || '').toLowerCase();
-  const list = _actifs.personnel.filter(p =>
-    !q || [p.nom, p.prenom, p.poste, p.service, p.type_contrat].some(v => (v || '').toLowerCase().includes(q))
-  );
+  const q       = (document.getElementById('personnel-search')?.value || '').toLowerCase();
+  const service = document.getElementById('actifs-filter-service')?.value || '';
+  const poste   = document.getElementById('actifs-filter-poste')?.value || '';
+  const list = _actifs.personnel.filter(p => {
+    if (q && ![p.nom, p.prenom, p.poste, p.service, p.type_contrat].some(v => (v || '').toLowerCase().includes(q))) return false;
+    if (service && p.service !== service) return false;
+    if (poste   && p.poste   !== poste)   return false;
+    if (_actifsPersFilterContrat && p.type_contrat !== _actifsPersFilterContrat) return false;
+    return true;
+  });
   renderPersonnelTable(list);
 }
 
