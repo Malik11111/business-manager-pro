@@ -533,6 +533,31 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+/* ── Import Excel clés ───────────────────────────── */
+function importClesExcel() {
+  const input = document.getElementById('import-cles-input');
+  input.value = '';
+  input.click();
+}
+
+async function onImportClesFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  const form = new FormData();
+  form.append('file', file);
+  showToast('Import en cours...', 'info');
+  try {
+    const res = await fetch('/api/cles/import-excel', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur import', 'error'); return; }
+    showToast(`✅ ${data.added} clé(s) importée(s) — ${data.skipped} ignorée(s)`, 'success');
+    await initCles();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+
 /* ── Scan fiche distribution de clés ─────────────── */
 function openScanFicheCles() {
   const input = document.getElementById('scan-cles-input');

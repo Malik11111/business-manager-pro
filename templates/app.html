@@ -508,6 +508,9 @@
         </div>
         <button class="btn btn-gemini" onclick="openScanFicheCles()">📄 Scanner fiche</button>
         <button class="btn btn-green"  onclick="openAddCleDialog()">🔑 Ajouter une clé</button>
+        <button class="btn btn-green"  onclick="importClesExcel()" title="Importer des clés depuis un fichier Excel">📥 Importer Excel</button>
+        <button class="btn btn-secondary" onclick="window.location.href='/api/cles/template-excel'" title="Télécharger le modèle Excel">📋 Exemple Excel</button>
+        <input type="file" id="import-cles-input" accept=".xlsx,.xls" style="display:none" onchange="onImportClesFileSelected(this)">
         <button class="btn btn-blue"   onclick="openAddEmployeDialog()">👤 Ajouter employé</button>
         <button class="btn btn-blue"   onclick="syncClesFromConfig()" title="Importer le personnel depuis Config">⚙️ Charger Config</button>
         <button class="btn btn-orange" onclick="openAttribuerDialog()">📋 Attribuer</button>

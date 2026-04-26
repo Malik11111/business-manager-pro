@@ -3257,6 +3257,80 @@ def api_cles_historique():
     return jsonify([h.to_dict() for h in hist])
 
 
+@app.route('/api/cles/template-excel', methods=['GET'])
+@login_required
+def api_cles_template_excel():
+    import io
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from flask import send_file
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Cles"
+    headers = ['N° Clé', 'Nom / Local', 'Quantité totale']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color='FFFFFF')
+        cell.fill = PatternFill('solid', fgColor='5C52CC')
+        cell.alignment = Alignment(horizontal='center')
+    exemples = [
+        ('911', 'Atelier 1er étage', 40),
+        ('500', 'Les canaries', 50),
+        ('900', 'Les cigognes', 13),
+        ('Badge', 'Badge portillon', 99),
+        ('EXT 1', 'Porte ext principale', 18),
+    ]
+    for row in exemples:
+        ws.append(list(row))
+    ws.column_dimensions['A'].width = 14
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 18
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name='modele_import_cles.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@app.route('/api/cles/import-excel', methods=['POST'])
+@login_required
+def api_cles_import_excel():
+    import openpyxl
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'Fichier manquant'}), 400
+    try:
+        wb = openpyxl.load_workbook(f, data_only=True)
+        ws = wb.active
+        added = 0
+        skipped = 0
+        for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True)):
+            numero = str(row[0]).strip() if row[0] is not None else ''
+            nom    = str(row[1]).strip() if row[1] is not None else ''
+            try:
+                qte = int(float(str(row[2]))) if row[2] is not None else 1
+            except Exception:
+                qte = 1
+            if not nom:
+                skipped += 1
+                continue
+            existing = CleItem.query.filter_by(etab_id=etab.id, numero=numero, nom=nom).first()
+            if existing:
+                skipped += 1
+                continue
+            c = CleItem(etab_id=etab.id, numero=numero, nom=nom, quantite_totale=max(1, qte))
+            db.session.add(c)
+            added += 1
+        db.session.commit()
+        return jsonify({'added': added, 'skipped': skipped})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 # ══════════════════════════════════════════════════════
 #  CONTRATS PDF PRESTATAIRES
 # ══════════════════════════════════════════════════════
