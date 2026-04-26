@@ -9,7 +9,7 @@ from config import Config
 from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePresta
 from models import Personnel, Unite, Materiel, BudgetLigne
 from models import PharmaStock, PharmaMouvement, PharmaArchive
-from models import Vehicule, Entretien, Carburant
+from models import Vehicule, Entretien, Carburant, DocumentVehicule
 from models import CleItem, EmployeCle, AttributionCle, HistoriqueCle
 from models import StockProduit, StockMouvement
 from models import AnalysePDF
@@ -2576,6 +2576,79 @@ def get_alertes_vehicules():
                 'date_assurance': v.date_assurance, 'mois_assurance': mois_ass, 'alerte_ass': alerte_ass
             })
     return jsonify(alertes)
+
+
+# Documents véhicule
+
+TYPES_DOC_VEHICULE = {'ct', 'assurance', 'carte_grise', 'carte_handicap_recto', 'carte_handicap_verso'}
+
+@app.route('/api/vehicules/<int:vid>/documents', methods=['GET'])
+@login_required
+def get_documents_vehicule(vid):
+    etab = _get_etab()
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    docs = DocumentVehicule.query.filter_by(vehicule_id=v.id).order_by(DocumentVehicule.annee.desc()).all()
+    return jsonify([d.to_dict() for d in docs])
+
+
+@app.route('/api/vehicules/<int:vid>/documents', methods=['POST'])
+@login_required
+def upload_document_vehicule(vid):
+    from datetime import date as _date
+    etab = _get_etab()
+    v = Vehicule.query.filter_by(id=vid, etab_id=etab.id).first_or_404()
+    f = request.files.get('file')
+    type_doc = request.form.get('type_doc', '')
+    annee = request.form.get('annee', '')
+    if not f or not type_doc or not annee:
+        return jsonify({'error': 'Données manquantes'}), 400
+    if type_doc not in TYPES_DOC_VEHICULE:
+        return jsonify({'error': 'Type de document invalide'}), 400
+    try:
+        annee = int(annee)
+    except ValueError:
+        return jsonify({'error': 'Année invalide'}), 400
+    contenu = f.read()
+    existing = DocumentVehicule.query.filter_by(vehicule_id=v.id, type_doc=type_doc, annee=annee).first()
+    if existing:
+        existing.nom_fichier = f.filename
+        existing.contenu = contenu
+        existing.date_upload = _date.today().strftime('%d/%m/%Y')
+        existing.taille = len(contenu)
+    else:
+        doc = DocumentVehicule(
+            vehicule_id=v.id, type_doc=type_doc, annee=annee,
+            nom_fichier=f.filename, contenu=contenu,
+            date_upload=_date.today().strftime('%d/%m/%Y'),
+            taille=len(contenu)
+        )
+        db.session.add(doc)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/vehicules/documents/<int:did>', methods=['GET'])
+@login_required
+def view_document_vehicule(did):
+    import mimetypes
+    etab = _get_etab()
+    doc = DocumentVehicule.query.get_or_404(did)
+    v = Vehicule.query.filter_by(id=doc.vehicule_id, etab_id=etab.id).first_or_404()
+    mime = mimetypes.guess_type(doc.nom_fichier)[0] or 'application/octet-stream'
+    import io
+    return send_file(io.BytesIO(doc.contenu), mimetype=mime,
+                     as_attachment=False, download_name=doc.nom_fichier)
+
+
+@app.route('/api/vehicules/documents/<int:did>', methods=['DELETE'])
+@login_required
+def delete_document_vehicule(did):
+    etab = _get_etab()
+    doc = DocumentVehicule.query.get_or_404(did)
+    Vehicule.query.filter_by(id=doc.vehicule_id, etab_id=etab.id).first_or_404()
+    db.session.delete(doc)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # Entretiens

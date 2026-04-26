@@ -208,6 +208,13 @@ function buildVehiculeFilterOptions() {
     sel.innerHTML = '<option value="">Tous les véhicules</option>' +
       _vehicules.map(v => `<option value="${v.id}"${v.id == current ? ' selected' : ''}>${esc(v.immatriculation)} — ${esc(v.marque)}</option>`).join('');
   });
+  const docsSel = document.getElementById('docs-vehicule-select');
+  if (docsSel) {
+    const current = docsSel.value;
+    docsSel.innerHTML = '<option value="">-- Choisir un véhicule --</option>' +
+      _vehicules.map(v => `<option value="${v.id}"${v.id == current ? ' selected' : ''}>${esc(v.immatriculation)} — ${esc(v.marque)} ${esc(v.modele || '')}</option>`).join('');
+  }
+  _docsVehiculeInited = true;
 }
 
 /* ── Dialogs ─────────────────────────────────────────────── */
@@ -668,6 +675,124 @@ async function onScanVehiculeSelected(input) {
     overlay.style.display = 'none';
     showToast('Erreur : ' + e.message, 'error');
   }
+}
+
+/* ══════════════════════════════════════════════════════
+   ONGLET DOCUMENTS VÉHICULE
+══════════════════════════════════════════════════════ */
+
+const DOC_TYPES = [
+  { key: 'carte_grise',          label: 'Carte Grise',           icon: '🪪', freq: 'À chaque changement' },
+  { key: 'ct',                   label: 'Contrôle Technique',    icon: '🔍', freq: 'Tous les 2 ans' },
+  { key: 'assurance',            label: 'Assurance',             icon: '🛡️', freq: 'Chaque année' },
+  { key: 'carte_handicap_recto', label: 'Carte Handicap (Recto)',icon: '♿', freq: 'Au renouvellement' },
+  { key: 'carte_handicap_verso', label: 'Carte Handicap (Verso)',icon: '♿', freq: 'Au renouvellement' },
+];
+
+let _docsVehiculeInited = false;
+
+function initDocsVehicule() {
+  loadDocsVehicule();
+}
+
+async function loadDocsVehicule() {
+  const sel = document.getElementById('docs-vehicule-select');
+  const vid = sel ? sel.value : '';
+  const container = document.getElementById('docs-vehicule-container');
+  if (!vid) {
+    container.innerHTML = '<div style="color:#9CA3AF;font-size:13px;grid-column:1/-1;text-align:center;padding:40px 0;">Sélectionnez un véhicule pour voir ses documents.</div>';
+    return;
+  }
+  container.innerHTML = '<div style="color:#9CA3AF;font-size:13px;grid-column:1/-1;text-align:center;padding:40px 0;">Chargement…</div>';
+  try {
+    const docs = await api(`/api/vehicules/${vid}/documents`);
+    renderDocsVehicule(vid, docs);
+  } catch (e) {
+    container.innerHTML = '<div style="color:#e53935;font-size:13px;grid-column:1/-1;text-align:center;padding:40px 0;">Erreur chargement.</div>';
+  }
+}
+
+function renderDocsVehicule(vid, docs) {
+  const container = document.getElementById('docs-vehicule-container');
+  container.innerHTML = DOC_TYPES.map(dt => {
+    const typeDocs = docs.filter(d => d.type_doc === dt.key).sort((a, b) => b.annee - a.annee);
+    const listHtml = typeDocs.length
+      ? typeDocs.map(d => `
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
+            <span style="font-weight:700;font-size:13px;color:#1E3A8A;min-width:42px;">${d.annee}</span>
+            <span style="flex:1;font-size:12px;color:#6B6B8A;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(d.nom_fichier)}">${esc(d.nom_fichier)}</span>
+            <span style="font-size:11px;color:#9CA3AF;">${esc(d.date_upload)}</span>
+            <button class="btn-sm btn-sm-blue" onclick="viewDocVehicule(${d.id})" title="Voir">👁️</button>
+            <button class="btn-sm btn-sm-red"  onclick="deleteDocVehicule(${d.id},${vid})" title="Supprimer">🗑️</button>
+          </div>`).join('')
+      : '<div style="font-size:12px;color:#9CA3AF;padding:10px 0;">Aucun document.</div>';
+
+    return `<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <span style="font-size:22px;">${dt.icon}</span>
+          <span style="font-size:14px;font-weight:700;color:#1A1A2E;margin-left:6px;">${dt.label}</span>
+        </div>
+        <button class="btn btn-green" style="font-size:12px;padding:4px 10px;" onclick="openUploadDocVehicule(${vid},'${dt.key}','${dt.label}')">➕ Ajouter</button>
+      </div>
+      <div style="font-size:11px;color:#9CA3AF;">${dt.freq}</div>
+      <div>${listHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function openUploadDocVehicule(vid, typeDoc, typeLabel) {
+  const annee = new Date().getFullYear();
+  const html = `
+    <div style="padding:20px;min-width:320px;">
+      <h3 style="margin:0 0 16px;font-size:15px;color:#1A1A2E;">📄 ${typeLabel}</h3>
+      <label style="font-size:13px;font-weight:600;">Année du document</label>
+      <input id="upload-doc-annee" type="number" value="${annee}" min="2000" max="2099"
+        style="width:100%;margin:6px 0 14px;padding:8px;border:1px solid #D1D5DB;border-radius:6px;font-size:14px;">
+      <label style="font-size:13px;font-weight:600;">Fichier (PDF, JPG, PNG)</label>
+      <input id="upload-doc-file" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp"
+        style="width:100%;margin:6px 0 20px;font-size:13px;">
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn" onclick="closeDialog()" style="background:#F3F4F6;color:#374151;">Annuler</button>
+        <button class="btn btn-green" onclick="submitUploadDocVehicule(${vid},'${typeDoc}')">⬆️ Enregistrer</button>
+      </div>
+    </div>`;
+  openDialog(html);
+}
+
+async function submitUploadDocVehicule(vid, typeDoc) {
+  const annee = document.getElementById('upload-doc-annee')?.value;
+  const fileInput = document.getElementById('upload-doc-file');
+  const file = fileInput?.files[0];
+  if (!annee || !file) { showToast('Veuillez renseigner l\'année et choisir un fichier.', 'error'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('type_doc', typeDoc);
+  fd.append('annee', annee);
+  try {
+    const res = await fetch(`/api/vehicules/${vid}/documents`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur upload', 'error'); return; }
+    closeDialog();
+    showToast('Document enregistré !', 'success');
+    loadDocsVehicule();
+  } catch (e) {
+    showToast('Erreur lors de l\'envoi.', 'error');
+  }
+}
+
+function viewDocVehicule(did) {
+  window.open(`/api/vehicules/documents/${did}`, '_blank');
+}
+
+async function deleteDocVehicule(did, vid) {
+  if (!confirm('Supprimer ce document ?')) return;
+  try {
+    const res = await fetch(`/api/vehicules/documents/${did}`, { method: 'DELETE' });
+    if (!res.ok) { showToast('Erreur suppression', 'error'); return; }
+    showToast('Document supprimé.', 'success');
+    loadDocsVehicule();
+  } catch (e) { showToast('Erreur.', 'error'); }
 }
 
 /* ══════════════════════════════════════════════════════

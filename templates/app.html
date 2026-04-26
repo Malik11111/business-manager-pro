@@ -749,6 +749,7 @@
         <button class="tab-btn"        data-tab-group="auto" data-tab-id="carburant"  onclick="switchTab('auto','carburant')"> ⛽ Carburant</button>
         <button class="tab-btn"        data-tab-group="auto" data-tab-id="alertes"    onclick="switchTab('auto','alertes')">   🔔 Alertes <span id="auto-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
         <button class="tab-btn"        data-tab-group="auto" data-tab-id="couts"      onclick="switchTab('auto','couts');renderCouts()">     💶 Coûts</button>
+        <button class="tab-btn"        data-tab-group="auto" data-tab-id="docs-vehicule" onclick="switchTab('auto','docs-vehicule');initDocsVehicule()"> 📄 Documents</button>
       </div>
 
       <!-- Onglet Véhicules -->
@@ -842,6 +843,20 @@
             <thead><tr><th>VÉHICULE</th><th style="text-align:right">⛽ CARBURANT</th><th style="text-align:right">🔧 ENTRETIEN</th><th style="text-align:right">💶 TOTAL</th></tr></thead>
             <tbody id="couts-tbody"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Onglet Documents véhicule -->
+      <div class="tab-content" data-tab-group="auto" data-tab-id="docs-vehicule">
+        <div style="padding:12px 16px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #EDEDF5;background:#fff;flex-wrap:wrap;">
+          <label style="font-size:13px;font-weight:600;color:#1A1A2E;">Véhicule :</label>
+          <select id="docs-vehicule-select" class="filter-select" onchange="loadDocsVehicule()" style="min-width:200px;">
+            <option value="">-- Choisir un véhicule --</option>
+          </select>
+          <span style="font-size:12px;color:#9CA3AF;margin-left:8px;">Cliquez sur ➕ pour ajouter ou remplacer un document par année.</span>
+        </div>
+        <div id="docs-vehicule-container" style="padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+          <div style="color:#9CA3AF;font-size:13px;grid-column:1/-1;text-align:center;padding:40px 0;">Sélectionnez un véhicule pour voir ses documents.</div>
         </div>
       </div>
 

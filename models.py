@@ -500,6 +500,29 @@ class Carburant(db.Model):
         }
 
 
+class DocumentVehicule(db.Model):
+    __tablename__ = 'documents_vehicule'
+    id = db.Column(db.Integer, primary_key=True)
+    vehicule_id = db.Column(db.Integer, db.ForeignKey('vehicules.id'), nullable=False)
+    type_doc = db.Column(db.String(50), nullable=False)
+    annee = db.Column(db.Integer, nullable=False)
+    nom_fichier = db.Column(db.String(300), nullable=False)
+    contenu = db.Column(db.LargeBinary, nullable=False)
+    date_upload = db.Column(db.String(10), default='')
+    taille = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'vehicule_id': self.vehicule_id,
+            'type_doc': self.type_doc,
+            'annee': self.annee,
+            'nom_fichier': self.nom_fichier,
+            'date_upload': self.date_upload,
+            'taille': self.taille,
+        }
+
+
 class ContratPDF(db.Model):
     __tablename__ = 'contrats_pdf'
     id = db.Column(db.Integer, primary_key=True)
