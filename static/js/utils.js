@@ -120,8 +120,7 @@ function openModal(title, bodyHtml, onConfirm) {
         </div>
       </div>`;
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', e => { if (e.target === overlay) closeGenericModal(); });
-    overlay.querySelector('.modal').addEventListener('click', e => e.stopPropagation());
+    overlay.addEventListener('click', e => { if (!e.target.closest('.modal')) closeGenericModal(); });
   }
   document.getElementById('generic-modal-title').textContent = title;
   document.getElementById('generic-modal-body').innerHTML = bodyHtml;
