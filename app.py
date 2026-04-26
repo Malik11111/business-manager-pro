@@ -2580,7 +2580,7 @@ def get_alertes_vehicules():
 
 # Documents véhicule
 
-TYPES_DOC_VEHICULE = {'ct', 'assurance', 'carte_grise', 'carte_handicap_recto', 'carte_handicap_verso'}
+TYPES_DOC_VEHICULE = {'ct', 'assurance', 'carte_grise', 'carte_mobilite'}
 
 @app.route('/api/vehicules/<int:vid>/documents', methods=['GET'])
 @login_required

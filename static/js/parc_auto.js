@@ -682,11 +682,10 @@ async function onScanVehiculeSelected(input) {
 ══════════════════════════════════════════════════════ */
 
 const DOC_TYPES = [
-  { key: 'carte_grise',          label: 'Carte Grise',           icon: '🪪', freq: 'À chaque changement' },
-  { key: 'ct',                   label: 'Contrôle Technique',    icon: '🔍', freq: 'Tous les 2 ans' },
-  { key: 'assurance',            label: 'Assurance',             icon: '🛡️', freq: 'Chaque année' },
-  { key: 'carte_handicap_recto', label: 'Carte Handicap (Recto)',icon: '♿', freq: 'Au renouvellement' },
-  { key: 'carte_handicap_verso', label: 'Carte Handicap (Verso)',icon: '♿', freq: 'Au renouvellement' },
+  { key: 'carte_grise',    label: 'Carte Grise',          icon: '🪪', freq: 'À chaque changement' },
+  { key: 'ct',             label: 'Contrôle Technique',   icon: '🔍', freq: 'Tous les 2 ans' },
+  { key: 'assurance',      label: 'Assurance',            icon: '🛡️', freq: 'Chaque année' },
+  { key: 'carte_mobilite', label: 'Carte Mobilité',       icon: '♿', freq: 'Au renouvellement' },
 ];
 
 let _docsVehiculeInited = false;
