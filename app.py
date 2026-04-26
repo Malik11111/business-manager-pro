@@ -1094,7 +1094,7 @@ def scan_facture_ia():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte de la facture :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
             else:
                 # PDF scanné → Vision Gemini
@@ -1104,7 +1104,7 @@ def scan_facture_ia():
                         {"text": prompt + "\n\n[Analyse la facture visible dans ce PDF scanné]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -1115,7 +1115,7 @@ def scan_facture_ia():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -2033,7 +2033,7 @@ def scan_contrat_ia():
             prompt = PROMPT_CONTRAT.replace("{texte}", texte[:40000])
             body = _json.dumps({
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
         else:
             # PDF scanné → Vision Gemini
@@ -2044,7 +2044,7 @@ def scan_contrat_ia():
                     {"text": prompt_vision},
                     {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
 
         req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
@@ -2109,7 +2109,7 @@ def scan_document_vehicule():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
             else:
                 pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
@@ -2118,7 +2118,7 @@ def scan_document_vehicule():
                         {"text": prompt + "\n\n[Document scanné en image]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -2129,7 +2129,7 @@ def scan_document_vehicule():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
