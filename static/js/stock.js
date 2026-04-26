@@ -249,8 +249,8 @@ function _produitForm(p) {
         ${UNITES.map(u=>`<option ${u===(p?.unite||'unité')?'selected':''}>${u}</option>`).join('')}
       </select>
     </div>
-    <div><label class="modal-label">Quantité initiale</label><input id="sp-qte" class="modal-input" type="number" value="${p?.quantite??0}" min="0" step="0.01"></div>
-    <div><label class="modal-label">Seuil alerte</label><input id="sp-seuil" class="modal-input" type="number" value="${p?.seuil_alerte??0}" min="0" step="0.01"></div>
+    <div><label class="modal-label">Quantité initiale</label><input id="sp-qte" class="modal-input" type="number" value="${Math.round(p?.quantite??0)}" min="0" step="1"></div>
+    <div><label class="modal-label">Seuil alerte</label><input id="sp-seuil" class="modal-input" type="number" value="${Math.round(p?.seuil_alerte??0)}" min="0" step="1"></div>
     <div style="grid-column:span 2"><label class="modal-label">Emplacement</label><input id="sp-empl" class="modal-input" value="${esc(p?.emplacement||'')}"></div>
   </div>`;
 }
@@ -260,8 +260,8 @@ function _produitFormData() {
     nom: document.getElementById('sp-nom')?.value.trim(),
     categorie: document.getElementById('sp-cat')?.value,
     unite: document.getElementById('sp-unite')?.value,
-    quantite: parseFloat(document.getElementById('sp-qte')?.value)||0,
-    seuil_alerte: parseFloat(document.getElementById('sp-seuil')?.value)||0,
+    quantite: parseInt(document.getElementById('sp-qte')?.value)||0,
+    seuil_alerte: parseInt(document.getElementById('sp-seuil')?.value)||0,
     emplacement: document.getElementById('sp-empl')?.value.trim()
   };
 }
@@ -292,7 +292,7 @@ function openSortieDialog(produitIdPrefill) {
         </select>
       </div>
       <div><label class="modal-label">Quantité *</label>
-        <input id="sm-qte" class="modal-input" type="number" value="1" min="0.01" step="0.01">
+        <input id="sm-qte" class="modal-input" type="number" value="1" min="1" step="1">
       </div>
       <div><label class="modal-label">Personne</label>
         <input id="sm-pers" class="modal-input" placeholder="Nom de la personne">
@@ -311,7 +311,7 @@ function openSortieDialog(produitIdPrefill) {
       </div>
     </div>`, async () => {
     const pid = parseInt(document.getElementById('sm-prod')?.value);
-    const qte = parseFloat(document.getElementById('sm-qte')?.value);
+    const qte = parseInt(document.getElementById('sm-qte')?.value);
     if (!pid) { showToast('Sélectionnez un produit', 'error'); return false; }
     if (!qte || qte <= 0) { showToast('Quantité invalide', 'error'); return false; }
     try {
@@ -347,14 +347,14 @@ function openReceptionDialog(produitIdPrefill) {
         </select>
       </div>
       <div><label class="modal-label">Quantité reçue *</label>
-        <input id="rm-qte" class="modal-input" type="number" value="1" min="0.01" step="0.01">
+        <input id="rm-qte" class="modal-input" type="number" value="1" min="1" step="1">
       </div>
       <div><label class="modal-label">Date</label>
         <input id="rm-date" class="modal-input" type="date" value="${today}">
       </div>
     </div>`, async () => {
     const pid = parseInt(document.getElementById('rm-prod')?.value);
-    const qte = parseFloat(document.getElementById('rm-qte')?.value);
+    const qte = parseInt(document.getElementById('rm-qte')?.value);
     if (!pid) { showToast('Sélectionnez un produit', 'error'); return false; }
     if (!qte || qte <= 0) { showToast('Quantité invalide', 'error'); return false; }
     try {
@@ -450,7 +450,7 @@ async function loadStockAlertes() {
       return;
     }
     tbody.innerHTML = alertes.map(p => {
-      const manquant = Math.max(0, p.seuil_alerte - p.quantite).toFixed(2);
+      const manquant = Math.max(0, Math.round(p.seuil_alerte - p.quantite));
       const isRupture = p.quantite === 0;
       return `<tr>
         <td style="font-weight:700">${esc(p.nom)}</td>
@@ -573,7 +573,7 @@ function _afficherPreviewScanStock(data, scanType) {
           </select>
         </td>
         <td style="padding:4px">
-          <input id="ss-qte-${i}" type="number" class="modal-input" value="${entry.quantite||1}" min="0.01" step="0.01" style="width:70px;padding:4px;font-size:12px;">
+          <input id="ss-qte-${i}" type="number" class="modal-input" value="${Math.round(entry.quantite||1)}" min="1" step="1" style="width:70px;padding:4px;font-size:12px;">
         </td>
       </tr>`;
   }).join('');
@@ -618,7 +618,7 @@ function _afficherPreviewScanStock(data, scanType) {
     entries.forEach((_, i) => {
       const chk  = document.getElementById(`ss-chk-${i}`);
       const pid  = parseInt(document.getElementById(`ss-prod-${i}`).value);
-      const qte  = parseFloat(document.getElementById(`ss-qte-${i}`).value);
+      const qte  = parseInt(document.getElementById(`ss-qte-${i}`).value);
       if (chk?.checked && pid && qte > 0) {
         const payload = { produit_id: pid, type: scanType, quantite: qte, date, notes: 'Fiche scannée' };
         if (isSortie) payload.departement = dept;
