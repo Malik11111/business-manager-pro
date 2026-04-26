@@ -12,6 +12,106 @@ let _clesPersFilterContrat = '';
 async function initCles() {
   await Promise.all([loadCles(), loadEmployesCles(), loadAttribs()]);
   renderClesKPIs();
+  loadAlertesClesBadge();
+}
+
+async function loadAlertesClesBadge() {
+  try {
+    const data = await api('/api/cles/alertes');
+    const total = (data.partis?.length || 0) + (data.bientot?.length || 0);
+    const badge = document.getElementById('alertes-cles-badge');
+    if (badge) {
+      if (total > 0) { badge.textContent = total; badge.style.display = 'inline'; }
+      else badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+async function loadAlertesCles() {
+  try {
+    const data = await api('/api/cles/alertes');
+    renderAlertesCles(data);
+  } catch(e) { showToast('Erreur alertes', 'error'); }
+}
+
+function renderAlertesCles(data) {
+  const container = document.getElementById('alertes-cles-container');
+  if (!container) return;
+  const partis  = data.partis  || [];
+  const bientot = data.bientot || [];
+
+  if (!partis.length && !bientot.length) {
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:#6B7280">
+      <div style="font-size:40px;margin-bottom:12px">✅</div>
+      <div style="font-size:16px;font-weight:600">Aucune alerte</div>
+      <div style="font-size:13px;margin-top:6px">Toutes les clés sont à jour.</div>
+    </div>`;
+    return;
+  }
+
+  const cardStyle = (bg, border) =>
+    `background:${bg};border-left:4px solid ${border};border-radius:8px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06)`;
+
+  const clesList = cles => cles.map(c =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,.06);border-radius:10px;padding:2px 8px;font-size:12px;margin:2px">
+      🔑 ${esc(c.cle_nom)}${c.cle_numero ? ` <span style="color:#6B7280">(${esc(c.cle_numero)})</span>` : ''}
+    </span>`
+  ).join('');
+
+  let html = '';
+
+  if (partis.length) {
+    html += `<div>
+      <div style="font-size:13px;font-weight:700;color:#991B1B;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        🚨 PARTIS — Clés non rendues (${partis.length} personne${partis.length>1?'s':''})
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${partis.map(p => `<div style="${cardStyle('#FEF2F2','#EF4444')}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+            <div>
+              <span style="font-weight:700;font-size:14px">${esc(p.prenom)} ${esc(p.nom)}</span>
+              <span style="color:#6B7280;font-size:12px;margin-left:8px">${esc(p.poste||'')}</span>
+            </div>
+            <div style="text-align:right">
+              <span style="background:#FEE2E2;color:#991B1B;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700">
+                Parti le ${esc(p.date_depart)} · il y a ${p.jours_retard} jour${p.jours_retard>1?'s':''}
+              </span>
+            </div>
+          </div>
+          <div style="margin-top:8px">${clesList(p.cles)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+
+  if (bientot.length) {
+    html += `<div>
+      <div style="font-size:13px;font-weight:700;color:#92400E;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        ⚠️ DÉPART IMMINENT — À surveiller (${bientot.length} personne${bientot.length>1?'s':''})
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${bientot.map(p => {
+          const urgent = p.jours_restants <= 14;
+          return `<div style="${cardStyle(urgent?'#FFFBEB':'#FEFCE8', urgent?'#F59E0B':'#EAB308')}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+              <div>
+                <span style="font-weight:700;font-size:14px">${esc(p.prenom)} ${esc(p.nom)}</span>
+                <span style="color:#6B7280;font-size:12px;margin-left:8px">${esc(p.poste||'')}</span>
+              </div>
+              <div style="text-align:right">
+                <span style="background:${urgent?'#FEF3C7':'#FEF9C3'};color:#92400E;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:700">
+                  Départ le ${esc(p.date_depart)} · dans ${p.jours_restants} jour${p.jours_restants>1?'s':''}
+                </span>
+              </div>
+            </div>
+            <div style="margin-top:8px">${clesList(p.cles)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = html;
 }
 
 /* ══════════════════════════════════════════════════

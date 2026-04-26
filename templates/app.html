@@ -525,6 +525,7 @@
         <button class="tab-btn"        data-tab-group="cles" data-tab-id="employes-tab"  onclick="switchTab('cles','employes-tab')">  👥 Employés</button>
         <button class="tab-btn"        data-tab-group="cles" data-tab-id="attribs-tab"   onclick="switchTab('cles','attribs-tab')">   📋 Attributions en cours</button>
         <button class="tab-btn"        data-tab-group="cles" data-tab-id="histo-tab"     onclick="switchTab('cles','histo-tab')">     📜 Historique</button>
+        <button class="tab-btn"        data-tab-group="cles" data-tab-id="alertes-tab"  onclick="switchTab('cles','alertes-tab');loadAlertesCles()">  🔔 Alertes <span id="alertes-cles-badge" style="display:none;background:#EF4444;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:4px"></span></button>
       </div>
 
       <!-- Onglet Clés -->
@@ -584,6 +585,11 @@
             <tbody id="histo-cles-tbody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Onglet Alertes -->
+      <div class="tab-content" data-tab-group="cles" data-tab-id="alertes-tab">
+        <div id="alertes-cles-container" style="padding:16px;display:flex;flex-direction:column;gap:16px"></div>
       </div>
 
     </div><!-- /view-cles -->

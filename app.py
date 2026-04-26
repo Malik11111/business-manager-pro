@@ -3183,6 +3183,52 @@ def api_employes_delete(emp_id):
     return jsonify({'ok': True})
 
 
+@app.route('/api/cles/alertes', methods=['GET'])
+@login_required
+def api_cles_alertes():
+    import datetime as _dt
+    etab = get_current_etab()
+    if not etab: return jsonify({'partis': [], 'bientot': []})
+
+    today = _dt.date.today()
+    limit_bientot = today + _dt.timedelta(days=60)
+
+    def _cles_actives(emp):
+        attrs = AttributionCle.query.filter_by(employe_id=emp.id).filter(
+            (AttributionCle.date_retour == '') | (AttributionCle.date_retour == None)
+        ).all()
+        return [{'cle_nom': a.cle.nom if a.cle else '?',
+                 'cle_numero': a.cle.numero if a.cle else '',
+                 'date_attribution': a.date_attribution,
+                 'attribution_id': a.id} for a in attrs]
+
+    def _parse(d):
+        for fmt in ('%d-%m-%Y', '%Y-%m-%d'):
+            try: return _dt.datetime.strptime(d, fmt).date()
+            except: pass
+        return None
+
+    partis, bientot = [], []
+    for emp in EmployeCle.query.filter_by(etab_id=etab.id).all():
+        if not emp.date_depart: continue
+        dt = _parse(emp.date_depart)
+        if not dt: continue
+        cles = _cles_actives(emp)
+        if not cles: continue
+        info = {'nom': emp.nom, 'prenom': emp.prenom, 'poste': emp.poste,
+                'date_depart': emp.date_depart, 'cles': cles}
+        if dt < today:
+            info['jours_retard'] = (today - dt).days
+            partis.append(info)
+        elif dt <= limit_bientot:
+            info['jours_restants'] = (dt - today).days
+            bientot.append(info)
+
+    partis.sort(key=lambda x: x['jours_retard'], reverse=True)
+    bientot.sort(key=lambda x: x['jours_restants'])
+    return jsonify({'partis': partis, 'bientot': bientot})
+
+
 @app.route('/api/cles/attributions', methods=['GET'])
 @login_required
 def api_attributions_list():
