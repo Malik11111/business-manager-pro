@@ -606,7 +606,6 @@
             <option value="">Toutes catégories</option>
           </select>
         </div>
-        <button class="btn btn-gemini" onclick="openScanFicheStock()">📄 Scanner fiche</button>
         <button class="btn btn-green"  onclick="openAddProduitDialog()">➕ Ajouter produit</button>
         <button class="btn btn-orange" onclick="openSortieDialog()">📤 Enregistrer sortie</button>
         <button class="btn btn-blue"   onclick="openReceptionDialog()">📥 Réception</button>
@@ -654,6 +653,7 @@
             <option value="365">1 an</option>
             <option value="0">Tout</option>
           </select>
+          <button class="btn btn-gemini" onclick="openScanFicheStock('sortie')" style="margin-left:auto;">📄 Scanner fiche</button>
         </div>
         <div class="table-wrapper">
           <table id="sorties-table">
@@ -674,10 +674,11 @@
             <option value="365">1 an</option>
             <option value="0">Tout</option>
           </select>
+          <button class="btn btn-gemini" onclick="openScanFicheStock('reception')" style="margin-left:auto;">📄 Scanner fiche</button>
         </div>
         <div class="table-wrapper">
           <table id="receptions-table">
-            <thead><tr><th>DATE</th><th>PRODUIT</th><th>QTÉ</th><th>UNITÉ</th><th>FOURNISSEUR</th><th>NOTES</th></tr></thead>
+            <thead><tr><th>DATE</th><th>PRODUIT</th><th>QTÉ</th><th>UNITÉ</th></tr></thead>
             <tbody id="receptions-tbody"></tbody>
           </table>
         </div>

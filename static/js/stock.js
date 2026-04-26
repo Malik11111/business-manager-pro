@@ -266,14 +266,8 @@ function openReceptionDialog(produitIdPrefill) {
       <div><label class="modal-label">Quantité reçue *</label>
         <input id="rm-qte" class="modal-input" type="number" value="1" min="0.01" step="0.01">
       </div>
-      <div><label class="modal-label">Fournisseur</label>
-        <input id="rm-fourn" class="modal-input" placeholder="Nom du fournisseur">
-      </div>
       <div><label class="modal-label">Date</label>
         <input id="rm-date" class="modal-input" type="date" value="${today}">
-      </div>
-      <div><label class="modal-label">Notes</label>
-        <input id="rm-notes" class="modal-input" placeholder="N° bon de livraison, etc.">
       </div>
     </div>`, async () => {
     const pid = parseInt(document.getElementById('rm-prod')?.value);
@@ -283,9 +277,7 @@ function openReceptionDialog(produitIdPrefill) {
     try {
       const res = await api('/api/stock/mouvements', 'POST', {
         produit_id: pid, type: 'reception', quantite: qte,
-        personne: document.getElementById('rm-fourn')?.value.trim(),
-        date: document.getElementById('rm-date')?.value || today,
-        notes: document.getElementById('rm-notes')?.value.trim()
+        date: document.getElementById('rm-date')?.value || today
       });
       showToast(`Réception enregistrée — stock : ${res.nouvelle_quantite}`, 'success');
       await loadStockProduits();
@@ -322,7 +314,7 @@ async function loadStockMvts(type) {
     const mvts = await api('/api/stock/mouvements?' + params.toString());
 
     if (!mvts.length) {
-      const cols = type === 'sortie' ? 7 : type === 'reception' ? 6 : 7;
+      const cols = type === 'sortie' ? 7 : type === 'reception' ? 4 : 7;
       tbody.innerHTML = `<tr class="empty-row"><td colspan="${cols}">Aucun mouvement.</td></tr>`;
       return;
     }
@@ -343,8 +335,6 @@ async function loadStockMvts(type) {
         <td style="font-weight:600">${esc(m.produit_nom)}</td>
         <td style="color:#2E7D32;font-weight:700">+${m.quantite}</td>
         <td style="font-size:12px">${esc(m.produit_unite)}</td>
-        <td style="font-size:12px">${esc(m.personne||'—')}</td>
-        <td style="font-size:11px;color:#9CA3AF">${esc(m.notes||'—')}</td>
       </tr>`).join('');
     } else {
       tbody.innerHTML = mvts.map(m => {
@@ -429,8 +419,9 @@ async function importStockExcel(input) {
 }
 
 /* ── Scan fiche distribution produits ─────────────── */
-function openScanFicheStock() {
+function openScanFicheStock(type) {
   const input = document.getElementById('scan-stock-input');
+  input.dataset.scanType = type || 'sortie';
   input.value = '';
   input.click();
 }
@@ -438,12 +429,13 @@ function openScanFicheStock() {
 async function onScanFicheStockSelected(input) {
   const file = input.files[0];
   if (!file) return;
+  const scanType = input.dataset.scanType || 'sortie';
   input.value = '';
 
   const overlay = document.getElementById('scan-vehicule-overlay');
   const bar     = document.getElementById('scan-vehicule-bar');
   const lbl     = document.getElementById('scan-vehicule-label');
-  document.querySelector('#scan-vehicule-overlay h2').textContent = 'Lecture de la fiche stock';
+  document.querySelector('#scan-vehicule-overlay h2').textContent = scanType === 'reception' ? 'Lecture fiche réception' : 'Lecture de la fiche stock';
   const _svIconStock = document.querySelector('#scan-vehicule-overlay [style*="font-size:40px"]');
   if (_svIconStock) _svIconStock.textContent = '📦';
   overlay.style.display = 'flex';
@@ -472,7 +464,7 @@ async function onScanFicheStockSelected(input) {
     await new Promise(r => setTimeout(r, 400));
     overlay.style.display = 'none';
 
-    _afficherPreviewScanStock(data);
+    _afficherPreviewScanStock(data, scanType);
 
   } catch (e) {
     clearInterval(sCrawl);
@@ -481,7 +473,8 @@ async function onScanFicheStockSelected(input) {
   }
 }
 
-function _afficherPreviewScanStock(data) {
+function _afficherPreviewScanStock(data, scanType) {
+  scanType = scanType || 'sortie';
   const entries = data.entries || [];
 
   const lignes = entries.map((entry, i) => {
@@ -504,21 +497,24 @@ function _afficherPreviewScanStock(data) {
 
   const today = new Date().toISOString().slice(0,10);
 
-  openModal('📦 Fiche de distribution détectée — vérifier', `
+  const isSortie = scanType === 'sortie';
+  const titre = isSortie ? '📦 Fiche de distribution — vérifier' : '📥 Fiche de réception — vérifier';
+
+  openModal(titre, `
     <div style="display:grid;gap:10px;padding:4px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div>
+      <div style="display:grid;grid-template-columns:${isSortie ? '1fr 1fr' : '1fr'};gap:8px">
+        ${isSortie ? `<div>
           <label class="modal-label">Département / Unité</label>
           <input id="ss-dept" class="modal-input" value="${esc(data.departement||'')}" placeholder="Ex: Cuisine, Bureau 2...">
-        </div>
+        </div>` : ''}
         <div>
-          <label class="modal-label">Date (YYYY-MM-DD)</label>
+          <label class="modal-label">Date</label>
           <input id="ss-date" class="modal-input" type="date" value="${data.date ? _ddmmyyyyToISO(data.date) : today}">
         </div>
       </div>
       ${entries.length ? `
       <div>
-        <label class="modal-label">Produits détectés — cochez ceux à enregistrer en sortie</label>
+        <label class="modal-label">Produits détectés — cochez ceux à enregistrer en ${isSortie ? 'sortie' : 'réception'}</label>
         <div style="max-height:240px;overflow-y:auto;border:1px solid #E0E0E0;border-radius:8px;">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead><tr style="background:#F5F4FF">
@@ -532,7 +528,7 @@ function _afficherPreviewScanStock(data) {
       </div>` : '<p style="color:#9CA3AF;font-size:13px">Aucun produit détecté sur cette fiche.</p>'}
     </div>
   `, async () => {
-    const dept  = document.getElementById('ss-dept').value.trim();
+    const dept  = isSortie ? (document.getElementById('ss-dept')?.value.trim() || '') : '';
     const date  = document.getElementById('ss-date').value || today;
 
     const taches = [];
@@ -541,21 +537,21 @@ function _afficherPreviewScanStock(data) {
       const pid  = parseInt(document.getElementById(`ss-prod-${i}`).value);
       const qte  = parseFloat(document.getElementById(`ss-qte-${i}`).value);
       if (chk?.checked && pid && qte > 0) {
-        taches.push(api('/api/stock/mouvements', 'POST', {
-          produit_id: pid, type: 'sortie', quantite: qte,
-          departement: dept, date, notes: 'Fiche scannée'
-        }));
+        const payload = { produit_id: pid, type: scanType, quantite: qte, date, notes: 'Fiche scannée' };
+        if (isSortie) payload.departement = dept;
+        taches.push(api('/api/stock/mouvements', 'POST', payload));
       }
     });
 
     if (!taches.length) { showToast('Aucune ligne cochée', 'error'); return false; }
     try {
       await Promise.all(taches);
-      showToast(`✅ ${taches.length} sortie(s) enregistrée(s)`, 'success');
+      const label = isSortie ? 'sortie(s)' : 'réception(s)';
+      showToast(`✅ ${taches.length} ${label} enregistrée(s)`, 'success');
       await loadStockProduits();
       await loadStockKPIs();
-      switchTab('stock', 'sorties-tab');
-      loadStockMvts('sortie');
+      switchTab('stock', isSortie ? 'sorties-tab' : 'receptions-tab');
+      loadStockMvts(scanType);
     } catch (e) { showToast(e.message || 'Erreur', 'error'); return false; }
   });
 }
