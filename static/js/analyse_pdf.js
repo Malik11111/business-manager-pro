@@ -245,8 +245,7 @@ function downloadAnalyseExcel(id) {
 }
 
 function exportAnalysesExcel() {
-  if (!_lastAnalyseId) { showToast('Analysez d\'abord un PDF', 'error'); return; }
-  window.location.href = `/api/analyse-pdf/${_lastAnalyseId}/export-excel`;
+  window.location.href = '/api/analyse-pdf/export-excel';
 }
 
 async function voirDetailAnalyse(id) {
