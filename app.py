@@ -972,7 +972,8 @@ def api_budget_scan_document():
         return jsonify(data), 200
 
     except Exception as e:
-        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+        app.logger.error(f'Erreur scan Gemini: {e}')
+        return jsonify({'error': 'La lecture du document a échoué. Réessayez ou vérifiez la qualité du document.'}), 500
     finally:
         try:
             _os.unlink(tmp_path)
@@ -1128,7 +1129,8 @@ def scan_facture_ia():
         return jsonify(data), 200
 
     except Exception as e:
-        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+        app.logger.error(f'Erreur scan Gemini: {e}')
+        return jsonify({'error': 'La lecture du document a échoué. Réessayez ou vérifiez la qualité du document.'}), 500
     finally:
         try:
             _os.unlink(tmp_path)
@@ -1824,14 +1826,18 @@ def _parse_gemini_json(texte_rep):
             return _json.loads(cleaned)
         except Exception:
             pass
-        # 4. JSON tronque: fermer
+        # 4. JSON tronque: fermer les structures ouvertes
         try:
             fixed = cleaned.rstrip().rstrip(',')
+            # Fermer une string ouverte si nombre de guillemets impair
             n_quotes = fixed.count(chr(34)) - fixed.count(chr(92)+chr(34))
             if n_quotes % 2 == 1:
                 fixed += chr(34)
-            if not fixed.endswith('}'):
-                fixed += '}'
+            # Compter les crochets et accolades ouvertes non fermées
+            depth_brace = fixed.count('{') - fixed.count('}')
+            depth_bracket = fixed.count('[') - fixed.count(']')
+            fixed += ']' * max(0, depth_bracket)
+            fixed += '}' * max(0, depth_brace)
             return _json.loads(fixed)
         except Exception:
             pass
@@ -2051,7 +2057,8 @@ def scan_contrat_ia():
         return jsonify(data), 200
 
     except Exception as e:
-        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+        app.logger.error(f'Erreur scan Gemini: {e}')
+        return jsonify({'error': 'La lecture du document a échoué. Réessayez ou vérifiez la qualité du document.'}), 500
     finally:
         try:
             _os.unlink(tmp_path)
@@ -2136,7 +2143,8 @@ def scan_document_vehicule():
         return jsonify(data), 200
 
     except Exception as e:
-        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+        app.logger.error(f'Erreur scan Gemini: {e}')
+        return jsonify({'error': 'La lecture du document a échoué. Réessayez ou vérifiez la qualité du document.'}), 500
     finally:
         try:
             _os.unlink(tmp_path)
@@ -2727,7 +2735,7 @@ def scan_fiche_stock():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
             else:
                 pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
@@ -2736,7 +2744,7 @@ def scan_fiche_stock():
                         {"text": prompt + "\n\n[Document scanné]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -2747,7 +2755,7 @@ def scan_fiche_stock():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -2761,7 +2769,8 @@ def scan_fiche_stock():
         return jsonify(data), 200
 
     except Exception as e:
-        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+        app.logger.error(f'Erreur scan Gemini: {e}')
+        return jsonify({'error': 'La lecture du document a échoué. Réessayez ou vérifiez la qualité du document.'}), 500
     finally:
         try:
             _os.unlink(tmp_path)
@@ -2991,7 +3000,7 @@ def scan_fiche_cles():
             if texte:
                 body = _json.dumps({
                     "contents": [{"parts": [{"text": prompt + "\n\nTexte du document :\n" + texte[:40000]}]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
             else:
                 pdf_b64 = _b64.b64encode(open(tmp_path, 'rb').read()).decode('utf-8')
@@ -3000,7 +3009,7 @@ def scan_fiche_cles():
                         {"text": prompt + "\n\n[Document scanné]"},
                         {"inline_data": {"mime_type": "application/pdf", "data": pdf_b64}}
                     ]}],
-                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                    "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
                 }).encode("utf-8")
         else:
             with open(tmp_path, 'rb') as img_f:
@@ -3011,7 +3020,7 @@ def scan_fiche_cles():
                     {"text": prompt},
                     {"inline_data": {"mime_type": mime, "data": img_data}}
                 ]}],
-                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+                "generationConfig": {"temperature": 0.1, "maxOutputTokens": 4096}
             }).encode("utf-8")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
@@ -3025,7 +3034,8 @@ def scan_fiche_cles():
         return jsonify(data), 200
 
     except Exception as e:
-        return jsonify({'error': f'Erreur scan : {str(e)}'}), 500
+        app.logger.error(f'Erreur scan Gemini: {e}')
+        return jsonify({'error': 'La lecture du document a échoué. Réessayez ou vérifiez la qualité du document.'}), 500
     finally:
         try:
             _os.unlink(tmp_path)
