@@ -3,7 +3,7 @@ Business Manager Pro — Flask Backend
 Sert l'application web + API REST + authentification
 """
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from config import Config
 from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePresta
@@ -3263,7 +3263,6 @@ def api_cles_template_excel():
     import io
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
-    from flask import send_file
     wb = Workbook()
     ws = wb.active
     ws.title = "Cles"
