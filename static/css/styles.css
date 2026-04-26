@@ -900,7 +900,7 @@ td {
 .btn-table.green:hover { background: #BBF7D0; }
 
 /* ── Scrollbar ─────────────────────────────────────────── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #F1F5F9; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #F59E0B; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #F1F5F9; border-radius: 5px; }
+::-webkit-scrollbar-thumb { background: #F59E0B; border-radius: 5px; border: 2px solid #F1F5F9; }
+::-webkit-scrollbar-thumb:hover { background: #D97706; }

@@ -289,7 +289,7 @@ function renderAttribs(list) {
       : `<span style="background:#EDE9FE;color:#5C52CC;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700">${n} clés</span>`;
 
     // Ligne parent (cliquable)
-    rows.push(`<tr class="attrib-parent-row" onclick="toggleAttribDetail('detail-${idx}')" style="cursor:pointer;background:#F8F8FF;border-bottom:2px solid #E5E7EB">
+    rows.push(`<tr class="attrib-parent-row" onclick="toggleAttribDetail(${idx})" style="cursor:pointer;background:#F8F8FF;border-bottom:2px solid #E5E7EB">
       <td style="width:20px;color:#5C52CC;font-size:13px;text-align:center"><span id="arrow-${idx}">▶</span></td>
       <td style="font-weight:700;padding:10px 8px">${esc(g.nom)}</td>
       <td style="font-size:12px;color:#5C52CC">${esc(g.poste||'—')}</td>
@@ -299,32 +299,27 @@ function renderAttribs(list) {
       </td>
     </tr>`);
 
-    // Lignes enfants (cachées par défaut)
-    const childRows = g.cles.map(a =>
-      `<tr class="attrib-child-row" id="child-${idx}-${a.id}" style="display:none;background:#FAFBFF">
+    // Lignes enfants — simples <tr> avec data-group, cachées par défaut
+    g.cles.forEach(a => {
+      rows.push(`<tr class="attrib-child-row" data-group="${idx}" style="display:none;background:#FAFBFF;border-bottom:1px solid #EEF0F8">
         <td></td>
-        <td style="padding-left:28px;font-size:12px;color:#6B7280">🔑 ${esc(a.cle_nom)}</td>
+        <td style="padding-left:28px;font-size:13px;color:#374151;font-weight:500">🔑 ${esc(a.cle_nom)}</td>
         <td style="font-size:12px;color:#5C52CC">${esc(a.cle_numero||'—')}</td>
         <td style="font-size:12px;color:#9CA3AF">${esc(a.date_attribution||'—')}</td>
         <td style="text-align:right">
           <button class="btn-sm btn-sm-green" onclick="retourCle(${a.id}, '${esc(a.employe_nom)}', '${esc(a.cle_nom)}')">✅ Retour</button>
         </td>
-      </tr>`
-    ).join('');
-
-    rows.push(`<tbody id="detail-${idx}" data-arrow="arrow-${idx}">${childRows}</tbody>`);
+      </tr>`);
+    });
   });
 
   tbody.innerHTML = rows.join('');
 }
 
-function toggleAttribDetail(detailId) {
-  const detail = document.getElementById(detailId);
-  if (!detail) return;
-  const arrowId = detail.getAttribute('data-arrow');
-  const arrow = document.getElementById(arrowId);
-  const children = detail.querySelectorAll('tr');
-  const isOpen = children[0]?.style.display !== 'none';
+function toggleAttribDetail(idx) {
+  const arrow = document.getElementById('arrow-' + idx);
+  const children = document.querySelectorAll(`#attribs-tbody tr[data-group="${idx}"]`);
+  const isOpen = children.length > 0 && children[0].style.display !== 'none';
   children.forEach(tr => tr.style.display = isOpen ? 'none' : '');
   if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
 }
