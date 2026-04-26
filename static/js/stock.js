@@ -422,6 +422,8 @@ async function onScanFicheStockSelected(input) {
   const bar     = document.getElementById('scan-vehicule-bar');
   const lbl     = document.getElementById('scan-vehicule-label');
   document.querySelector('#scan-vehicule-overlay h2').textContent = 'Lecture de la fiche stock';
+  const _svIconStock = document.querySelector('#scan-vehicule-overlay [style*="font-size:40px"]');
+  if (_svIconStock) _svIconStock.textContent = '📦';
   overlay.style.display = 'flex';
   let sPct = 5; bar.style.width = sPct + '%';
   lbl.textContent = 'Envoi du document…';
