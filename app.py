@@ -3090,6 +3090,7 @@ def api_cles_delete(cle_id):
     etab = get_current_etab()
     c = CleItem.query.filter_by(id=cle_id, etab_id=etab.id).first_or_404()
     _log_cle_event(etab.id, 'cle_supprimee', f'Clé supprimée: {c.nom}')
+    AttributionCle.query.filter_by(cle_id=cle_id).delete()
     db.session.delete(c)
     db.session.commit()
     return jsonify({'ok': True})
