@@ -2858,6 +2858,65 @@ def scan_fiche_stock():
 #  API STOCK
 # ══════════════════════════════════════════════════════
 
+@app.route('/api/stock/import-excel', methods=['POST'])
+@login_required
+def api_stock_import_excel():
+    from openpyxl import load_workbook
+    import io
+    etab = get_current_etab()
+    if not etab:
+        return jsonify({'error': 'Pas d\'etablissement'}), 400
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'Fichier manquant'}), 400
+    try:
+        wb = load_workbook(io.BytesIO(f.read()), data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            return jsonify({'error': 'Fichier vide'}), 400
+        # Détecter si la première ligne est un en-tête
+        first = [str(c).strip().lower() if c else '' for c in rows[0]]
+        has_header = any(k in first for k in ['nom', 'name', 'produit', 'catégorie', 'categorie'])
+        data_rows = rows[1:] if has_header else rows
+        # Mapping colonnes si en-tête présent
+        col_nom  = first.index('nom') if 'nom' in first else 0
+        col_cat  = next((i for i, h in enumerate(first) if 'cat' in h), 1) if has_header else 1
+        col_unit = next((i for i, h in enumerate(first) if 'unit' in h), 3) if has_header else 3
+        col_seuil = next((i for i, h in enumerate(first) if 'seuil' in h), 4) if has_header else 4
+        col_empl = next((i for i, h in enumerate(first) if 'empl' in h), 5) if has_header else 5
+        noms_existants = {p.nom.strip().lower() for p in StockProduit.query.filter_by(etab_id=etab.id).all()}
+        ajoutes, ignores = 0, 0
+        for row in data_rows:
+            if not row or not row[col_nom]:
+                continue
+            nom = str(row[col_nom]).strip()
+            if not nom:
+                continue
+            if nom.lower() in noms_existants:
+                ignores += 1
+                continue
+            def _get(r, i):
+                return str(r[i]).strip() if i < len(r) and r[i] is not None else ''
+            p = StockProduit(
+                etab_id=etab.id,
+                nom=nom,
+                categorie=_get(row, col_cat),
+                unite=_get(row, col_unit) or 'unité',
+                seuil_alerte=0,
+                emplacement=_get(row, col_empl),
+                quantite=0
+            )
+            db.session.add(p)
+            noms_existants.add(nom.lower())
+            ajoutes += 1
+        db.session.commit()
+        return jsonify({'ok': True, 'ajoutes': ajoutes, 'ignores': ignores})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Erreur lecture fichier : {str(e)}'}), 400
+
+
 @app.route('/api/stock/produits', methods=['GET'])
 @login_required
 def api_stock_produits():

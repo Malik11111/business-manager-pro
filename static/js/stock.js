@@ -406,6 +406,28 @@ function exportStockCSV() {
   exportCSV(rows, headers, 'stock_' + new Date().toISOString().slice(0,10) + '.csv');
 }
 
+/* ══════════════════════════════════════════════════
+   IMPORT EXCEL PRODUITS
+══════════════════════════════════════════════════ */
+
+async function importStockExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    showToast('Import en cours…', 'info');
+    const res = await fetch('/api/stock/import-excel', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Erreur import', 'error'); return; }
+    showToast(`✅ ${data.ajoutes} produit(s) ajouté(s), ${data.ignores} ignoré(s) (déjà existants).`, 'success');
+    loadStock();
+  } catch (e) {
+    showToast('Erreur lors de l\'import.', 'error');
+  }
+}
+
 /* ── Scan fiche distribution produits ─────────────── */
 function openScanFicheStock() {
   const input = document.getElementById('scan-stock-input');
