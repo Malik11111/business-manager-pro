@@ -100,6 +100,21 @@ def index():
     return render_template('app.html')
 
 
+@app.route('/dev/users')
+def dev_list_users():
+    users = User.query.all()
+    lines = ''.join(f'<tr><td>{u.id}</td><td>{u.name}</td><td>{u.email}</td><td>{u.role}</td>'
+                    f'<td><a href="/dev/reset/{u.id}">Reset → admin123</a></td></tr>' for u in users)
+    return f'<table border=1 cellpadding=6><tr><th>ID</th><th>Nom</th><th>Email</th><th>Rôle</th><th>Action</th></tr>{lines}</table>'
+
+@app.route('/dev/reset/<int:uid>')
+def dev_reset_password(uid):
+    u = User.query.get(uid)
+    if not u: return 'User not found', 404
+    u.set_password('admin123')
+    db.session.commit()
+    return f'Mot de passe de {u.email} ({u.role}) réinitialisé → <b>admin123</b>'
+
 @app.route('/login')
 def login_page():
     if current_user.is_authenticated:
