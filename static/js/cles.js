@@ -101,10 +101,12 @@ async function openEditCleDialog(id) {
 
 async function deleteCle(id) {
   const c = _clesList.find(x => x.id === id);
-  if (!confirm(`Supprimer la clé "${c?.nom}" ?`)) return;
-  await api(`/api/cles/cles/${id}`, 'DELETE');
-  showToast('Clé supprimée', 'success');
-  await initCles();
+  if (!confirmAction(`Supprimer la clé "${c?.nom}" ?`)) return;
+  try {
+    await api(`/api/cles/cles/${id}`, 'DELETE');
+    showToast('Clé supprimée', 'success');
+    await initCles();
+  } catch(e) { showToast(e.message || 'Erreur', 'error'); }
 }
 
 /* ══════════════════════════════════════════════════
@@ -240,10 +242,12 @@ function _employeFormData() {
 
 async function deleteEmploye(id) {
   const e = _employesList.find(x => x.id === id);
-  if (!confirm(`Supprimer "${e?.prenom} ${e?.nom}" ?`)) return;
-  await api(`/api/cles/employes/${id}`, 'DELETE');
-  showToast('Employé supprimé', 'success');
-  await initCles();
+  if (!confirmAction(`Supprimer "${e?.prenom} ${e?.nom}" ?`)) return;
+  try {
+    await api(`/api/cles/employes/${id}`, 'DELETE');
+    showToast('Employé supprimé', 'success');
+    await initCles();
+  } catch(e2) { showToast(e2.message || 'Erreur', 'error'); }
 }
 
 /* ══════════════════════════════════════════════════
