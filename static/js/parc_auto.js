@@ -94,6 +94,7 @@ function renderVehicules() {
       <td class="auto-col-extra">${esc(v.conducteur || '—')}</td>
       <td class="auto-col-extra">${ctBadge}</td>
       <td class="auto-col-extra">${assBadge}</td>
+      <td>${docsDots(v)}</td>
       <td>
         <div class="row-actions">
           <button class="btn-sm btn-sm-blue"   onclick="editVehicule(${v.id})" title="Modifier">✏️</button>
@@ -121,6 +122,28 @@ function moisBadge(mois, dateStr) {
     bg = '#E8F5E9'; color = '#2E7D32'; label = `${mois} mois`;
   }
   return `<span style="background:${bg};color:${color};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700;" title="${esc(dateStr)}">${label}</span>`;
+}
+
+function docsDots(v) {
+  const types = [
+    { key: 'carte_grise',    label: 'Carte Grise' },
+    { key: 'ct',             label: 'CT' },
+    { key: 'assurance',      label: 'Assurance' },
+    { key: 'carte_mobilite', label: 'Carte Mobilité' },
+  ];
+  const docs = v.docs || {};
+  return `<div style="display:flex;gap:4px;align-items:center;" onclick="goToDocsVehicule(${v.id})" title="Voir les documents" style="cursor:pointer">` +
+    types.map(t => {
+      const ok = docs[t.key];
+      return `<span title="${t.label}" style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${ok ? '#22C55E' : '#FCA5A5'};border:1px solid ${ok ? '#16A34A' : '#EF4444'};cursor:pointer;"></span>`;
+    }).join('') +
+  `</div>`;
+}
+
+function goToDocsVehicule(vid) {
+  switchTab('auto', 'docs-vehicule');
+  const sel = document.getElementById('docs-vehicule-select');
+  if (sel) { sel.value = vid; loadDocsVehicule(); }
 }
 
 function sortVehiculesBy(col) {

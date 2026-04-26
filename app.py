@@ -2475,6 +2475,9 @@ def get_vehicules():
         d = v.to_dict()
         d['mois_ct'] = _mois_restants(v.date_ct)
         d['mois_assurance'] = _mois_restants(v.date_assurance)
+        docs = DocumentVehicule.query.filter_by(vehicule_id=v.id).all()
+        types_presents = {doc.type_doc for doc in docs}
+        d['docs'] = {t: t in types_presents for t in ['carte_grise', 'ct', 'assurance', 'carte_mobilite']}
         result.append(d)
     return jsonify(result)
 
