@@ -965,6 +965,12 @@
       <div class="module-toolbar">
         <div class="filters">
           <input id="formation-search" class="search-input" type="text" placeholder="🔍 Rechercher un salarié..." oninput="filterFormationMatrice()">
+          <select id="formation-filter-poste" class="filter-select" onchange="filterFormationMatrice()">
+            <option value="">Tous les postes</option>
+          </select>
+          <select id="formation-filter-contrat" class="filter-select" onchange="filterFormationMatrice()">
+            <option value="">Tous les contrats</option>
+          </select>
         </div>
         <button class="btn" onclick="openGererTypesFormation()" style="background:#7C3AED;color:#fff;border:none;">⚙️ Types de formation</button>
         <span id="formation-alerte-badge-wrap"></span>

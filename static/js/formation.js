@@ -21,10 +21,28 @@ async function loadFormationMatrice() {
     _formationPersonnel = data.personnel || [];
     _formationTypes = data.types || [];
     _formationRecords = data.records || {};
+    _populateFormationDropdowns();
     renderFormationMatrice();
   } catch (e) {
     showToast('Erreur chargement formations', 'error');
   }
+}
+
+function _populateFormationDropdowns() {
+  const postes = [...new Set(_formationPersonnel.map(p => p.poste).filter(Boolean))].sort();
+  const contrats = [...new Set(_formationPersonnel.map(p => p.type_contrat).filter(Boolean))].sort();
+
+  const selPoste = document.getElementById('formation-filter-poste');
+  const selContrat = document.getElementById('formation-filter-contrat');
+  if (!selPoste || !selContrat) return;
+
+  const curPoste = selPoste.value;
+  const curContrat = selContrat.value;
+
+  selPoste.innerHTML = '<option value="">Tous les postes</option>' +
+    postes.map(p => `<option value="${esc(p)}"${p === curPoste ? ' selected' : ''}>${esc(p)}</option>`).join('');
+  selContrat.innerHTML = '<option value="">Tous les contrats</option>' +
+    contrats.map(c => `<option value="${esc(c)}"${c === curContrat ? ' selected' : ''}>${esc(c)}</option>`).join('');
 }
 
 async function loadFormationAlerteBadge() {
@@ -88,8 +106,13 @@ function renderFormationMatrice() {
     ${typeHeaders}
   </tr>`;
 
+  const filterPoste = document.getElementById('formation-filter-poste')?.value || '';
+  const filterContrat = document.getElementById('formation-filter-contrat')?.value || '';
+
   const filtered = _formationPersonnel.filter(p => {
     if (search && ![p.nom, p.prenom, p.poste, p.type_contrat].some(v => (v || '').toLowerCase().includes(search))) return false;
+    if (filterPoste && (p.poste || '') !== filterPoste) return false;
+    if (filterContrat && (p.type_contrat || '') !== filterContrat) return false;
     if (_formationFilter !== 'tous' && _getPersonnelStatus(p) !== _formationFilter) return false;
     return true;
   });
