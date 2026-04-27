@@ -10,6 +10,7 @@ from models import db, User, Etablissement, Prestataire, Evaluation, CorbeillePr
 from models import Personnel, Unite, Materiel, BudgetLigne
 from models import PharmaStock, PharmaMouvement, PharmaArchive
 from models import Vehicule, Entretien, Carburant, DocumentVehicule
+from models import TypeFormation, FormationRecord
 from models import CleItem, EmployeCle, AttributionCle, HistoriqueCle
 from models import StockProduit, StockMouvement
 from models import AnalysePDF
@@ -2652,6 +2653,152 @@ def delete_document_vehicule(did):
     db.session.delete(doc)
     db.session.commit()
     return jsonify({'ok': True})
+
+
+# ══════════════════════════════════════════════════════
+#  FORMATIONS
+# ══════════════════════════════════════════════════════
+
+FORMATION_DEFAULTS = [
+    ('Habilitation électrique', 36),
+    ('SSI', 12),
+    ('Utilisation moyens extinction', 12),
+    ('Gestes et postures', 24),
+    ('Bionettoyage', 12),
+]
+
+def _seed_formation_types(etab_id):
+    existing = TypeFormation.query.filter_by(etab_id=etab_id).count()
+    if existing == 0:
+        for i, (nom, mois) in enumerate(FORMATION_DEFAULTS):
+            db.session.add(TypeFormation(etab_id=etab_id, nom=nom, periodicite_mois=mois, ordre=i))
+        db.session.commit()
+
+@app.route('/api/formations/types', methods=['GET'])
+@login_required
+def get_formation_types():
+    etab = _get_etab()
+    _seed_formation_types(etab.id)
+    types = TypeFormation.query.filter_by(etab_id=etab.id).order_by(TypeFormation.ordre, TypeFormation.nom).all()
+    return jsonify([t.to_dict() for t in types])
+
+@app.route('/api/formations/types', methods=['POST'])
+@login_required
+def add_formation_type():
+    etab = _get_etab()
+    data = request.get_json()
+    nom = (data.get('nom') or '').strip()
+    if not nom:
+        return jsonify({'error': 'Nom requis'}), 400
+    ordre = TypeFormation.query.filter_by(etab_id=etab.id).count()
+    t = TypeFormation(etab_id=etab.id, nom=nom,
+                      periodicite_mois=int(data.get('periodicite_mois') or 0),
+                      ordre=ordre)
+    db.session.add(t)
+    db.session.commit()
+    return jsonify(t.to_dict()), 201
+
+@app.route('/api/formations/types/<int:tid>', methods=['PUT'])
+@login_required
+def update_formation_type(tid):
+    etab = _get_etab()
+    t = TypeFormation.query.filter_by(id=tid, etab_id=etab.id).first_or_404()
+    data = request.get_json()
+    if 'nom' in data: t.nom = data['nom'].strip()
+    if 'periodicite_mois' in data: t.periodicite_mois = int(data['periodicite_mois'] or 0)
+    db.session.commit()
+    return jsonify(t.to_dict())
+
+@app.route('/api/formations/types/<int:tid>', methods=['DELETE'])
+@login_required
+def delete_formation_type(tid):
+    etab = _get_etab()
+    t = TypeFormation.query.filter_by(id=tid, etab_id=etab.id).first_or_404()
+    FormationRecord.query.filter_by(type_formation_id=tid, etab_id=etab.id).delete()
+    db.session.delete(t)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/formations/matrice', methods=['GET'])
+@login_required
+def get_formation_matrice():
+    etab = _get_etab()
+    _seed_formation_types(etab.id)
+    personnel = Personnel.query.filter_by(etab_id=etab.id).order_by(Personnel.nom).all()
+    types = TypeFormation.query.filter_by(etab_id=etab.id).order_by(TypeFormation.ordre, TypeFormation.nom).all()
+    records = FormationRecord.query.filter_by(etab_id=etab.id).all()
+    rec_map = {(r.personnel_id, r.type_formation_id): r.to_dict() for r in records}
+    return jsonify({
+        'personnel': [p.to_dict() for p in personnel],
+        'types': [t.to_dict() for t in types],
+        'records': {f"{k[0]},{k[1]}": v for k, v in rec_map.items()}
+    })
+
+@app.route('/api/formations/record', methods=['POST'])
+@login_required
+def save_formation_record():
+    from datetime import date as _date, datetime as _dt
+    etab = _get_etab()
+    data = request.form if request.files else request.get_json() or {}
+    pid = int(data.get('personnel_id', 0))
+    tid = int(data.get('type_formation_id', 0))
+    if not pid or not tid:
+        return jsonify({'error': 'Données manquantes'}), 400
+    rec = FormationRecord.query.filter_by(etab_id=etab.id, personnel_id=pid, type_formation_id=tid).first()
+    if not rec:
+        rec = FormationRecord(etab_id=etab.id, personnel_id=pid, type_formation_id=tid)
+        db.session.add(rec)
+    rec.date_realise = data.get('date_realise', rec.date_realise or '')
+    rec.date_prochaine = data.get('date_prochaine', rec.date_prochaine or '')
+    f = request.files.get('attestation') if request.files else None
+    if f:
+        rec.attestation_nom = f.filename
+        rec.attestation_contenu = f.read()
+    db.session.commit()
+    return jsonify(rec.to_dict())
+
+@app.route('/api/formations/attestation/<int:rid>', methods=['GET'])
+@login_required
+def get_formation_attestation(rid):
+    import io, mimetypes
+    etab = _get_etab()
+    rec = FormationRecord.query.filter_by(id=rid, etab_id=etab.id).first_or_404()
+    if not rec.attestation_contenu:
+        return jsonify({'error': 'Pas d\'attestation'}), 404
+    mime = mimetypes.guess_type(rec.attestation_nom or 'file.pdf')[0] or 'application/pdf'
+    return send_file(io.BytesIO(rec.attestation_contenu), mimetype=mime,
+                     as_attachment=False, download_name=rec.attestation_nom or 'attestation.pdf')
+
+@app.route('/api/formations/alertes', methods=['GET'])
+@login_required
+def get_formation_alertes():
+    from datetime import date as _date, datetime as _dt
+    etab = _get_etab()
+    today = _date.today()
+    records = FormationRecord.query.filter_by(etab_id=etab.id).all()
+    alertes = []
+    for r in records:
+        if not r.date_prochaine:
+            continue
+        try:
+            dp = _dt.strptime(r.date_prochaine, '%Y-%m-%d').date()
+        except Exception:
+            continue
+        delta = (dp - today).days
+        if delta <= 60:
+            p = Personnel.query.get(r.personnel_id)
+            t = TypeFormation.query.get(r.type_formation_id)
+            if p and t:
+                alertes.append({
+                    'personnel_id': r.personnel_id,
+                    'nom': p.nom, 'prenom': p.prenom, 'poste': p.poste,
+                    'formation': t.nom,
+                    'date_prochaine': r.date_prochaine,
+                    'jours': delta,
+                    'expire': delta < 0,
+                })
+    alertes.sort(key=lambda x: x['jours'])
+    return jsonify(alertes)
 
 
 # Entretiens

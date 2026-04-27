@@ -500,6 +500,41 @@ class Carburant(db.Model):
         }
 
 
+class TypeFormation(db.Model):
+    __tablename__ = 'types_formation'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    nom = db.Column(db.String(200), nullable=False)
+    periodicite_mois = db.Column(db.Integer, default=0)
+    ordre = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {'id': self.id, 'nom': self.nom, 'periodicite_mois': self.periodicite_mois, 'ordre': self.ordre}
+
+
+class FormationRecord(db.Model):
+    __tablename__ = 'formations_records'
+    id = db.Column(db.Integer, primary_key=True)
+    etab_id = db.Column(db.Integer, db.ForeignKey('etablissements.id'), nullable=False)
+    personnel_id = db.Column(db.Integer, db.ForeignKey('personnel.id'), nullable=False)
+    type_formation_id = db.Column(db.Integer, db.ForeignKey('types_formation.id'), nullable=False)
+    date_realise = db.Column(db.String(10), default='')
+    date_prochaine = db.Column(db.String(10), default='')
+    attestation_nom = db.Column(db.String(300), default='')
+    attestation_contenu = db.Column(db.LargeBinary, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'personnel_id': self.personnel_id,
+            'type_formation_id': self.type_formation_id,
+            'date_realise': self.date_realise,
+            'date_prochaine': self.date_prochaine,
+            'attestation_nom': self.attestation_nom,
+            'has_attestation': bool(self.attestation_contenu),
+        }
+
+
 class DocumentVehicule(db.Model):
     __tablename__ = 'documents_vehicule'
     id = db.Column(db.Integer, primary_key=True)

@@ -957,6 +957,45 @@
       </div>
 
     </div><!-- /view-analyse -->
+
+    <!-- ════════════════════════════════════════════════
+         VUE : FORMATION
+    ════════════════════════════════════════════════ -->
+    <div id="view-formation" class="module-view hidden">
+      <div class="module-toolbar">
+        <div class="filters">
+          <input id="formation-search" class="search-input" type="text" placeholder="🔍 Rechercher un salarié..." oninput="filterFormationMatrice()">
+        </div>
+        <button class="btn" onclick="openGererTypesFormation()" style="background:#7C3AED;color:#fff;border:none;">⚙️ Types de formation</button>
+        <span id="formation-alerte-badge-wrap"></span>
+      </div>
+      <!-- Onglets -->
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab-group="formation" data-tab-id="formation-matrice-tab" onclick="switchTab('formation','formation-matrice-tab')">📋 Tableau</button>
+        <button class="tab-btn" data-tab-group="formation" data-tab-id="formation-alertes-tab" onclick="switchTab('formation','formation-alertes-tab');loadFormationAlertes()">🔔 Alertes <span id="formation-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
+      </div>
+      <!-- Onglet Tableau / Matrice -->
+      <div class="tab-content active" data-tab-group="formation" data-tab-id="formation-matrice-tab">
+        <div style="overflow-x:auto;">
+          <table id="formation-matrice-table" style="border-collapse:collapse;min-width:100%;font-size:13px;">
+            <thead id="formation-matrice-thead"></thead>
+            <tbody id="formation-matrice-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Onglet Alertes -->
+      <div class="tab-content" data-tab-group="formation" data-tab-id="formation-alertes-tab">
+        <div class="table-wrapper">
+          <table id="formation-alertes-table">
+            <thead><tr>
+              <th>NOM</th><th>PRÉNOM</th><th>POSTE</th><th>FORMATION</th><th>DATE PROCHAINE</th><th>STATUT</th>
+            </tr></thead>
+            <tbody id="formation-alertes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /view-formation -->
+
     <div id="view-caisse"    class="module-view hidden"><div class="coming-soon"><div class="cs-icon">💰</div><h2>Caisse</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <div id="view-ppms"      class="module-view hidden"><div class="coming-soon"><div class="cs-icon">🛡️</div><h2>PPMS</h2><p>Ce module sera disponible prochainement.</p></div></div>
     <!-- ════════════════════════════════════════════════
@@ -1760,6 +1799,7 @@
 <script src="/static/js/budget.js"></script>
 <script src="/static/js/parc_auto.js"></script>
 <script src="/static/js/analyse_pdf.js"></script>
+<script src="/static/js/formation.js"></script>
 <script src="/static/js/pharmacie.js"></script>
 <script src="/static/js/cles.js"></script>
 <script src="/static/js/stock.js"></script>
