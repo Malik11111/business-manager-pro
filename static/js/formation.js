@@ -7,6 +7,7 @@ let _formationPersonnel = [];
 let _formationTypes = [];
 let _formationRecords = {};
 let _formationInited = false;
+let _formationFilter = 'tous';
 
 /* ── Init ─────────────────────────────────────────────── */
 async function initFormation() {
@@ -42,6 +43,35 @@ function filterFormationMatrice() {
   renderFormationMatrice();
 }
 
+function setFormationFilter(filter) {
+  _formationFilter = filter;
+  document.querySelectorAll('.formation-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === filter);
+  });
+  renderFormationMatrice();
+}
+
+function _getPersonnelStatus(p) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  let hasExpire = false, hasBientot = false, hasVide = false, hasOk = false;
+  for (const t of _formationTypes) {
+    const rec = _formationRecords[`${p.id},${t.id}`];
+    if (!rec || !rec.date_realise) { hasVide = true; continue; }
+    if (!rec.date_prochaine) { hasOk = true; continue; }
+    const dp = new Date(rec.date_prochaine);
+    const jours = Math.round((dp - today) / 86400000);
+    if (jours < 0) hasExpire = true;
+    else if (jours <= 60) hasBientot = true;
+    else hasOk = true;
+  }
+  if (hasExpire) return 'expire';
+  if (hasBientot) return 'bientot';
+  if (hasVide && !hasOk) return 'vide';
+  if (hasOk) return 'ok';
+  return 'vide';
+}
+
 function renderFormationMatrice() {
   const search = (document.getElementById('formation-search')?.value || '').toLowerCase();
   const thead = document.getElementById('formation-matrice-thead');
@@ -59,8 +89,9 @@ function renderFormationMatrice() {
   </tr>`;
 
   const filtered = _formationPersonnel.filter(p => {
-    if (!search) return true;
-    return [p.nom, p.prenom, p.poste, p.type_contrat].some(v => (v || '').toLowerCase().includes(search));
+    if (search && ![p.nom, p.prenom, p.poste, p.type_contrat].some(v => (v || '').toLowerCase().includes(search))) return false;
+    if (_formationFilter !== 'tous' && _getPersonnelStatus(p) !== _formationFilter) return false;
+    return true;
   });
 
   if (!filtered.length) {

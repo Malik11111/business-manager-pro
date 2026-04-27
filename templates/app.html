@@ -976,6 +976,13 @@
       </div>
       <!-- Onglet Tableau / Matrice -->
       <div class="tab-content active" data-tab-group="formation" data-tab-id="formation-matrice-tab">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;padding:10px 0 6px 0;">
+          <button class="btn btn-gray formation-filter-btn active" data-filter="tous"     onclick="setFormationFilter('tous')"     style="font-size:11px;padding:6px 14px;">● Tous</button>
+          <button class="btn btn-gray formation-filter-btn"        data-filter="ok"       onclick="setFormationFilter('ok')"       style="font-size:11px;padding:6px 14px;color:#16a34a;">✅ À jour</button>
+          <button class="btn btn-gray formation-filter-btn"        data-filter="bientot"  onclick="setFormationFilter('bientot')"  style="font-size:11px;padding:6px 14px;color:#d97706;">⚠️ À renouveler</button>
+          <button class="btn btn-gray formation-filter-btn"        data-filter="expire"   onclick="setFormationFilter('expire')"   style="font-size:11px;padding:6px 14px;color:#dc2626;">🔴 Expirés</button>
+          <button class="btn btn-gray formation-filter-btn"        data-filter="vide"     onclick="setFormationFilter('vide')"     style="font-size:11px;padding:6px 14px;color:#94a3b8;">— Non renseignés</button>
+        </div>
         <div style="overflow-x:auto;">
           <table id="formation-matrice-table" style="border-collapse:collapse;min-width:100%;font-size:13px;">
             <thead id="formation-matrice-thead"></thead>
