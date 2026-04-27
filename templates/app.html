@@ -973,12 +973,14 @@
           </select>
         </div>
         <button class="btn" onclick="openGererTypesFormation()" style="background:#7C3AED;color:#fff;border:none;">⚙️ Types de formation</button>
+        <button class="btn" onclick="exportFormationExcel()" style="background:#16a34a;color:#fff;border:none;">⬇ Export Excel</button>
         <span id="formation-alerte-badge-wrap"></span>
       </div>
       <!-- Onglets -->
       <div class="tabs-header">
         <button class="tab-btn active" data-tab-group="formation" data-tab-id="formation-matrice-tab" onclick="switchTab('formation','formation-matrice-tab')">📋 Tableau</button>
         <button class="tab-btn" data-tab-group="formation" data-tab-id="formation-alertes-tab" onclick="switchTab('formation','formation-alertes-tab');loadFormationAlertes()">🔔 Alertes <span id="formation-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
+        <button class="tab-btn" data-tab-group="formation" data-tab-id="formation-analyse-tab" onclick="switchTab('formation','formation-analyse-tab');loadFormationAnalyse()">📊 Analyse</button>
       </div>
       <!-- Onglet Tableau / Matrice -->
       <div class="tab-content active" data-tab-group="formation" data-tab-id="formation-matrice-tab">
@@ -1004,6 +1006,27 @@
               <th>NOM</th><th>PRÉNOM</th><th>POSTE</th><th>FORMATION</th><th>DATE PROCHAINE</th><th>STATUT</th>
             </tr></thead>
             <tbody id="formation-alertes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Onglet Analyse -->
+      <div class="tab-content" data-tab-group="formation" data-tab-id="formation-analyse-tab">
+        <div id="formation-analyse-kpis" style="display:flex;gap:12px;flex-wrap:wrap;margin:16px 0;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 style="margin:0;font-size:14px;color:#1e293b;">Détail par type de formation</h3>
+          <button class="btn" onclick="exportFormationExcel()" style="background:#16a34a;color:#fff;border:none;font-size:12px;">⬇ Export Excel complet</button>
+        </div>
+        <div class="table-wrapper">
+          <table id="formation-analyse-table">
+            <thead><tr>
+              <th>FORMATION</th><th>PÉRIODICITÉ</th><th>TOTAL</th>
+              <th style="color:#16a34a;">✅ FORMÉS</th>
+              <th style="color:#d97706;">⚠️ À RENOUVELER</th>
+              <th style="color:#dc2626;">🔴 EXPIRÉS</th>
+              <th style="color:#94a3b8;">— NON RENSEIGNÉS</th>
+              <th>TAUX</th>
+            </tr></thead>
+            <tbody id="formation-analyse-tbody"></tbody>
           </table>
         </div>
       </div>

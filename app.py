@@ -2801,6 +2801,188 @@ def get_formation_alertes():
     return jsonify(alertes)
 
 
+@app.route('/api/formations/analyse', methods=['GET'])
+@login_required
+def get_formation_analyse():
+    from datetime import date as _date, datetime as _dt
+    etab = _get_etab()
+    today = _date.today()
+    personnel = Personnel.query.filter_by(etab_id=etab.id).all()
+    types = TypeFormation.query.filter_by(etab_id=etab.id).order_by(TypeFormation.ordre, TypeFormation.nom).all()
+    records = FormationRecord.query.filter_by(etab_id=etab.id).all()
+    rec_map = {(r.personnel_id, r.type_formation_id): r for r in records}
+
+    # Stats par type de formation
+    par_type = []
+    for t in types:
+        formes = a_renouveler = expires = non_renseignes = 0
+        for p in personnel:
+            rec = rec_map.get((p.id, t.id))
+            if not rec or not rec.date_realise:
+                non_renseignes += 1
+                continue
+            if not rec.date_prochaine:
+                formes += 1
+                continue
+            try:
+                dp = _dt.strptime(rec.date_prochaine, '%Y-%m-%d').date()
+                delta = (dp - today).days
+                if delta < 0:
+                    expires += 1
+                elif delta <= 60:
+                    a_renouveler += 1
+                else:
+                    formes += 1
+            except Exception:
+                formes += 1
+        par_type.append({
+            'formation': t.nom,
+            'periodicite': t.periodicite_mois,
+            'total': len(personnel),
+            'formes': formes,
+            'a_renouveler': a_renouveler,
+            'expires': expires,
+            'non_renseignes': non_renseignes,
+            'taux': round(formes / len(personnel) * 100) if personnel else 0,
+        })
+
+    # Stats globales
+    total_cells = len(personnel) * len(types)
+    formes_total = sum(r['formes'] for r in par_type)
+    renouveler_total = sum(r['a_renouveler'] for r in par_type)
+    expires_total = sum(r['expires'] for r in par_type)
+    vides_total = sum(r['non_renseignes'] for r in par_type)
+
+    return jsonify({
+        'global': {
+            'total_personnel': len(personnel),
+            'total_types': len(types),
+            'total_cells': total_cells,
+            'formes': formes_total,
+            'a_renouveler': renouveler_total,
+            'expires': expires_total,
+            'non_renseignes': vides_total,
+            'taux_global': round(formes_total / total_cells * 100) if total_cells else 0,
+        },
+        'par_type': par_type,
+    })
+
+
+@app.route('/api/formations/export-excel', methods=['GET'])
+@login_required
+def export_formation_excel():
+    import io, openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from datetime import date as _date, datetime as _dt
+    etab = _get_etab()
+    today = _date.today()
+    personnel = Personnel.query.filter_by(etab_id=etab.id).order_by(Personnel.nom).all()
+    types = TypeFormation.query.filter_by(etab_id=etab.id).order_by(TypeFormation.ordre, TypeFormation.nom).all()
+    records = FormationRecord.query.filter_by(etab_id=etab.id).all()
+    rec_map = {(r.personnel_id, r.type_formation_id): r for r in records}
+
+    wb = openpyxl.Workbook()
+
+    # ── Onglet 1 : Matrice ──
+    ws = wb.active
+    ws.title = 'Matrice formations'
+    header_fill = PatternFill('solid', fgColor='1E3A8A')
+    header_font = Font(color='FFFFFF', bold=True, size=10)
+    ok_fill = PatternFill('solid', fgColor='D1FAE5')
+    warn_fill = PatternFill('solid', fgColor='FEF3C7')
+    err_fill = PatternFill('solid', fgColor='FEE2E2')
+    thin = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    headers = ['NOM', 'PRÉNOM', 'POSTE', 'CONTRAT'] + [t.nom for t in types]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+        cell.border = thin
+
+    for row_idx, p in enumerate(personnel, 2):
+        ws.cell(row=row_idx, column=1, value=p.nom).border = thin
+        ws.cell(row=row_idx, column=2, value=p.prenom or '').border = thin
+        ws.cell(row=row_idx, column=3, value=p.poste or '').border = thin
+        ws.cell(row=row_idx, column=4, value=p.type_contrat or '').border = thin
+        for col_idx, t in enumerate(types, 5):
+            rec = rec_map.get((p.id, t.id))
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.border = thin
+            cell.alignment = Alignment(horizontal='center')
+            if not rec or not rec.date_realise:
+                cell.value = '—'
+                continue
+            if rec.date_prochaine:
+                try:
+                    dp = _dt.strptime(rec.date_prochaine, '%Y-%m-%d').date()
+                    delta = (dp - today).days
+                    if delta < 0:
+                        cell.fill = err_fill
+                        cell.value = f'✗ {rec.date_realise} → DÉPASSÉ'
+                    elif delta <= 60:
+                        cell.fill = warn_fill
+                        cell.value = f'⚠ {rec.date_realise} → {rec.date_prochaine}'
+                    else:
+                        cell.fill = ok_fill
+                        cell.value = f'✓ {rec.date_realise} → {rec.date_prochaine}'
+                except Exception:
+                    cell.value = rec.date_realise
+            else:
+                cell.fill = ok_fill
+                cell.value = f'✓ {rec.date_realise}'
+
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 20 if col > 4 else 16
+
+    # ── Onglet 2 : Analyse ──
+    ws2 = wb.create_sheet('Analyse')
+    ah = ['Formation', 'Périodicité', 'Total', 'Formés ✓', 'À renouveler ⚠', 'Expirés ✗', 'Non renseignés', 'Taux (%)']
+    for col, h in enumerate(ah, 1):
+        cell = ws2.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin
+
+    for t in types:
+        rec_map2 = {(r.personnel_id, r.type_formation_id): r for r in records}
+        formes = a_r = exps = nrs = 0
+        for p in personnel:
+            rec = rec_map2.get((p.id, t.id))
+            if not rec or not rec.date_realise:
+                nrs += 1; continue
+            if not rec.date_prochaine:
+                formes += 1; continue
+            try:
+                dp = _dt.strptime(rec.date_prochaine, '%Y-%m-%d').date()
+                delta = (dp - today).days
+                if delta < 0: exps += 1
+                elif delta <= 60: a_r += 1
+                else: formes += 1
+            except Exception:
+                formes += 1
+        row = [t.nom, f'{t.periodicite_mois // 12} ans' if t.periodicite_mois else '—',
+               len(personnel), formes, a_r, exps, nrs,
+               f'{round(formes/len(personnel)*100)}%' if personnel else '0%']
+        r_idx = types.index(t) + 2
+        for col, val in enumerate(row, 1):
+            cell = ws2.cell(row=r_idx, column=col, value=val)
+            cell.border = thin
+            if col == 4: cell.fill = ok_fill
+            elif col == 5: cell.fill = warn_fill
+            elif col == 6: cell.fill = err_fill
+
+    for col in range(1, len(ah) + 1):
+        ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 22 if col == 1 else 14
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(buf, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='formations.xlsx')
+
+
 # Entretiens
 
 @app.route('/api/entretiens', methods=['GET'])

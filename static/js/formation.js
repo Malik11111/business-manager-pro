@@ -289,6 +289,64 @@ async function loadFormationAlertes() {
   } catch (e) {}
 }
 
+/* ── Onglet Analyse ──────────────────────────────────── */
+async function loadFormationAnalyse() {
+  try {
+    const data = await api('/api/formations/analyse');
+    renderFormationAnalyseKpis(data.global);
+    renderFormationAnalyseTable(data.par_type);
+  } catch (e) { showToast('Erreur chargement analyse', 'error'); }
+}
+
+function renderFormationAnalyseKpis(g) {
+  const el = document.getElementById('formation-analyse-kpis');
+  if (!el) return;
+  const kpis = [
+    { label: 'Personnel total', val: g.total_personnel, color: '#1e293b', bg: '#f1f5f9' },
+    { label: 'Formés à jour', val: g.formes, color: '#16a34a', bg: '#dcfce7' },
+    { label: 'À renouveler', val: g.a_renouveler, color: '#d97706', bg: '#fef3c7' },
+    { label: 'Expirés', val: g.expires, color: '#dc2626', bg: '#fee2e2' },
+    { label: 'Non renseignés', val: g.non_renseignes, color: '#64748b', bg: '#f8fafc' },
+    { label: 'Taux global formés', val: g.taux_global + '%', color: '#7C3AED', bg: '#ede9fe' },
+  ];
+  el.innerHTML = kpis.map(k => `
+    <div style="background:${k.bg};border-radius:10px;padding:14px 20px;min-width:130px;text-align:center;flex:1;">
+      <div style="font-size:22px;font-weight:800;color:${k.color};">${k.val}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">${k.label}</div>
+    </div>`).join('');
+}
+
+function renderFormationAnalyseTable(rows) {
+  const tbody = document.getElementById('formation-analyse-tbody');
+  if (!tbody) return;
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Aucune donnée</td></tr>'; return; }
+  tbody.innerHTML = rows.map(r => {
+    const taux = r.taux;
+    const barColor = taux >= 80 ? '#16a34a' : taux >= 50 ? '#d97706' : '#dc2626';
+    return `<tr>
+      <td style="font-weight:600;">${esc(r.formation)}</td>
+      <td style="text-align:center;">${r.periodicite ? _moisToAns(r.periodicite) : '—'}</td>
+      <td style="text-align:center;font-weight:700;">${r.total}</td>
+      <td style="text-align:center;background:#dcfce7;color:#16a34a;font-weight:700;">${r.formes}</td>
+      <td style="text-align:center;background:#fef3c7;color:#d97706;font-weight:700;">${r.a_renouveler}</td>
+      <td style="text-align:center;background:#fee2e2;color:#dc2626;font-weight:700;">${r.expires}</td>
+      <td style="text-align:center;color:#94a3b8;font-weight:700;">${r.non_renseignes}</td>
+      <td style="min-width:100px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div style="flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden;">
+            <div style="width:${taux}%;height:100%;background:${barColor};border-radius:4px;"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${barColor};">${taux}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function exportFormationExcel() {
+  window.location.href = '/api/formations/export-excel';
+}
+
 /* ── Gérer les types de formation ────────────────────── */
 async function openGererTypesFormation() {
   await _renderTypesFormationModal();
