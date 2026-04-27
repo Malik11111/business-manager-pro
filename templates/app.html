@@ -958,30 +958,6 @@
 
     </div><!-- /view-analyse -->
 
-    <!-- ════════════════════════════════════════════════
-         VUE : GRAPHES (Formation uniquement)
-    ════════════════════════════════════════════════ -->
-    <div id="view-graphes" class="module-view hidden">
-      <div class="module-toolbar" style="padding:12px 20px;gap:12px;">
-        <span style="font-size:16px;font-weight:700;color:#1E293B;">📊 Graphes Formation</span>
-        <button class="btn btn-secondary" onclick="loadGraphes()" style="margin-left:auto;">🔄 Actualiser</button>
-      </div>
-      <div id="graphes-content" style="padding:20px;overflow-y:auto;height:calc(100vh - 120px);">
-        <div id="graphes-loading" style="text-align:center;padding:60px;color:#64748B;font-size:15px;">Chargement des données...</div>
-        <div id="gpanel-formation" style="display:none;">
-          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:20px;">
-            <div class="chart-card">
-              <h3 class="chart-title">Taux de conformité par formation (%)</h3>
-              <div style="position:relative;height:340px;"><canvas id="chart-formation-bar"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <h3 class="chart-title">Distribution globale des statuts</h3>
-              <div style="position:relative;height:340px;"><canvas id="chart-formation-donut"></canvas></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div><!-- /view-graphes -->
 
     <!-- ════════════════════════════════════════════════
          VUE : FORMATION
@@ -1006,6 +982,7 @@
         <button class="tab-btn active" data-tab-group="formation" data-tab-id="formation-matrice-tab" onclick="switchTab('formation','formation-matrice-tab')">📋 Tableau</button>
         <button class="tab-btn" data-tab-group="formation" data-tab-id="formation-alertes-tab" onclick="switchTab('formation','formation-alertes-tab');loadFormationAlertes()">🔔 Alertes <span id="formation-alertes-badge" style="display:none;background:#e53935;color:white;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;"></span></button>
         <button class="tab-btn" data-tab-group="formation" data-tab-id="formation-analyse-tab" onclick="switchTab('formation','formation-analyse-tab');loadFormationAnalyse()">📊 Analyse</button>
+        <button class="tab-btn" data-tab-group="formation" data-tab-id="formation-graphes-tab" onclick="switchTab('formation','formation-graphes-tab');loadGraphes()">📈 Graphes</button>
       </div>
       <!-- Onglet Tableau / Matrice -->
       <div class="tab-content active" data-tab-group="formation" data-tab-id="formation-matrice-tab">
@@ -1032,6 +1009,22 @@
             </tr></thead>
             <tbody id="formation-alertes-tbody"></tbody>
           </table>
+        </div>
+      </div>
+      <!-- Onglet Graphes -->
+      <div class="tab-content" data-tab-group="formation" data-tab-id="formation-graphes-tab">
+        <div id="graphes-loading" style="text-align:center;padding:60px;color:#64748B;font-size:15px;display:none;">Chargement...</div>
+        <div id="gpanel-formation" style="display:none;padding:16px 0;">
+          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:20px;">
+            <div class="chart-card">
+              <h3 class="chart-title">Taux de conformité par formation (%)</h3>
+              <div style="position:relative;height:340px;"><canvas id="chart-formation-bar"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <h3 class="chart-title">Distribution globale des statuts</h3>
+              <div style="position:relative;height:340px;"><canvas id="chart-formation-donut"></canvas></div>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Onglet Analyse -->

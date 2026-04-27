@@ -12,7 +12,6 @@ const MODULES = [
   { id: 'stock',        icon: '📦', label: 'Stock',        ready: true },
   { id: 'auto',         icon: '🚗', label: 'Parc Auto',    ready: true },
   { id: 'analyse',      icon: '📄', label: 'Analyse PDF',  ready: true },
-  { id: 'graphes',      icon: '📊', label: 'Graphes',      ready: true },
   { id: 'formation',    icon: '🎓', label: 'Formation',    ready: true },
   { id: 'pharmacie',    icon: '💊', label: 'Pharmacie',    ready: true },
 ];
@@ -88,8 +87,6 @@ function navigateTo(moduleId) {
       initParcAuto();
     } else if (moduleId === 'analyse') {
       initAnalysePDF();
-    } else if (moduleId === 'graphes') {
-      initGraphes();
     } else if (moduleId === 'formation') {
       initFormation();
     } else if (moduleId === 'pharmacie') {
