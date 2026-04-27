@@ -424,7 +424,16 @@ function renderCharts() {
         responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { position: 'right', labels: { font: { size: 12 }, boxWidth: 14 } },
-          tooltip: { callbacks: { label: ctx => `${ctx.label} : ${formatEUR(ctx.raw)}` } }
+          tooltip: { callbacks: { label: ctx => `${ctx.label} : ${formatEUR(ctx.raw)}` } },
+          datalabels: {
+            color: '#fff',
+            font: { weight: 'bold', size: 12 },
+            formatter: (value, ctx) => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = Math.round(value / total * 100);
+              return pct >= 4 ? pct + '%\n' + formatEUR(value) : '';
+            }
+          }
         },
         onClick: (evt, elements) => {
           if (elements.length > 0) {
@@ -467,9 +476,20 @@ function renderCharts() {
             titleFont: { weight: 'bold', size: 13 },
             bodyFont: { size: 13 },
             padding: 10
+          },
+          datalabels: {
+            anchor: 'end',
+            align: 'top',
+            color: '#374151',
+            font: { size: 11, weight: '700' },
+            formatter: v => v > 0 ? formatEUR(v) : ''
           }
         },
-        scales: { y: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { callback: v => formatEUR(v) } },
+          x: { ticks: { font: { size: 10 }, maxRotation: 30 } }
+        },
+        layout: { padding: { top: 25 } },
         onHover: (evt, elements) => {
           evt.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
         },
