@@ -959,104 +959,24 @@
     </div><!-- /view-analyse -->
 
     <!-- ════════════════════════════════════════════════
-         VUE : GRAPHES
+         VUE : GRAPHES (Formation uniquement)
     ════════════════════════════════════════════════ -->
     <div id="view-graphes" class="module-view hidden">
       <div class="module-toolbar" style="padding:12px 20px;gap:12px;">
-        <span style="font-size:16px;font-weight:700;color:#1E293B;">📊 Tableaux de bord interactifs</span>
+        <span style="font-size:16px;font-weight:700;color:#1E293B;">📊 Graphes Formation</span>
         <button class="btn btn-secondary" onclick="loadGraphes()" style="margin-left:auto;">🔄 Actualiser</button>
       </div>
-
-      <!-- Onglets graphes -->
-      <div style="display:flex;gap:0;border-bottom:2px solid #E2E8F0;padding:0 20px;background:#fff;">
-        <button class="graphe-tab active" onclick="switchGrapheTab('personnel')" id="gtab-personnel">👥 Personnel</button>
-        <button class="graphe-tab" onclick="switchGrapheTab('formation')" id="gtab-formation">🎓 Formation</button>
-        <button class="graphe-tab" onclick="switchGrapheTab('stock')" id="gtab-stock">📦 Stock</button>
-        <button class="graphe-tab" onclick="switchGrapheTab('auto')" id="gtab-auto">🚗 Parc Auto</button>
-        <button class="graphe-tab" onclick="switchGrapheTab('pharmacie')" id="gtab-pharmacie">💊 Pharmacie</button>
-      </div>
-
-      <div id="graphes-content" style="padding:20px;overflow-y:auto;height:calc(100vh - 160px);">
+      <div id="graphes-content" style="padding:20px;overflow-y:auto;height:calc(100vh - 120px);">
         <div id="graphes-loading" style="text-align:center;padding:60px;color:#64748B;font-size:15px;">Chargement des données...</div>
-
-        <!-- Personnel -->
-        <div id="gpanel-personnel" class="gpanel" style="display:none;">
-          <div id="graphes-kpi-personnel" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;"></div>
-          <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:20px;">
-            <div class="chart-card">
-              <h3 class="chart-title">Répartition par type de contrat</h3>
-              <div style="position:relative;height:280px;"><canvas id="chart-contrats"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <h3 class="chart-title">Personnel par service / unité</h3>
-              <div style="position:relative;height:280px;"><canvas id="chart-services"></canvas></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Formation -->
-        <div id="gpanel-formation" class="gpanel" style="display:none;">
+        <div id="gpanel-formation" style="display:none;">
           <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:20px;">
             <div class="chart-card">
               <h3 class="chart-title">Taux de conformité par formation (%)</h3>
-              <div style="position:relative;height:320px;"><canvas id="chart-formation-bar"></canvas></div>
+              <div style="position:relative;height:340px;"><canvas id="chart-formation-bar"></canvas></div>
             </div>
             <div class="chart-card">
               <h3 class="chart-title">Distribution globale des statuts</h3>
-              <div style="position:relative;height:320px;"><canvas id="chart-formation-donut"></canvas></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Stock -->
-        <div id="gpanel-stock" class="gpanel" style="display:none;">
-          <div id="graphes-kpi-stock" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;"></div>
-          <div style="display:grid;grid-template-columns:1.8fr 1fr;gap:20px;margin-bottom:20px;">
-            <div class="chart-card">
-              <h3 class="chart-title">Niveaux de stock (quantité vs seuil d'alerte)</h3>
-              <div style="position:relative;height:300px;"><canvas id="chart-stock-niveaux"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <h3 class="chart-title">Répartition par catégorie</h3>
-              <div style="position:relative;height:300px;"><canvas id="chart-stock-cat"></canvas></div>
-            </div>
-          </div>
-          <div class="chart-card">
-            <h3 class="chart-title">Mouvements stock — sorties vs réceptions (6 derniers mois)</h3>
-            <div style="position:relative;height:220px;"><canvas id="chart-stock-mois"></canvas></div>
-          </div>
-        </div>
-
-        <!-- Parc Auto -->
-        <div id="gpanel-auto" class="gpanel" style="display:none;">
-          <div id="graphes-kpi-auto" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;"></div>
-          <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:20px;margin-bottom:20px;">
-            <div class="chart-card">
-              <h3 class="chart-title">Répartition par marque</h3>
-              <div style="position:relative;height:280px;"><canvas id="chart-auto-marques"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <h3 class="chart-title">Coût entretien total par véhicule (€)</h3>
-              <div style="position:relative;height:280px;"><canvas id="chart-auto-entretien"></canvas></div>
-            </div>
-          </div>
-          <div class="chart-card">
-            <h3 class="chart-title">Dépenses carburant par mois (€)</h3>
-            <div style="position:relative;height:200px;"><canvas id="chart-auto-carbu"></canvas></div>
-          </div>
-        </div>
-
-        <!-- Pharmacie -->
-        <div id="gpanel-pharmacie" class="gpanel" style="display:none;">
-          <div id="graphes-kpi-pharmacie" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;"></div>
-          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-bottom:20px;">
-            <div class="chart-card">
-              <h3 class="chart-title">Top 10 médicaments les plus sortis</h3>
-              <div style="position:relative;height:300px;"><canvas id="chart-pharma-top"></canvas></div>
-            </div>
-            <div class="chart-card">
-              <h3 class="chart-title">Entrées vs Sorties par mois</h3>
-              <div style="position:relative;height:300px;"><canvas id="chart-pharma-mois"></canvas></div>
+              <div style="position:relative;height:340px;"><canvas id="chart-formation-donut"></canvas></div>
             </div>
           </div>
         </div>

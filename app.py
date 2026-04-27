@@ -3958,7 +3958,7 @@ def api_contrat_delete(cid):
 
 
 # ══════════════════════════════════════════════════════
-#  GRAPHES — données agrégées
+#  GRAPHES — Formation uniquement
 # ══════════════════════════════════════════════════════
 
 @app.route('/api/graphes/summary')
@@ -3968,21 +3968,10 @@ def api_graphes_summary():
     if not etab:
         return jsonify({'error': 'Pas d\'etablissement'}), 400
 
-    from collections import defaultdict
     from datetime import date as _date_cls
     today_str = _date_cls.today().strftime('%Y-%m-%d')
 
-    # ── Personnel ──────────────────────────────────────
     personnel = Personnel.query.filter_by(etab_id=etab.id).all()
-    contrats = defaultdict(int)
-    services = defaultdict(int)
-    for p in personnel:
-        contrats[p.type_contrat or 'Non précisé'] += 1
-        if p.service:
-            services[p.service] += 1
-    services_sorted = sorted(services.items(), key=lambda x: x[1], reverse=True)[:12]
-
-    # ── Formation ──────────────────────────────────────
     types_f = TypeFormation.query.filter_by(etab_id=etab.id).order_by(TypeFormation.ordre).all()
     pers_ids = [p.id for p in personnel]
     formation_stats = []
@@ -3995,25 +3984,18 @@ def api_graphes_summary():
             if not r or not r.date_prochaine:
                 vide += 1
             else:
-                diff = (r.date_prochaine > today_str, r.date_prochaine > today_str)
-                if r.date_prochaine < today_str:
-                    expire += 1
-                elif r.date_prochaine <= today_str[:7] + '-' + str(int(today_str[8:10]) if today_str[8:10] else '01'):
-                    bientot += 1
-                else:
-                    # check 60 days
-                    try:
-                        from datetime import datetime as _dt
-                        d_proc = _dt.strptime(r.date_prochaine, '%Y-%m-%d').date()
-                        delta = (d_proc - _date_cls.today()).days
-                        if delta < 0:
-                            expire += 1
-                        elif delta <= 60:
-                            bientot += 1
-                        else:
-                            ok += 1
-                    except Exception:
+                try:
+                    from datetime import datetime as _dt
+                    d_proc = _dt.strptime(r.date_prochaine, '%Y-%m-%d').date()
+                    delta = (d_proc - _date_cls.today()).days
+                    if delta < 0:
+                        expire += 1
+                    elif delta <= 60:
+                        bientot += 1
+                    else:
                         ok += 1
+                except Exception:
+                    ok += 1
         total_p = len(pers_ids)
         formation_stats.append({
             'nom': tf.nom,
@@ -4021,96 +4003,9 @@ def api_graphes_summary():
             'pct_ok': round(ok * 100 / total_p, 1) if total_p else 0
         })
 
-    # ── Stock ──────────────────────────────────────────
-    produits = StockProduit.query.filter_by(etab_id=etab.id).all()
-    cat_counts = defaultdict(int)
-    stock_items = []
-    for p in produits:
-        cat_counts[p.categorie or 'Sans catégorie'] += 1
-        stock_items.append({
-            'nom': p.nom, 'quantite': float(p.quantite),
-            'seuil': float(p.seuil_alerte), 'unite': p.unite,
-            'alerte': p.quantite <= p.seuil_alerte and p.seuil_alerte > 0
-        })
-    stock_items_sorted = sorted(stock_items, key=lambda x: x['quantite'])[:20]
-
-    # mouvements stock par mois (6 derniers mois)
-    from datetime import datetime as _dt2
-    six_months_ago = (_date_cls.today().replace(day=1))
-    stock_mvts = StockMouvement.query.join(StockProduit).filter(
-        StockProduit.etab_id == etab.id
-    ).all()
-    mvt_by_month = defaultdict(lambda: {'sortie': 0, 'reception': 0})
-    for m in stock_mvts:
-        if m.date and len(m.date) >= 7:
-            mois = m.date[:7]
-            mvt_by_month[mois][m.type] = mvt_by_month[mois].get(m.type, 0) + float(m.quantite)
-    last6 = sorted(mvt_by_month.keys())[-6:]
-    stock_mois = [{'mois': k, 'sortie': mvt_by_month[k].get('sortie', 0), 'reception': mvt_by_month[k].get('reception', 0)} for k in last6]
-
-    # ── Parc Auto ──────────────────────────────────────
-    vehicules = Vehicule.query.filter_by(etab_id=etab.id).all()
-    marques = defaultdict(int)
-    cout_by_immat = defaultdict(float)
-    carbu_by_month = defaultdict(float)
-    for v in vehicules:
-        marques[v.marque or 'Inconnu'] += 1
-        for e in v.entretiens:
-            cout_by_immat[v.immatriculation] += float(e.cout or 0)
-        for c in v.carburants:
-            if c.date and len(c.date) >= 7:
-                carbu_by_month[c.date[:7]] += float(c.cout or 0)
-    entretien_costs = sorted(cout_by_immat.items(), key=lambda x: x[1], reverse=True)[:10]
-    last6_carbu = sorted(carbu_by_month.keys())[-6:]
-    carbu_mois = [{'mois': k, 'cout': carbu_by_month[k]} for k in last6_carbu]
-
-    # ── Pharmacie ──────────────────────────────────────
-    pharma_sorties = PharmaMouvement.query.filter_by(etab_id=etab.id, type='sortie').all()
-    med_sorties = defaultdict(float)
-    pharma_by_month = defaultdict(lambda: {'sortie': 0, 'reception': 0})
-    for m in pharma_sorties:
-        med_sorties[m.nom_medicament] += float(m.quantite or 0)
-        if m.date_mouvement and len(m.date_mouvement) >= 7:
-            pharma_by_month[m.date_mouvement[:7]]['sortie'] += float(m.quantite or 0)
-    pharma_receptions = PharmaMouvement.query.filter_by(etab_id=etab.id, type='reception').all()
-    for m in pharma_receptions:
-        if m.date_mouvement and len(m.date_mouvement) >= 7:
-            pharma_by_month[m.date_mouvement[:7]]['reception'] += float(m.quantite or 0)
-    top10_med = sorted(med_sorties.items(), key=lambda x: x[1], reverse=True)[:10]
-    last6_ph = sorted(pharma_by_month.keys())[-6:]
-    pharma_mois = [{'mois': k, 'sortie': pharma_by_month[k]['sortie'], 'reception': pharma_by_month[k]['reception']} for k in last6_ph]
-
-    pharma_stock = PharmaStock.query.filter_by(etab_id=etab.id).all()
-    stock_bas = sum(1 for s in pharma_stock if s.quantite <= s.stock_minimum and s.stock_minimum > 0)
-    perimes = sum(1 for s in pharma_stock if s.date_peremption and s.date_peremption < today_str)
-
     return jsonify({
-        'personnel': {
-            'total': len(personnel),
-            'contrats': dict(contrats),
-            'services': [{'nom': k, 'count': v} for k, v in services_sorted]
-        },
         'formation': {
             'stats': formation_stats
-        },
-        'stock': {
-            'total': len(produits),
-            'categories': dict(cat_counts),
-            'items': stock_items_sorted,
-            'mouvements_mois': stock_mois
-        },
-        'auto': {
-            'total': len(vehicules),
-            'marques': dict(marques),
-            'entretien_costs': [{'immat': k, 'cout': v} for k, v in entretien_costs],
-            'carburant_mois': carbu_mois
-        },
-        'pharmacie': {
-            'top_medicaments': [{'nom': k, 'qte': v} for k, v in top10_med],
-            'mouvements_mois': pharma_mois,
-            'stock_bas': stock_bas,
-            'perimes': perimes,
-            'total_stock': len(pharma_stock)
         }
     })
 
