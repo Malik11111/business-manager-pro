@@ -80,7 +80,7 @@ function renderFormationMatrice() {
 
   const cols = ['NOM', 'PRÉNOM', 'POSTE', 'CONTRAT'];
   const typeHeaders = _formationTypes.map(t =>
-    `<th style="min-width:120px;padding:8px 6px;font-size:11px;text-align:center;background:#1E3A8A;color:#fff;white-space:nowrap;border-right:1px solid #2D4FA0;" title="${esc(t.nom)}">${esc(t.nom.length > 14 ? t.nom.slice(0, 13) + '…' : t.nom)}<br><span style="font-weight:400;font-size:10px;color:#93C5FD">${t.periodicite_mois ? _moisToAns(t.periodicite_mois) : '—'}</span></th>`
+    `<th style="min-width:100px;max-width:130px;padding:8px 6px;font-size:10px;text-align:center;background:#1E3A8A;color:#fff;white-space:normal;word-break:break-word;border-right:1px solid #2D4FA0;line-height:1.3;">${esc(t.nom)}<br><span style="font-weight:400;font-size:9px;color:#93C5FD">${t.periodicite_mois ? _moisToAns(t.periodicite_mois) : '—'}</span></th>`
   ).join('');
 
   thead.innerHTML = `<tr>
