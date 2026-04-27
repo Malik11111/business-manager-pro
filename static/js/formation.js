@@ -50,7 +50,7 @@ function renderFormationMatrice() {
 
   const cols = ['NOM', 'PRÉNOM', 'POSTE', 'CONTRAT'];
   const typeHeaders = _formationTypes.map(t =>
-    `<th style="min-width:120px;padding:8px 6px;font-size:11px;text-align:center;background:#1E3A8A;color:#fff;white-space:nowrap;border-right:1px solid #2D4FA0;" title="${esc(t.nom)}">${esc(t.nom.length > 14 ? t.nom.slice(0, 13) + '…' : t.nom)}<br><span style="font-weight:400;font-size:10px;color:#93C5FD">${t.periodicite_mois ? t.periodicite_mois + ' mois' : '—'}</span></th>`
+    `<th style="min-width:120px;padding:8px 6px;font-size:11px;text-align:center;background:#1E3A8A;color:#fff;white-space:nowrap;border-right:1px solid #2D4FA0;" title="${esc(t.nom)}">${esc(t.nom.length > 14 ? t.nom.slice(0, 13) + '…' : t.nom)}<br><span style="font-weight:400;font-size:10px;color:#93C5FD">${t.periodicite_mois ? _moisToAns(t.periodicite_mois) : '—'}</span></th>`
   ).join('');
 
   thead.innerHTML = `<tr>
@@ -160,7 +160,7 @@ function openFormationCell(pid, tid) {
         <div>
           <label class="modal-label">Prochaine date</label>
           <input id="form-date-prochaine" class="modal-input" type="date" value="${rec.date_prochaine || ''}">
-          ${t.periodicite_mois ? `<div style="font-size:11px;color:#9CA3AF;margin-top:3px;">Périodicité : ${t.periodicite_mois} mois — <a href="#" onclick="autoCalcDate(${t.periodicite_mois});return false;" style="color:#5B21B6;">Calculer auto</a></div>` : ''}
+          ${t.periodicite_mois ? `<div style="font-size:11px;color:#9CA3AF;margin-top:3px;">Périodicité : ${_moisToAns(t.periodicite_mois)} — <a href="#" onclick="autoCalcDate(${t.periodicite_mois});return false;" style="color:#5B21B6;">Calculer auto</a></div>` : ''}
         </div>
       </div>
       <div>
@@ -248,11 +248,11 @@ async function _renderTypesFormationModal() {
     ? types.map(t => `
         <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F3F4F6;">
           <span style="flex:1;font-size:13px;font-weight:600;">${esc(t.nom)}</span>
-          <input type="number" value="${t.periodicite_mois}" min="0" step="1"
-            onchange="updateFormationType(${t.id}, this.value)"
-            style="width:70px;padding:4px;border:1px solid #D1D5DB;border-radius:6px;font-size:12px;text-align:center;"
-            title="Périodicité en mois (0 = pas de limite)">
-          <span style="font-size:11px;color:#9CA3AF;width:40px;">mois</span>
+          <input type="number" value="${Math.round(t.periodicite_mois / 12) || ''}" min="0" step="1"
+            onchange="updateFormationType(${t.id}, this.value * 12)"
+            style="width:60px;padding:4px;border:1px solid #D1D5DB;border-radius:6px;font-size:12px;text-align:center;"
+            title="Périodicité en années (0 = pas de limite)">
+          <span style="font-size:11px;color:#9CA3AF;width:30px;">ans</span>
           <button class="btn-sm btn-sm-red" onclick="deleteFormationType(${t.id})">🗑️</button>
         </div>`).join('')
     : '<div style="color:#9CA3AF;font-size:13px;padding:10px 0;">Aucun type défini.</div>';
@@ -265,12 +265,12 @@ async function _renderTypesFormationModal() {
           <input id="type-form-nom" class="modal-input" placeholder="Ex: Premiers secours, CACES...">
         </div>
         <div>
-          <label class="modal-label">Périodicité (mois)</label>
-          <input id="type-form-mois" class="modal-input" type="number" value="12" min="0" step="1" style="width:80px;">
+          <label class="modal-label">Périodicité (ans)</label>
+          <input id="type-form-mois" class="modal-input" type="number" value="1" min="0" step="1" style="width:80px;">
         </div>
         <button class="btn btn-green" style="height:38px;align-self:end;" onclick="addFormationType()">➕ Ajouter</button>
       </div>
-      <div style="font-size:11px;color:#9CA3AF;">0 mois = pas de date de renouvellement obligatoire</div>
+      <div style="font-size:11px;color:#9CA3AF;">0 ans = pas de date de renouvellement obligatoire</div>
       <div style="max-height:300px;overflow-y:auto;">${liste}</div>
     </div>
   `, async () => { await loadFormationMatrice(); });
@@ -278,7 +278,7 @@ async function _renderTypesFormationModal() {
 
 async function addFormationType() {
   const nom = document.getElementById('type-form-nom')?.value.trim();
-  const mois = parseInt(document.getElementById('type-form-mois')?.value) || 0;
+  const mois = (parseInt(document.getElementById('type-form-mois')?.value) || 0) * 12;
   if (!nom) { showToast('Nom requis', 'error'); return; }
   try {
     await api('/api/formations/types', 'POST', { nom, periodicite_mois: mois });
@@ -302,4 +302,11 @@ async function deleteFormationType(id) {
     await _renderTypesFormationModal();
     await loadFormationMatrice();
   } catch (e) { showToast('Erreur', 'error'); }
+}
+
+function _moisToAns(mois) {
+  if (!mois) return '—';
+  const ans = mois / 12;
+  if (Number.isInteger(ans)) return ans === 1 ? '1 an' : `${ans} ans`;
+  return `${ans.toFixed(1)} ans`;
 }
