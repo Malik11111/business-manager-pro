@@ -52,8 +52,8 @@
   --tbl-bg:       #FFFFFF;
   --tbl-hd-bg:    #1E3A8A;
   --tbl-hd-text:  #FFFFFF;
-  --tbl-row-alt:  #F8FAFF;
-  --tbl-row-hover:#EEF2FF;
+  --tbl-row-alt:  #DBEAFE;
+  --tbl-row-hover:#BFDBFE;
   --tbl-border:   #E2E8F0;
   --tbl-text:     #0F172A;
 }
@@ -637,7 +637,7 @@ td {
   vertical-align: middle;
   color: #0F172A;
 }
-.stats-table tr:nth-child(even) td { background: #F8FAFF; }
+.stats-table tr:nth-child(even) td { background: #DBEAFE; }
 .stats-table tr:hover td { background: #FEF3C7 !important; }
 .stats-table .stat-label { font-weight: 600; color: #0F172A; }
 .stats-table .stat-value { font-weight: 700; color: #92400E; }
