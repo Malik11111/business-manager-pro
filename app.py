@@ -393,6 +393,7 @@ def api_delete_prestataire(pid):
         montant=p.montant, data_json=json.dumps(p.to_dict())
     )
     db.session.add(corb)
+    ContratPDF.query.filter_by(presta_id=p.id).delete()
     db.session.delete(p)
     db.session.commit()
     return jsonify({'ok': True})
