@@ -521,7 +521,8 @@ class FormationRecord(db.Model):
     date_realise = db.Column(db.String(10), default='')
     date_prochaine = db.Column(db.String(10), default='')
     attestation_nom = db.Column(db.String(300), default='')
-    attestation_contenu = db.Column(db.LargeBinary, nullable=True)
+    attestation_path = db.Column(db.String(500), default='')   # chemin fichier sur disque
+    attestation_contenu = db.Column(db.LargeBinary, nullable=True)  # legacy — migré au démarrage
 
     def to_dict(self):
         return {
@@ -531,7 +532,7 @@ class FormationRecord(db.Model):
             'date_realise': self.date_realise,
             'date_prochaine': self.date_prochaine,
             'attestation_nom': self.attestation_nom,
-            'has_attestation': bool(self.attestation_contenu),
+            'has_attestation': bool(self.attestation_path or self.attestation_contenu),
         }
 
 

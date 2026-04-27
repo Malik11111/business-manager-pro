@@ -15,6 +15,8 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///bm.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+    # Dossier fichiers uploadés — sur Railway, monter un Volume sur /data et mettre UPLOADS_DIR=/data/uploads
+    UPLOADS_DIR = os.environ.get('UPLOADS_DIR', str(Path(__file__).parent / 'uploads'))
 
     # Railway utilise postgres:// mais SQLAlchemy veut postgresql://
     if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):

@@ -79,9 +79,30 @@ with app.app_context():
         _add_col('personnel', 'date_depart',   "VARCHAR(10) DEFAULT ''")
         _add_col('unites',    'description',   "VARCHAR(300) DEFAULT ''")
         _add_col('unites',    'emplacement',   "VARCHAR(200) DEFAULT ''")
+        _add_col('formations_records', 'attestation_path', "VARCHAR(500) DEFAULT ''")
     except Exception as e:
         import logging
         logging.warning(f"Migration warning: {e}")
+
+    # Migration blobs → fichiers pour les attestations de formation
+    try:
+        import os, re as _re
+        uploads_dir = app.config['UPLOADS_DIR']
+        os.makedirs(os.path.join(uploads_dir, 'formations'), exist_ok=True)
+        for rec in FormationRecord.query.filter(FormationRecord.attestation_contenu.isnot(None)).all():
+            if rec.attestation_contenu and not rec.attestation_path:
+                safe = _re.sub(r'[^\w.\-]', '_', rec.attestation_nom or 'attestation.pdf')
+                filename = f"{rec.id}_{safe}"
+                path = os.path.join(uploads_dir, 'formations', filename)
+                with open(path, 'wb') as fh:
+                    fh.write(rec.attestation_contenu)
+                rec.attestation_path = filename
+                rec.attestation_contenu = None
+        db.session.commit()
+    except Exception as e:
+        import logging
+        logging.warning(f"Formation blob migration warning: {e}")
+        db.session.rollback()
 
 
 @app.errorhandler(500)
@@ -2737,7 +2758,7 @@ def get_formation_matrice():
 @app.route('/api/formations/record', methods=['POST'])
 @login_required
 def save_formation_record():
-    from datetime import date as _date, datetime as _dt
+    import os, re as _re
     etab = _get_etab()
     data = request.form if request.files else request.get_json() or {}
     pid = int(data.get('personnel_id', 0))
@@ -2751,23 +2772,39 @@ def save_formation_record():
     rec.date_realise = data.get('date_realise', rec.date_realise or '')
     rec.date_prochaine = data.get('date_prochaine', rec.date_prochaine or '')
     f = request.files.get('attestation') if request.files else None
-    if f:
+    if f and f.filename:
+        uploads_dir = app.config['UPLOADS_DIR']
+        os.makedirs(os.path.join(uploads_dir, 'formations'), exist_ok=True)
+        if rec.attestation_path:
+            old = os.path.join(uploads_dir, 'formations', rec.attestation_path)
+            if os.path.exists(old):
+                os.remove(old)
+        safe = _re.sub(r'[^\w.\-]', '_', f.filename)
+        db.session.flush()
+        filename = f"{rec.id}_{safe}"
+        f.save(os.path.join(uploads_dir, 'formations', filename))
         rec.attestation_nom = f.filename
-        rec.attestation_contenu = f.read()
+        rec.attestation_path = filename
+        rec.attestation_contenu = None
     db.session.commit()
     return jsonify(rec.to_dict())
 
 @app.route('/api/formations/attestation/<int:rid>', methods=['GET'])
 @login_required
 def get_formation_attestation(rid):
-    import io, mimetypes
+    import os, io, mimetypes
     etab = _get_etab()
     rec = FormationRecord.query.filter_by(id=rid, etab_id=etab.id).first_or_404()
-    if not rec.attestation_contenu:
-        return jsonify({'error': 'Pas d\'attestation'}), 404
     mime = mimetypes.guess_type(rec.attestation_nom or 'file.pdf')[0] or 'application/pdf'
-    return send_file(io.BytesIO(rec.attestation_contenu), mimetype=mime,
-                     as_attachment=False, download_name=rec.attestation_nom or 'attestation.pdf')
+    if rec.attestation_path:
+        path = os.path.join(app.config['UPLOADS_DIR'], 'formations', rec.attestation_path)
+        if os.path.exists(path):
+            return send_file(path, mimetype=mime, as_attachment=False,
+                             download_name=rec.attestation_nom or 'attestation.pdf')
+    if rec.attestation_contenu:
+        return send_file(io.BytesIO(rec.attestation_contenu), mimetype=mime,
+                         as_attachment=False, download_name=rec.attestation_nom or 'attestation.pdf')
+    return jsonify({'error': 'Pas d\'attestation'}), 404
 
 @app.route('/api/formations/alertes', methods=['GET'])
 @login_required
